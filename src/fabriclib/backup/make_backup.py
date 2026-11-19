@@ -26,7 +26,7 @@ def _meta(base, v, method):
              lan_gateway, base, method.
     Fails:   never (an unknown version is "?").
     Feeds:   make_backup."""
-    build = read_build(base)
+    build = read_build(os.path.join(base, "fabric"))
     if build["version"] == "?":
         build = read_build(PACKAGED)
     return {"fabric_version": build["version"], "commit": build["commit"],

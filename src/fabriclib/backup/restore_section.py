@@ -69,8 +69,9 @@ def restore_section(base, config_dir, path, section, key, installed_version, act
                     apply=None):
     """Purpose: one section of a bundle restored on a running install (manual 1.3.7.8): a safety bundle of the
              section (and settings, which holds the vars.yaml it is restored with) first, then the section's services
-             stopped, its folders replaced, its vars.yaml keys replaced (the rest kept), an online dump loaded where it has one (into the running database, whose
-             folder stays), the services started again and an apply run; audited.
+             stopped, its folders replaced, its vars.yaml keys replaced (the rest kept), an online dump loaded where
+             it has one (into the running database, whose folder stays), the services started again and an apply
+             run; audited.
     Inputs:  base — install root; config_dir — fabric's config folder; path — the bundle; section — its name;
              key — {"passphrase"} or {"private_key"}; installed_version — this install's fabric version; actor, source
              — who (audit); apply — callable running `fabricctl --apply` (tests), default the command.

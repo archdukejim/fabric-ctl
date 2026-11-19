@@ -34,7 +34,7 @@ def stop_for_copy(base):
     Returns: None. Nothing of this install is running, and no timer of fabric's can start anything during the copy.
     Fails:   ValidationError from control_stack, or when a container of this install is still running after STOP_WAIT:
              the copy would not be consistent, so there is none.
-    Feeds:   export_install, backup/make_backup (a cold bundle)."""
+    Feeds:   backup/make_backup (a cold bundle: uninstall, reinstall)."""
     # one that is not there is no failure
     subprocess.run(["systemctl", "stop", *[f"{t}.timer" for t in TIMERS]], capture_output=True)
     control_stack("stop")                          # names every unit, so systemctl waits for each

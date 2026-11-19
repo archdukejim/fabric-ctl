@@ -3,6 +3,7 @@ import sys
 
 from fabriclib.backup.read_backup_key import read_backup_key
 from fabriclib.backup.read_build import read_build
+from fabriclib.backup.read_changes import read_changes
 from fabriclib.backup.restore_bundle import restore_bundle
 from fabriclib.backup.restore_section import restore_section
 from fabriclib.backup.sections import SECTIONS
@@ -24,14 +25,8 @@ def _restore_bundle(args, ctx, path, cli):
     Returns: 1 when refused or not confirmed; on success it does not return (setup replaces the process).
     Fails:   OSError from os.execv.
     Feeds:   run_restore_command."""
-    changes = {}
     try:
-        for i, a in enumerate(args):
-            if a == "--set":
-                key, sep, value = (args[i + 1] if i + 1 < len(args) else "").partition("=")
-                if not sep:
-                    raise ValidationError("--set takes key=value, for example --set host_ip=10.0.5.2")
-                changes[key] = value
+        changes = read_changes(args)
         if "--yes" not in args and "-y" not in args:
             what = ", ".join(f"{k}={v}" for k, v in changes.items()) or "no changes"
             if ask("restore.confirm_bundle", f"Restore fabric from {path} ({what}) and set it up. "
@@ -74,7 +69,7 @@ def _restore_one_section(args, ctx, path):
             if ask("restore.confirm_section", f"Type the site's name ({site}) to restore {section}: ").strip() != site:
                 print("nothing changed")
                 return 1
-        version = read_build(ctx.deploy_base)["version"]
+        version = read_build(ctx.target_dir)["version"]
         out = restore_section(ctx.deploy_base, ctx.config_dir, path, section,
                               read_backup_key(args, v, opening=True), version)
     except ValidationError as exc:

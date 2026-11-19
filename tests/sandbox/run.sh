@@ -6,7 +6,7 @@
 #   -> doctor, DHCP (Kea), 802.1X (FreeRADIUS), the certificate page,
 #   systemd control (fabric.target), secrets and unlock in OpenBao, real
 #   sign-in incl. refusals, image update/rollback/prune, RFC2136/TSIG/ACLs,
-#   re-runs, package upgrade and remove, reinstall, uninstall with export,
+#   re-runs, package upgrade and remove, reinstall, uninstall with a backup bundle,
 #   restore from the export
 #
 #   sudo tests/sandbox/run.sh            (KEEP=1 leaves the sandbox running)
@@ -1109,10 +1109,13 @@ check "apt remove removes the command but not the running install" \
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > /dev/null 2>&1
 check "reinstalling the package gives the command back" "in_box 'fabricctl status' | grep -qE '^fabric.target +active'"
 
-echo "--- reinstall keeps fabric's secrets (backup exports them, setup re-imports and shreds) and the domain"
+echo "--- reinstall: a cold bundle, uninstall, the bundle restored (1.3.7.7): secrets re-imported and shredded, the domain kept"
 in_box 'python3 /root/make_person.py keeper' > "$OUT/keeper.log" 2>&1
 SID_BEFORE=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=keeper)' objectSid" | sed -n 's/^objectSid: //p')
-in_box 'fabricctl reinstall --yes --non-interactive' > "$OUT/reinstall.log" 2>&1
+# the bundle's passphrase, a test value, in root-only files: never on a command line (global Rule 10)
+( umask 077; printf '%s\n' "Bk7-$(openssl rand -hex 12)" > "$OUT/bundle-pw"; printf 'short\n' > "$OUT/bundle-pw-short" )
+docker cp "$OUT/bundle-pw" "$NAME:/root/bundle-pw"; docker cp "$OUT/bundle-pw-short" "$NAME:/root/bundle-pw-short"
+in_box 'fabricctl reinstall --yes --non-interactive --key-stdin < /root/bundle-pw' > "$OUT/reinstall.log" 2>&1
 # covers: cli:reinstall +
 check "reinstall completes" "grep -q 'fabric is ready' '$OUT/reinstall.log'"
 check "reinstall re-imported the exported secrets into OpenBao and left no plaintext file" \
@@ -1140,26 +1143,24 @@ PY
 docker cp "$OUT/argv_check.py" "$NAME:/root/argv_check.py"
 check "no secret appears in any process's argv" "in_box 'python3 /root/argv_check.py' | grep -q 'LEAKS: none'"
 
-echo "--- fabricctl uninstall: export to a folder of your choice, remove fabric and the package"
+echo "--- fabricctl uninstall: an encrypted backup bundle first, then fabric and the package removed (1.3.7.13)"
 CA_FP=$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')
-# a person made after the reinstall (which starts the domain fresh): only the export has her
+# a person made after the reinstall: only the bundle has her
 in_box 'python3 /root/make_person.py erin' > "$OUT/erin.log" 2>&1
 in_box 'fabricctl uninstall --yes' > "$OUT/uninstall-refused.log" 2>&1
 # covers: cli:uninstall -
-check "unattended uninstall without an export choice is refused, nothing changed"     "grep -q 'choose --export DIR or --no-export' '$OUT/uninstall-refused.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
-in_box 'fabricctl uninstall --yes --export /opt/fabric/exported' > "$OUT/uninstall-refused2.log" 2>&1
+check "unattended uninstall without a backup choice is refused, nothing changed"     "grep -q 'choose --backup or --no-backup' '$OUT/uninstall-refused.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
+in_box 'fabricctl uninstall --yes --backup --key-stdin < /root/bundle-pw-short' > "$OUT/uninstall-refused2.log" 2>&1
 # covers: cli:uninstall -
-check "an export folder the uninstall would delete is refused"     "grep -q 'would be deleted by the uninstall' '$OUT/uninstall-refused2.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
-in_box 'fabricctl uninstall --yes --export /root/fabric-export --purge-package' > "$OUT/uninstall.log" 2>&1
-EX=/root/fabric-export
+check "a passphrase shorter than 12 characters is refused before anything is touched"     "grep -q 'shorter than 12' '$OUT/uninstall-refused2.log' && in_box 'systemctl is-active fabric.target' | grep -qx active && ! in_box 'ls /var/backups/fabric/*-uninstall.fabric.tar' >/dev/null 2>&1"
+in_box 'fabricctl uninstall --yes --backup --key-stdin --purge-package < /root/bundle-pw' > "$OUT/uninstall.log" 2>&1
+B=$(in_box 'ls /var/backups/fabric/*-uninstall.fabric.tar' 2>/dev/null | tail -1)
 # covers: cli:uninstall +
-check "export: config, secrets, CA, directory, Keycloak, the vault and its key, README (root 0700)"     "in_box 'test -s $EX/fabric/config/fabric-secrets.yml && test -d $EX/stepca/data && test -d $EX/samba/data && test -d $EX/postgres && test -d $EX/openbao/data && test -f $EX/@root/etc/fabric/openbao/slots.json && test -f $EX/README.txt && [ \"\$(stat -c %a $EX)\" = 700 ]'"
-check "the package was purged too, and nothing was written to /var/backups"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && ! in_box 'test -e /var/backups/fabric'"
+check "the bundle: one root-only file with its manifest, its sealed key and the seven sections"     "[ -n '$B' ] && [ \"\$(in_box \"stat -c '%a %U' $B\")\" = '600 root' ] && [ \"\$(in_box \"tar tf $B\" | grep -cE '^(settings|pki|secrets|directory|dns|signin|dhcp)\.tar\.zst\.age\$')\" = 7 ] && in_box \"tar xOf $B manifest.json\" | grep -q '\"method\": \"cold\"' && in_box \"tar tf $B\" | grep -qx key.age"
+check "nothing in the bundle is plain: no private key or the admin's password in it"     "! in_box \"grep -caE 'PRIVATE KEY|$ADMIN_PW' $B\" | grep -qv '^0\$'"
+check "the package was purged too; the bundle is kept"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && in_box \"test -s $B\""
 # the container names asked of Docker first, so a failing `docker ps` cannot pass for "none left"
 LEFT_NAMES=$(in_box "docker ps -a --format '{{.Names}}'"); LEFT_RC=$?
-# a clean shutdown removes it: Postgres was really stopped when it was copied (2.3.1.53: 0.9.0's export copied it running)
-check "the export copied Postgres stopped: no postmaster.pid in the copy" \
-    "in_box 'test -d $EX/postgres/data/pgdata && ! test -e $EX/postgres/data/pgdata/postmaster.pid'"
 check "no fabric container, network or unit is left"     "[ $LEFT_RC -eq 0 ] && ! grep -qxE 'bind9|bind9-resolver|step-ca|samba|keycloak|postgres|nginx|openbao|fabric-web|kea-dhcp4|kea-ddns|freeradius|fluentbit' <<<\"\$LEFT_NAMES\"      && ! in_box 'docker network inspect fabric_net' >/dev/null 2>&1      && ! in_box 'ls /etc/systemd/system/fabric.target /etc/systemd/system/{bind9,bind9-resolver,stepca,samba,keycloak,postgres,nginx,openbao,fabric-web,kea,freeradius,fabric-agent}.service' >/dev/null 2>&1"
 check "no data, key, kill-switch rule, CA trust, command or service account is left"     "! in_box 'ls -d /opt/fabric /opt/bind9 /opt/stepca /opt/openbao /opt/dirsrv /opt/kea /opt/freeradius /etc/fabric/openbao /run/fabric/openbao /run/fabric/openbao-admin /etc/udev/rules.d/90-fabric-unlock.rules /usr/local/bin/fabricctl /usr/bin/fabricctl /etc/fabric /usr/lib/fabricctl' >/dev/null 2>&1      && ! in_box 'ls /usr/local/share/ca-certificates/fabric-*' >/dev/null 2>&1 && ! in_box 'id fabric-vault' >/dev/null 2>&1"
 check "DNS is gone" "! in_box 'dig +time=2 +tries=1 +short @$IP ns.lan.test' | grep -qx $IP"
@@ -1173,14 +1174,19 @@ check "uninstall removed the host's local-admin (the account, its home, its SSH 
     "grep -qE \"This host's local-admin +undone\" '$OUT/uninstall.log' && ! in_box 'id local-admin' >/dev/null 2>&1 \
      && ! in_box 'test -e /home/local-admin || test -e /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
 
-echo "--- fabricctl restore: the same fabric back from the export"
+echo "--- fabricctl restore: the same fabric back from the bundle (1.3.7.6)"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt-restore.log" 2>&1
 in_box 'fabricctl restore /root/nope --yes' > "$OUT/restore-refused.log" 2>&1
 # covers: cli:restore -
 check "restore refuses a folder that is not a fabric export" "grep -q 'is not a fabric export' '$OUT/restore-refused.log'"
-in_box 'fabricctl restore /root/fabric-export --yes' > "$OUT/restore.log" 2>&1
+in_box "fabricctl restore $B --key-stdin --yes < /root/bundle-pw-short" > "$OUT/restore-refused2.log" 2>&1
+# covers: cli:restore -
+check "restore refuses a wrong passphrase, nothing unpacked" "[ -s '$OUT/restore-refused2.log' ] && ! in_box 'test -e /opt/fabric/config/vars.yaml'"
+in_box "fabricctl restore $B --key-stdin --yes < /root/bundle-pw" > "$OUT/restore.log" 2>&1
 # covers: cli:restore +
-check "restore: setup completes on the exported data" "grep -q 'fabric is ready' '$OUT/restore.log'"
+check "restore: setup completes on the bundle's data" "grep -q 'fabric is ready' '$OUT/restore.log'"
+check "restore: the bundle copied Postgres stopped (2.3.1.53): it started without recovery" \
+    "! in_box 'docker logs postgres 2>&1' | grep -q 'not properly shut down'"
 check "restore: the same CA (clients keep trusting it)" \
     "[ \"\$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')\" = '$CA_FP' ]"
 check "restore: OpenBao unlocked with its own key, not re-initialised; fabric's secrets back in it" \
@@ -1191,6 +1197,16 @@ check "restore: the domain is back (erin, added after the reinstall, exists agai
 in_box 'fabricctl doctor' > "$OUT/doctor-restore.log" 2>&1
 check "restore: doctor passes" "! grep -q '✗' '$OUT/doctor-restore.log' && grep -q '✓' '$OUT/doctor-restore.log'"
 doctor_why "$OUT/doctor-restore.log"
+
+echo "--- fabricctl restore --section: one section of the bundle on the running install (1.3.7.8)"
+in_box "fabricctl restore $B --section secrets --key-stdin --yes < /root/bundle-pw" > "$OUT/section-refused.log" 2>&1
+# covers: cli:restore -
+check "secrets alone is refused, nothing changed" "grep -q 'not restored alone' '$OUT/section-refused.log'"
+in_box "fabricctl restore $B --section dns --key-stdin --yes < /root/bundle-pw" > "$OUT/section.log" 2>&1
+# covers: cli:restore +
+check "dns restored alone: a safety bundle made first, DNS answering after" \
+    "grep -q 'dns restored from' '$OUT/section.log' && in_box 'ls /var/backups/fabric/*-manual.fabric.tar' >/dev/null 2>&1 \
+     && [ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
 
 echo; echo "$PASS passed, $FAIL failed"
 if [ "${KEEP:-0}" != 1 ]; then

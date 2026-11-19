@@ -64,12 +64,14 @@
                                  fabric's own secrets (in OpenBao); `show` is audited
   fabricctl client-cert <user> [--days N]
                                  web UI client certificate (.p12) into ~/fabric-admin
-  fabricctl uninstall            remove fabric from this host; offers to export all its data to a
-                                 folder you choose first, and to remove the package too
-                                 (unattended: --yes --export DIR|--no-export [--purge-package])
-  fabricctl reinstall [--yes]    uninstall + setup, keeping config, secrets, the CA and certificates
-  fabricctl restore <folder> [--yes]
-                                 bring back a fabric exported by `uninstall --export` (or apt purge)
+  fabricctl uninstall            remove fabric from this host; offers an encrypted backup bundle of it
+                                 first, and to remove the package too
+                                 (unattended: --yes --backup [--key-stdin]|--no-backup [--purge-package])
+  fabricctl reinstall [--set host_ip=…]
+                                 backup bundle, uninstall, restore it with any address changes, set up
+  fabricctl restore <bundle> [--set k=v | --section NAME]
+                                 a whole restore (fabric not installed) or one section (installed);
+                                 a folder from 0.10.0's `uninstall --export` is restored too
 
 Older flag forms (still supported):
   fabricctl [--interactive]      the vars editor menu      fabricctl --print   list the vars
@@ -90,7 +92,6 @@ import sys
 # folders (dns/, keycloak/) would shadow real packages. Use fabric/lib.
 sys.path[0] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from fabriclib.backup.run_backup_command import run_backup_command  # noqa: E402
-from fabriclib.common.ask import ask  # noqa: E402
 from fabriclib.consent.show_consent_status import show_consent_status  # noqa: E402
 from fabriclib.dhcp.run_dhcp_command import run_dhcp_command  # noqa: E402
 from fabriclib.ipam.run_ipam_command import run_ipam_command  # noqa: E402
@@ -120,15 +121,12 @@ from fabriclib.pki.run_mint_certs_command import run_mint_certs_command  # noqa:
 from fabriclib.pki.run_service_cert_command import run_service_cert_command  # noqa: E402
 from fabriclib.system.render_template_file import render_template_file  # noqa: E402
 from fabriclib.setup import run_setup  # noqa: E402
-from fabriclib.setup.backup_install import backup_install  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
-from fabriclib.setup.restore_install import restore_install  # noqa: E402
 from fabriclib.setup.run_restore_command import run_restore_command  # noqa: E402
+from fabriclib.setup.run_reinstall_command import run_reinstall_command  # noqa: E402
 from fabriclib.setup.run_uninstall_command import run_uninstall_command  # noqa: E402
-from fabriclib.setup.stage_source import stage_source  # noqa: E402
 from fabriclib.system.control_stack import control_stack  # noqa: E402
 from fabriclib.vault.run_vault_command import run_vault_command  # noqa: E402
-from fabriclib.setup.uninstall import uninstall  # noqa: E402
 from fabriclib.pki.run_acme_command import run_acme_command  # noqa: E402
 from fabriclib.pki.run_certs_command import run_certs_command  # noqa: E402
 from fabriclib.pki.show_cert_warnings import show_cert_warnings  # noqa: E402
@@ -154,17 +152,6 @@ def _without_base(args):
     Feeds:   main (acme, certs)."""
     at = args.index("--deploy-base") if "--deploy-base" in args else None
     return args if at is None else args[:at] + args[at + 2:]
-
-
-def _confirm(prompt, args):
-    """Purpose: ask the operator to confirm a destructive command unless --yes/-y was given.
-    Inputs:  prompt — text shown before "Type 'yes' to continue:"; args — the subcommand's arguments.
-    Returns: True when --yes/-y is in args or the answer is "yes" (any case); otherwise False.
-    Fails:   EOFError from input() when stdin is closed and --yes was not given.
-    Feeds:   main (`reinstall`)."""
-    if "--yes" in args or "-y" in args:
-        return True
-    return ask("cli.reinstall.confirm", f"{prompt} Type 'yes' to continue: ").lower() == "yes"
 
 
 def _version():
@@ -224,8 +211,8 @@ def main(argv):
     Inputs:  argv — command-line words after the program name; argv[0] is the command (none: help).
              Every command except help needs root. --deploy-base DIR selects the install root.
     Returns: exit status (int): the handler's status, 0 for help, 2 for an unknown command or missing
-             arguments (the module docstring is printed). `reinstall` never returns: after backup, uninstall
-             and restore it replaces the process with `cli.py setup --yes` from the staged source.
+             arguments (the module docstring is printed). `reinstall` does not return once its bundle is
+             restored (run_reinstall_command replaces the process with setup).
     Fails:   SystemExit("Run as root ...") when not root. start/stop/restart/status: any exception is printed
              as "error: ..." and 1 is returned. Other commands let their handlers' exceptions propagate as a
              traceback (e.g. ValidationError, SetupError from `certs`, ValueError for a non-numeric --days).
@@ -335,16 +322,7 @@ def main(argv):
     if cmd == "uninstall":
         return run_uninstall_command(args, _base(args))
     if cmd == "reinstall":
-        ctx = SetupContext(deploy_base=_base(args))
-        if not _confirm("Reinstall fabric (config, secrets, CA and certificates are kept).", args):
-            return 1
-        saved = backup_install(ctx)
-        source = stage_source(ctx)          # uninstall deletes an installed copy
-        uninstall(ctx)
-        restore_install(ctx, saved)
-        cli = os.path.join(source, "lib", "fabriclib", "cli.py")
-        os.execv(sys.executable, [sys.executable, cli, "setup", "--yes",
-                                  *[a for a in args if a not in ("--yes", "-y")]])
+        return run_reinstall_command(args, _base(args))
     print(__doc__)
     return 0 if cmd in ("help", "--help", "-h") else 2
 

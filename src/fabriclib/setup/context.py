@@ -64,7 +64,7 @@ class SetupContext:
         Returns: "<deploy_base>/fabric/config/fabric-secrets.yml" (str).
         Fails:   never — string join only.
         Feeds:   secrets, cli main (`secrets`), collect_vars, deploy_config, setup_openbao, start_services,
-                 backup_install, export_install."""
+                 backup/make_backup (via run_uninstall_command, run_reinstall_command)."""
         return os.path.join(self.config_dir, "fabric-secrets.yml")
 
     def path(self, *parts):
@@ -82,7 +82,7 @@ class SetupContext:
                  secrets cache cleared.
         Fails:   OSError if the file exists but cannot be read; yaml.YAMLError if it does not parse.
         Feeds:   run_setup (after deploy, for --step and doctor), cli main, renew_service_certs,
-                 run_uninstall_command, uninstall, backup_install, deploy_config."""
+                 run_uninstall_command, run_reinstall_command, uninstall, deploy_config."""
         if os.path.exists(self.vars_file):
             with open(self.vars_file) as f:
                 self.vars = yaml.safe_load(f) or {}

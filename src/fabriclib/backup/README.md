@@ -15,6 +15,7 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `bundle_name.py` | A bundle's file name: host, UTC time, kind |
 | `check_backup_space.py` | Refuse a bundle the disk cannot hold: twice what it copies must be free |
 | `check_bundle.py` | Whether a bundle is whole: the manifest, key.age, the seven sections and each one's SHA-256 |
+| `check_changes.py` | The address changes a whole restore or reinstall may make, checked before anything is touched |
 | `dump_directory.py` | The domain copied while the DC runs (`samba-tool domain backup offline`) |
 | `dump_signin.py` | Keycloak's database dumped while it runs (`pg_dump -Fc` over the container's own socket) |
 | `freeze_zones.py` | BIND's zones written out and held still while they are copied (`rndc freeze`, `thaw`) |
@@ -34,6 +35,7 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `prune_bundles.py` | Keep the newest scheduled bundles; never remove the others |
 | `read_backup_key.py` | How a bundle is sealed or opened: a passphrase asked twice or read from stdin, a public key, a private key file |
 | `read_build.py` | What a code tree was built as (version, commit), from its BUILD file |
+| `read_changes.py` | `--set key=value` words read into the changes asked for |
 | `read_manifest.py` | A bundle's manifest, read without any key |
 | `restore_bundle.py` | A whole restore: the bundle checked and opened, every section in place, address changes written |
 | `restore_section.py` | One section restored on a running install: a safety bundle first, its services stopped and started |

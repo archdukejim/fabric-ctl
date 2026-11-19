@@ -226,6 +226,7 @@ file	fabriclib-backup|src/fabriclib/backup/bundle_key_from.py	1
 file	fabriclib-backup|src/fabriclib/backup/bundle_name.py	2	
 file	fabriclib-backup|src/fabriclib/backup/check_backup_space.py	17	
 file	fabriclib-backup|src/fabriclib/backup/check_bundle.py	3	
+file	fabriclib-backup|src/fabriclib/backup/check_changes.py	39	
 file	fabriclib-backup|src/fabriclib/backup/dump_directory.py	18	
 file	fabriclib-backup|src/fabriclib/backup/dump_signin.py	19	
 file	fabriclib-backup|src/fabriclib/backup/freeze_zones.py	20	
@@ -245,6 +246,7 @@ file	fabriclib-backup|src/fabriclib/backup/pause_unit.py	24
 file	fabriclib-backup|src/fabriclib/backup/prune_bundles.py	25	
 file	fabriclib-backup|src/fabriclib/backup/read_backup_key.py	26	
 file	fabriclib-backup|src/fabriclib/backup/read_build.py	38	
+file	fabriclib-backup|src/fabriclib/backup/read_changes.py	40	
 file	fabriclib-backup|src/fabriclib/backup/read_manifest.py	9	
 file	fabriclib-backup|src/fabriclib/backup/restore_bundle.py	33	
 file	fabriclib-backup|src/fabriclib/backup/restore_pending.py	34	
@@ -1111,8 +1113,8 @@ file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	108	
 file	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py	38	0.5.0 / 2026-10-04
-file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	
-file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
+file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	0.10.0 / 2026-11-19
+file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	0.10.0 / 2026-11-19
 file	fabriclib-setup|src/fabriclib/setup/choose_mode.py	67	
 file	fabriclib-setup|src/fabriclib/setup/choose_plan.py	3	
 file	fabriclib-setup|src/fabriclib/setup/collect_vars.py	4	
@@ -1164,7 +1166,7 @@ file	fabriclib-setup|src/fabriclib/setup/doctor_report.py	41
 file	fabriclib-setup|src/fabriclib/setup/drop_old_authority_max.py	154	
 file	fabriclib-setup|src/fabriclib/setup/drop_retired_settings.py	103	
 file	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py	42	
-file	fabriclib-setup|src/fabriclib/setup/export_install.py	16	
+file	fabriclib-setup|src/fabriclib/setup/export_install.py	16	0.10.0 / 2026-11-19
 file	fabriclib-setup|src/fabriclib/setup/finish_vars.py	74	
 file	fabriclib-setup|src/fabriclib/setup/harden_docker.py	17	
 file	fabriclib-setup|src/fabriclib/setup/init_pki.py	18	
@@ -1184,6 +1186,7 @@ file	fabriclib-setup|src/fabriclib/setup/require_terminal.py	106
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
 file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	0.7.2 / 2026-10-20
+file	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py	156	
 file	fabriclib-setup|src/fabriclib/setup/run_restore_command.py	27	
 file	fabriclib-setup|src/fabriclib/setup/run_setup.py	28	
 file	fabriclib-setup|src/fabriclib/setup/run_steps.py	98	
@@ -2168,6 +2171,7 @@ function	fabriclib-backup|src/fabriclib/backup/bundle_name.py|bundle_name	1
 function	fabriclib-backup|src/fabriclib/backup/check_backup_space.py|_used	1	
 function	fabriclib-backup|src/fabriclib/backup/check_backup_space.py|check_backup_space	2	
 function	fabriclib-backup|src/fabriclib/backup/check_bundle.py|check_bundle	1	
+function	fabriclib-backup|src/fabriclib/backup/check_changes.py|check_changes	1	
 function	fabriclib-backup|src/fabriclib/backup/dump_directory.py|dump_directory	1	
 function	fabriclib-backup|src/fabriclib/backup/dump_signin.py|dump_signin	1	
 function	fabriclib-backup|src/fabriclib/backup/freeze_zones.py|freeze_zones	1	
@@ -2190,8 +2194,9 @@ function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_key_file	2
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_value	1	
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|read_backup_key	3	
 function	fabriclib-backup|src/fabriclib/backup/read_build.py|read_build	1	
+function	fabriclib-backup|src/fabriclib/backup/read_changes.py|read_changes	1	
 function	fabriclib-backup|src/fabriclib/backup/read_manifest.py|read_manifest	1	
-function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_check_changes	2	
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_check_changes	2	0.10.0 / 2026-11-19
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_version	1	
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|restore_bundle	3	
 function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|read_restore_pending	1	
@@ -2309,7 +2314,7 @@ function	fabriclib-consent|src/fabriclib/consent/planned_vars.py|planned_vars	1
 function	fabriclib-consent|src/fabriclib/consent/save_consent.py|save_consent	1	
 function	fabriclib-consent|src/fabriclib/consent/show_consent_status.py|show_consent_status	1	
 function	fabriclib-core|src/fabriclib/cli.py|_base	1	
-function	fabriclib-core|src/fabriclib/cli.py|_confirm	2	
+function	fabriclib-core|src/fabriclib/cli.py|_confirm	2	0.10.0 / 2026-11-19
 function	fabriclib-core|src/fabriclib/cli.py|_flags	4	
 function	fabriclib-core|src/fabriclib/cli.py|_version	3	
 function	fabriclib-core|src/fabriclib/cli.py|_without_base	6	
@@ -3509,8 +3514,8 @@ function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|ask_ram	2	0.6.4 / 2026-1
 function	fabriclib-setup|src/fabriclib/setup/ask_site_number.py|ask_site_number	1	
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|_number	1	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|ask_windows_domain	2	0.5.0 / 2026-10-04
-function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	
-function	fabriclib-setup|src/fabriclib/setup/check_export_dir.py|check_export_dir	1	
+function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	0.10.0 / 2026-11-19
+function	fabriclib-setup|src/fabriclib/setup/check_export_dir.py|check_export_dir	1	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/choose_mode.py|choose_mode	1	
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_ca_lifetime	10	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_dhcp	2	0.6.4 / 2026-10-09
@@ -3629,10 +3634,10 @@ function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_restore_reco
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|align_postgres_roles	8	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|configure_db_engine	5	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|run	7	
-function	fabriclib-setup|src/fabriclib/setup/export_install.py|_copy	1	
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|_copy	1	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/export_install.py|_still_running	3	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/export_install.py|_stop_stack	4	0.10.0 / 2026-11-19
-function	fabriclib-setup|src/fabriclib/setup/export_install.py|export_install	2	
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|export_install	2	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/finish_vars.py|finish_vars	1	
 function	fabriclib-setup|src/fabriclib/setup/harden_docker.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_check_root_lifetime	9	
@@ -3686,6 +3691,8 @@ function	fabriclib-setup|src/fabriclib/setup/require_terminal.py|require_termina
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
 function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
+function	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py|_setup_args	1	
+function	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py|run_reinstall_command	2	
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_package_version	2	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_bundle	3	
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_one_section	4	
@@ -3694,7 +3701,8 @@ function	fabriclib-setup|src/fabriclib/setup/run_setup.py|main	1
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_now	1	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_save_settings	2	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|run_steps	3	
-function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_opt	1	
+function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_choice	5	
+function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_opt	1	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_package_installed	2	
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_show_plan	3	
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|run_uninstall_command	4	

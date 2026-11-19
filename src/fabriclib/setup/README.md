@@ -55,12 +55,10 @@
 | `verify_install.py` | End-to-end checks (DNS, HTTPS chains, web UI gates, time, services) |
 | `wait_ready.py` | The `ready` step: waits until the landing page, sign-in, the console and Keycloak's database answer together before setup says it is ready (2.1.2.25) |
 | `uninstall.py` | Remove fabric (only fabric's own objects) |
-| `run_restore_command.py` | `fabricctl restore <export>`: put an export back and run setup on it (refused while installed) |
-| `run_uninstall_command.py` | `fabricctl uninstall`: asks about an export and the package first, then exports, uninstalls, optionally `apt purge` |
-| `export_install.py` | Export all of fabric's data (secrets from OpenBao, then every folder copied cold, vault key, README) to a folder you choose |
-| `check_export_dir.py` | Refuse an export folder the uninstall would delete, or one that is not new/empty |
-| `backup_install.py` | `reinstall`: keep config, secrets (exported from OpenBao), CA, certificates and OpenBao (data + key) in `/root` (owners preserved; not the directory or Keycloak data) |
-| `restore_install.py` | Put a reinstall backup or a full export back under the install root (owners preserved) |
+| `run_restore_command.py` | `fabricctl restore <bundle>`: whole (then setup) or `--section` on a running install; a 0.10.0 export folder too |
+| `run_reinstall_command.py` | `fabricctl reinstall`: a cold bundle, uninstall, the bundle restored with any address changes, setup |
+| `run_uninstall_command.py` | `fabricctl uninstall`: asks about a backup bundle (its passphrase) and the package first, then bundles, uninstalls, optionally `apt purge` |
+| `restore_install.py` | Put a 0.10.0 export folder back under the install root (owners preserved) |
 | `stage_source.py` | Reinstall from the installed copy: stage the code in `/var/tmp` so uninstall cannot delete what setup runs from |
 | `renew_service_certs.py` | `fabricctl certs [--force / --scheduled]`: renewal (the daily timer's too); each changed service reloaded or restarted (pick_up_cert); the run recorded for status and doctor |
 | `common/` | Helpers shared with the consent plans |

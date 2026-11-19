@@ -1,4 +1,3 @@
-import ipaddress
 import os
 import shutil
 
@@ -6,6 +5,7 @@ from fabriclib.backup.backup_lock import backup_lock
 from fabriclib.backup.backup_plan import DUMPS
 from fabriclib.backup.bundle_key_from import bundle_key_from
 from fabriclib.backup.check_bundle import check_bundle
+from fabriclib.backup.check_changes import check_changes
 from fabriclib.backup.open_section import open_section
 from fabriclib.backup.restore_pending import write_restore_pending
 from fabriclib.backup.sections import ORDER
@@ -15,7 +15,6 @@ from fabriclib.common.save_vars import save_vars
 from fabriclib.common.write_audit import write_audit
 from fabriclib.setup.detach.constants import RECORD
 
-CHANGEABLE = ("host_ip", "lan_cidr", "lan_gateway")
 DUMP_FILES = {"directory": None, "secrets": "openbao.snap", "signin": "keycloak.pgdump"}
 
 
@@ -30,32 +29,6 @@ def _version(text):
         return tuple(int(p) for p in parts[:3]) if len(parts) >= 3 else None
     except ValueError:
         return None
-
-
-def _check_changes(changes, manifest):
-    """Purpose: the settings a whole restore may change (manual 1.3.7.7), checked against the bundle's own before
-             anything is unpacked.
-    Inputs:  changes — {key: value}; manifest — the bundle's (host_ip, lan_cidr, lan_gateway as it was made).
-    Returns: {key: (old, new)} of what changes.
-    Fails:   ValidationError: a key that cannot change (the domain, the DC's name, the host's name: renamed after the
-             restore, 4.2.4.3), an address that is not one, a gateway or address outside the subnet, the host on the
-             gateway's address.
-    Feeds:   restore_bundle."""
-    bad = sorted(set(changes) - set(CHANGEABLE))
-    if bad:
-        raise ValidationError(f"a restore changes only {', '.join(CHANGEABLE)}; not {', '.join(bad)}"
-                              + (" (rename the host after the restore: manual 4.2.4.3)" if "hostname" in bad else ""))
-    new = {k: changes.get(k, manifest.get(k)) for k in CHANGEABLE}
-    try:
-        net = ipaddress.ip_network(new["lan_cidr"], strict=False)
-        host, gateway = ipaddress.ip_address(new["host_ip"]), ipaddress.ip_address(new["lan_gateway"])
-    except (ValueError, TypeError) as exc:
-        raise ValidationError(f"the new network is not valid: {exc}") from None
-    if host not in net or gateway not in net:
-        raise ValidationError(f"{host} and its gateway {gateway} must both be in {net}")
-    if host == gateway:
-        raise ValidationError(f"the host's address {host} is the gateway's")
-    return {k: (manifest.get(k), new[k]) for k in CHANGEABLE if str(manifest.get(k)) != str(new[k])}
 
 
 def restore_bundle(base, path, key, changes=None, package_version="?", actor="root", source="cli"):
@@ -81,7 +54,7 @@ def restore_bundle(base, path, key, changes=None, package_version="?", actor="ro
                                   f"package ({package_version}): install that version or newer first")
         if os.path.normpath(manifest.get("base") or base) != os.path.normpath(base):
             raise ValidationError(f"the bundle is of an install at {manifest['base']}, not {base}")
-        changed = _check_changes(changes or {}, manifest)
+        changed = check_changes(changes or {}, manifest)
         identity = bundle_key_from(path, **key)
         shutil.rmtree(DUMPS, ignore_errors=True)
         for section in ORDER:
