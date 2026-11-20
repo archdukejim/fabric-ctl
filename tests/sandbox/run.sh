@@ -1242,6 +1242,7 @@ check "the DC's certificate names the new address (re-issued from the same CA)" 
 check "the domain came along (erin still exists)" \
     "in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=erin)' sAMAccountName\" | grep -qx 'sAMAccountName: erin'"
 check "the TSIG key still updates DNS at the new address" "[ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
+check "DHCP serves the new subnet: the plan's LAN subnet moved with its pool's host numbers (1.3.7.7)"     "in_box 'docker exec kea-dhcp4 cat /config/kea-dhcp4.conf' | grep -q '10.79.0.0/24'      && in_box 'docker exec kea-dhcp4 cat /config/kea-dhcp4.conf' | grep -q '10.79.0.200'      && ! in_box 'docker exec kea-dhcp4 cat /config/kea-dhcp4.conf' | grep -q '10.77.0.0/24'"
 check "settings still at the old address are listed, not changed (step 5)" \
     "! grep -q 'still at the old address' '$OUT/move.log' || grep -q '$IP_OLD\|10\.77\.0\.' '$OUT/move.log'"
 grep 'still at the old address' "$OUT/move.log" | sed 's/^/    listed: /'

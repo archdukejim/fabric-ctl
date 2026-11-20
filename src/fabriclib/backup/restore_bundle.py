@@ -89,6 +89,8 @@ def restore_bundle(base, path, key, changes=None, package_version="?", actor="ro
                 dump = name if name in found else next((f for f in found if f.endswith(".tar.bz2")), None)
                 if dump and (name is None or dump == name):
                     pending[section] = os.path.join(folder, dump)
+        if "lan_cidr" in changed and manifest.get("lan_cidr"):    # the plan's LAN subnet moves too (1.3.7.7)
+            pending["plan_move"] = {"from": manifest["lan_cidr"], "to": changed["lan_cidr"][1]}
         write_restore_pending(config, pending)
         record = os.path.join(config, RECORD)
         if os.path.exists(record):                # a run record copied with the config: setup starts over

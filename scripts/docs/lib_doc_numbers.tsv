@@ -720,7 +720,9 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py	97
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	19	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	63	
+file	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py	129	
 file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	58	
+file	fabriclib-ipam|src/fabriclib/ipam/moved_plan.py	130	
 file	fabriclib-ipam|src/fabriclib/ipam/networks_csv.py	90	
 file	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py	91	
 file	fabriclib-ipam|src/fabriclib/ipam/networks_view.py	92	
@@ -2913,7 +2915,11 @@ function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_globals	2	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|load_address_plan	3	
+function	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py|_vid	1	
+function	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py|move_lan_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py|move_subnets_to_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/moved_plan.py|_remap	1	
+function	fabriclib-ipam|src/fabriclib/ipam/moved_plan.py|moved_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/networks_csv.py|networks_csv	1	
 function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|_cached	1	
 function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|networks_overview	2	

@@ -4,8 +4,9 @@ import time
 
 from fabriclib.backup.load_directory_dump import load_directory_dump
 from fabriclib.backup.load_signin_dump import load_signin_dump
+from fabriclib.ipam.move_lan_subnet import move_lan_subnet
 from fabriclib.common.systemctl_up import systemctl_up
-from fabriclib.common.console import info, ok
+from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.apply_deployment import apply_deployment
 from fabriclib.directory.ensure_default_device_roles import ensure_default_device_roles
@@ -89,6 +90,11 @@ def run(ctx):
         info(line)
     for line in move_subnets_to_plan(v, ctx.secrets):        # once: 0.7's subnets into the address plan (1.10.4.15)
         info(line)
+    try:
+        for line in move_lan_subnet(v, ctx.config_dir, ctx.secrets):    # after a restore to another subnet (1.3.7.7)
+            info(line)
+    except ValidationError as e:
+        warn(f"address plan: the old LAN's subnet is not moved yet ({e}); the next setup goes on with it")
     if v.get("install_keycloak") and install_sso_keytab(v):     # Kerberos sign-in's keytab (manual 2.3.6.2.6.2)
         ok(f"keycloak: {start_unit('keycloak', 'keycloak', True)} (Kerberos sign-in keytab)")
     if (ctx.secrets or {}).get("ad_join"):        # a site whose DC just joined: its join account goes (1.9.8.4)

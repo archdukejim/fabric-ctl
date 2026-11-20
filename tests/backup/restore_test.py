@@ -118,8 +118,9 @@ check("positive: what still names the old address or subnet is listed: the admin
       "router; not a record elsewhere, not the changed settings",
       dict(out["leftover"]) == {"dns.lab.test.A.www": "10.0.0.5", "dhcp.subnets.0.subnet": "10.0.0.0/24",
                                 "dhcp.subnets.0.routers": "10.0.0.1"}, out["leftover"])
-check("positive: a cold bundle leaves nothing pending for setup", out["pending"] == [] and
-      read_restore_pending(config) == {}, out)
+check("positive: a cold bundle leaves no dump pending for setup; the plan's LAN subnet is to move with the subnet",
+      read_restore_pending(config) == {"plan_move": {"from": "10.0.0.0/24", "to": "10.0.5.0/24"}},
+      read_restore_pending(config))
 check("positive: audited as RESTORE", audits and audits[-1][1] == "RESTORE", audits)
 
 # run_restore_command's bundle form, setup's exec stood in for
