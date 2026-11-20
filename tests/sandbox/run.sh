@@ -1234,8 +1234,7 @@ IP_OLD=$IP; IP=$IP2
 check "the zone answers with the new address only" \
     "[ \"\$(in_box 'dig +short +time=2 +tries=1 @$IP2 ns.lan.test')\" = '$IP2' ]"
 check "the DC's own name is at the new address, not the old one" \
-    "in_box \"dig +short @$IP2 \$(grep '^hostname_dc:' /opt/fabric/config/vars.yaml | cut -d' ' -f2)\" | grep -qx '$IP2' \
-     && ! in_box \"dig +short @$IP2 \$(grep '^hostname_dc:' /opt/fabric/config/vars.yaml | cut -d' ' -f2)\" | grep -qx '$IP_OLD'"
+    "[ \"\$(in_box 'dig +short @$IP2 $DC_NAME A' | sort -u)\" = '$IP2' ]"
 check "the DC's certificate names the new address (re-issued from the same CA)" \
     "in_box 'echo | openssl s_client -connect $IP2:636 2>/dev/null | openssl x509 -noout -ext subjectAltName' | grep -q '$IP2' \
      && [ \"\$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')\" = '$CA_FP' ]"
