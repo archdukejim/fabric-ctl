@@ -1212,6 +1212,12 @@ echo "--- a move to another VLAN and subnet, by the operator's procedure (4.2.4.
 # the box's network is the VLAN: a second Docker network on another subnet stands for the new one
 NET2=fabric-sbx-net2; SUBNET2=10.79.0.0/24; IP2=10.79.0.10; GW2=10.79.0.1
 docker network rm "$NET2" >/dev/null 2>&1; docker network create --subnet "$SUBNET2" --gateway "$GW2" "$NET2" >/dev/null
+in_box "fabricctl move prepare $IP2" > "$OUT/move-prepare-refused.log" 2>&1
+# covers: cli:move.prepare -
+check "step 1a: an address off the LAN without its network is refused, pointing to --network"     "grep -q -- '--network' '$OUT/move-prepare-refused.log' && in_box 'fabricctl move status' | grep -qx 'no move announced'"
+in_box "fabricctl move prepare $IP2 --network $SUBNET2" > "$OUT/move-prepare.log" 2>&1
+# covers: cli:move.prepare +
+check "step 1a: the new address on the new subnet announced in the domain, for the members"     "grep -q 'announced' '$OUT/move-prepare.log' && in_box 'fabricctl move status' | grep -q 'to $IP2'"
 in_box 'fabricctl uninstall --yes --backup --key-stdin < /root/bundle-pw' > "$OUT/move-uninstall.log" 2>&1
 B2=$(in_box 'ls -t /var/backups/fabric/*-uninstall.fabric.tar' 2>/dev/null | head -1)
 check "step 2: fabric removed, its bundle kept, the package kept" \
@@ -1230,6 +1236,7 @@ check "step 3: the host has its new address and reaches its new gateway" \
 in_box "fabricctl restore $B2 $MOVE --approve ports,firewall,member --key-stdin --yes < /root/bundle-pw"     > "$OUT/move.log" 2>&1
 # covers: cli:restore +
 check "step 4: setup completes at the new address" "grep -q 'fabric is ready' '$OUT/move.log'"
+check "the announce came along in the bundle and was taken out once the host is at the new address (1.4.1.8.7)"     "in_box 'fabricctl move status' | grep -qx 'no move announced'"
 IP_OLD=$IP; IP=$IP2
 check "the zone answers with the new address only" \
     "[ \"\$(in_box 'dig +short +time=2 +tries=1 @$IP2 ns.lan.test')\" = '$IP2' ]"
