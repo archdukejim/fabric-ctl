@@ -6,6 +6,8 @@ and the certificate; the unprivileged listener in [listener/](listener/README.md
 | File | What |
 |---|---|
 | `guided_site.py` | `GuidedSite`: the site from open to close, as `common/ask`'s front end and `hand_over`'s follower |
+| `ask_start.py` | The site's first choice: New install or Restore from a backup (manual 1.3.7.10) |
+| `ask_restore.py` | Restore from a backup's questions: the bundle, its manifest, its key, the address changes, all checked before the plan's Proceed |
 | `session_keeper.py` | `SessionKeeper`: the one-time code, its wrong tries, the one session it opens, its idle end and its takeover |
 | `listener_link.py` | `ListenerLink`: the listener process and the socket pair to it |
 | `attach_server.py` | `AttachServer`: the root-only socket another terminal attaches at, and what it is shown |

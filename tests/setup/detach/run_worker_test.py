@@ -134,5 +134,18 @@ with tempfile.TemporaryDirectory() as d:
     check("negative: refused hand-off secrets: exit 1, nothing run, the run recorded failed",
           code == 1 and not seen and read_run(config)["state"] == "failed", (code, read_run(config)))
 
+import fabriclib.setup.detach.run_worker as rw  # noqa: E402
+with tempfile.TemporaryDirectory() as d:     # Restore from a backup (manual 1.3.7.10)
+    RESTORE = {"bundle": "/var/backups/fabric/b.fabric.tar", "changes": {}, "allow_again": False}
+    KEY = {"passphrase": "a bundle passphrase", "private_key": None}
+    config = setup(d, {"id": "r2", "state": "running", "done": [], "options": {"restore": RESTORE}},
+                   {"restore_key": KEY})
+    handoff, got = read_run(config)["handoff"], []
+    seen.clear()
+    rw.run_restore = lambda ctx, record, save, key, steps: got.append((record["options"]["restore"], key)) or 0
+    code = run_worker("r2", d, STEPS, read_secrets=read_own)
+    check("a restore's run: restored with the handed-over key, not Guided's steps; the hand-off then removed",
+          code == 0 and got == [(RESTORE, KEY)] and not seen and not os.path.exists(handoff)
+          and read_run(config)["handoff"] is None, (got, seen, read_run(config)))
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

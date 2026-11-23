@@ -31,6 +31,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
   - 4.3.7.5 Troubleshoot backups
   - 4.3.7.6 Restore the whole bundle
   - 4.3.7.7 Upload a bundle
+  - 4.3.7.8 Restore from the setup site
 
 ## 4.4 DNS: BIND
 

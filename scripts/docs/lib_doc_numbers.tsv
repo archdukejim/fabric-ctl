@@ -1176,6 +1176,7 @@ file	fabriclib-setup|src/fabriclib/setup/detach/launch_worker.py	90
 file	fabriclib-setup|src/fabriclib/setup/detach/read_handoff.py	91	
 file	fabriclib-setup|src/fabriclib/setup/detach/read_run.py	92	
 file	fabriclib-setup|src/fabriclib/setup/detach/resume_run.py	93	
+file	fabriclib-setup|src/fabriclib/setup/detach/run_restore.py	157	
 file	fabriclib-setup|src/fabriclib/setup/detach/run_worker.py	94	
 file	fabriclib-setup|src/fabriclib/setup/detach/unit_running.py	95	
 file	fabriclib-setup|src/fabriclib/setup/detach/write_handoff.py	96	
@@ -1214,6 +1215,8 @@ file	fabriclib-setup|src/fabriclib/setup/service_cert_targets.py	153
 file	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py	47	
 file	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py	105	
 file	fabriclib-setup|src/fabriclib/setup/setup_openbao.py	30	
+file	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py	158	
+file	fabriclib-setup|src/fabriclib/setup/site/ask_start.py	159	
 file	fabriclib-setup|src/fabriclib/setup/site/attach_server.py	149	
 file	fabriclib-setup|src/fabriclib/setup/site/attach_site.py	150	
 file	fabriclib-setup|src/fabriclib/setup/site/certificate_fingerprint.py	110	
@@ -3684,6 +3687,8 @@ function	fabriclib-setup|src/fabriclib/setup/detach/launch_worker.py|launch_work
 function	fabriclib-setup|src/fabriclib/setup/detach/read_handoff.py|read_handoff	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/read_run.py|read_run	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/resume_run.py|resume_run	1	
+function	fabriclib-setup|src/fabriclib/setup/detach/run_restore.py|_now	1	
+function	fabriclib-setup|src/fabriclib/setup/detach/run_restore.py|run_restore	2	
 function	fabriclib-setup|src/fabriclib/setup/detach/run_worker.py|run_worker	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/unit_running.py|unit_running	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/write_handoff.py|write_handoff	1	
@@ -3782,6 +3787,10 @@ function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|set_ram_capacit
 function	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|_save_recovery	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|run	2	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|_pick_bundle	1	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|_show	2	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|ask_restore	3	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_start.py|ask_start	1	
 function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer.__init__	1	
 function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer._accept	3	
 function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer._send	4	
@@ -3835,6 +3844,7 @@ function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_field	2
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_finish	4	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_log_text	1	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_question	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_restored	6	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|page_for	5	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|_steps	3	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|escape	1	

@@ -8,6 +8,7 @@ import time
 from fabriclib.common.ask import use_front_end
 from fabriclib.common.paths import LIB_DIR
 from fabriclib.setup.detach.follow_run import follow_run
+from fabriclib.setup.detach.read_run import read_run
 from fabriclib.setup.detect_network import detect_network
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.site.attach_server import AttachServer
@@ -262,7 +263,7 @@ class GuidedSite:
             self.seq += 1
             self.listener.send({"t": "question", "seq": self.seq, "notes": notes, **question_view(qid, prompt, secret)})
             value = self._wait_answer()
-            if qid == "setup.plan" and value.strip().lower() not in ("p", "q"):
+            if qid in ("setup.plan", "restore.plan") and value.strip().lower() not in ("p", "q"):
                 self.notes.write(f"  {value!r}: Proceed or Cancel here; the menu stays in the terminal (setup, then "
                                  "Advanced)\n")
                 self.notes.write("".join(line + "\n" for line in notes))
@@ -350,6 +351,7 @@ class GuidedSite:
         self.ctx.load_state()
         try:
             self.finish, chain, key = finish_data(self.ctx, self.addresses)
+            self.finish["restored"] = (read_run(self.ctx.config_dir) or {}).get("restored")   # 1.3.7.10's move
         except OSError as e:
             self._site_lost(str(e))
             return
