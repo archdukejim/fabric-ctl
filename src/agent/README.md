@@ -62,3 +62,5 @@ arbitrary commands.
 | `backup_file.py` | A bundle the console names, as a path in the backups folder: a bundle's name only, never a path |
 | `bundle_checks.py` | Each bundle's SHA-256 check for the list, made once per file in a thread of its own |
 | `file_answer.py` | A GET answer that is a file: the handler streams it instead of JSON (a bundle's download) |
+| `post_upload.py` | POST /v1/backup/upload: a bundle's bytes as they arrive (chunked or sized), Domain Admins only, audited (1.3.7.9) |
+| `read_chunked.py` | A chunked request body read in pieces (an upload) |

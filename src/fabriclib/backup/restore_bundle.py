@@ -6,6 +6,7 @@ from fabriclib.backup.backup_plan import DUMPS
 from fabriclib.backup.bundle_key_from import bundle_key_from
 from fabriclib.backup.check_bundle import check_bundle
 from fabriclib.backup.check_changes import NETWORK, check_changes
+from fabriclib.backup.fabric_version import fabric_version
 from fabriclib.backup.old_address_uses import old_address_uses
 from fabriclib.backup.open_section import open_section
 from fabriclib.backup.restore_pending import write_restore_pending
@@ -18,19 +19,6 @@ from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.detach.constants import RECORD
 
 DUMP_FILES = {"directory": None, "secrets": "openbao.snap", "signin": "keycloak.pgdump"}
-
-
-def _version(text):
-    """Purpose: a fabric version as a comparable tuple.
-    Inputs:  text — "0.10.1", "0.10.1~git…", or "?".
-    Returns: (major, minor, patch), or None when it is not a version.
-    Fails:   never.
-    Feeds:   restore_bundle."""
-    parts = (text or "").split("~")[0].split(".")
-    try:
-        return tuple(int(p) for p in parts[:3]) if len(parts) >= 3 else None
-    except ValueError:
-        return None
 
 
 def restore_bundle(base, path, key, changes=None, package_version="?", actor="root", source="cli"):
@@ -52,7 +40,7 @@ def restore_bundle(base, path, key, changes=None, package_version="?", actor="ro
             raise ValidationError(f"fabric is installed here ({vars_file}): `sudo fabricctl uninstall` first, "
                                   "or restore one section with --section")
         manifest = check_bundle(path)
-        made, have = _version(manifest.get("fabric_version")), _version(package_version)
+        made, have = fabric_version(manifest.get("fabric_version")), fabric_version(package_version)
         if made and have and made > have:
             raise ValidationError(f"the bundle was made by fabric {manifest['fabric_version']}, newer than this "
                                   f"package ({package_version}): install that version or newer first")

@@ -11,7 +11,21 @@
 <dl class="facts"><dt>Made</dt><dd>{{ picked.when }} ({{ picked.kind }})</dd><dt>Fabric</dt><dd>{{ picked.fabric_version or '?' }}</dd>
 <dt>Check</dt><dd>{{ p.status('ok' if picked.check == 'whole' else ('warn' if picked.check == 'checking' else 'bad'), picked.check) }}</dd></dl>
 <h3>The whole bundle</h3>
-<p class="muted">A whole restore is a reinstall: fabric is removed and set up again from the bundle, and this console goes down while it runs. From here it is not built yet: on the host, run <code>sudo fabricctl uninstall</code>, then <code>sudo fabricctl restore /var/backups/fabric/{{ picked.file }}</code> (manual 1.3.7.6).</p>
+{% if picked.check != 'whole' %}<p class="flash bad">This bundle's check has not passed ({{ picked.check }}): nothing can be restored from it.</p>
+{% elif ov.console_restore.running %}<p class="flash warn">A whole restore from the console is running already.</p>
+{% elif not whole %}<p class="muted">Everything put back as it was in the bundle, in place of this install: fabric is removed and set up again from it, and this console goes down while that runs.</p>
+<p><a class="btn danger-link" href="/settings/backups?{{ {'restore': picked.file, 'whole': '1'} | urlencode }}">Restore the whole bundle…</a></p>
+{% else %}
+<div class="flash bad" role="alert"><p><strong>Restoring the whole bundle replaces this install:</strong> the domain, the CA, DNS, the vault, sign-in, DHCP and the settings all go back to {{ picked.when }}.</p>
+<p>Everything made since is lost: people, machines, certificates, records, settings. This cannot be undone from here. A safety bundle of the install as it is now is made first, sealed the same way as this one, so <code>sudo fabricctl restore</code> on the host can put it back.</p>
+<p>This console goes down in a moment and comes back from the bundle after some minutes; then sign in again (the sign-ins are the bundle's). Joined machines keep working. To move the host to other addresses on the way, follow the move procedure (manual 4.2.4.8) instead.</p></div>
+<form method="post" action="/settings/backups/reinstall" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<input type="hidden" name="file" value="{{ picked.file }}">
+<label class="wide">{{ 'The schedule\'s private key (AGE-SECRET-KEY-1…)' if picked.opened_by and picked.opened_by != 'passphrase' else 'The bundle\'s passphrase' }}<input type="password" name="key" autocomplete="off" required></label>
+<label class="wide">Type the site's name ({{ ov.site }}) to restore the whole bundle<input name="confirm" autocomplete="off" required placeholder="{{ ov.site }}"></label>
+<div><button class="danger">Restore the whole bundle</button> <a href="/settings/backups?{{ {'restore': picked.file} | urlencode }}">Back</a></div></form>
+{% endif %}
 <h3>One section</h3>
 {% if not same_version %}<p class="flash bad">This bundle is from fabric {{ picked.fabric_version or '?' }}; this install is {{ ov.version }}. A section is restored only into the same version: restore the whole bundle instead.</p>
 {% elif picked.check != 'whole' %}<p class="flash bad">This bundle's check has not passed ({{ picked.check }}): nothing can be restored from it.</p>
@@ -49,6 +63,19 @@
 <p class="muted small">A download is the encrypted file as it is; it opens only with its passphrase or the schedule's private key.</p>
 {% else %}{{ p.empty('No bundles yet. Back up now, or set the schedule.') }}{% endif %}
 </section>
+
+{% set cr = ov.console_restore or {} %}
+{% if cr.running or cr.tail %}<section class="card"><h2>The last whole restore from the console</h2>
+<p>{{ p.status('warn', 'running now') if cr.running else p.status('ok', 'ended') }}</p>
+{% if cr.tail %}<details{{ ' open' if cr.running }}><summary>The end of its log (<code>/var/backups/fabric/console-restore.log</code> on the host)</summary><pre>{{ cr.tail }}</pre></details>{% endif %}
+</section>{% endif %}
+
+<section class="card"><h2>Upload a bundle</h2>
+<p class="muted">A bundle downloaded earlier, up to 8 GiB, with the name it was downloaded with. It is checked whole before it is listed; nothing is opened or restored.</p>
+<form method="post" action="/settings/backups/upload" enctype="multipart/form-data" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label class="wide">The bundle (<code>fabric-…-….fabric.tar</code>)<input type="file" name="bundle" accept=".tar" required></label>
+<div><button>Upload</button></div></form></section>
 
 <section class="card"><h2>Back up now</h2>
 <p class="muted">An encrypted bundle of all seven sections, made while fabric runs. You follow it on its own page.</p>

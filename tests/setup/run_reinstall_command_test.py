@@ -30,8 +30,8 @@ calls = []
 restore = {"fail": None}
 
 
-def fake_restore(base, path, key, changes, package_version):
-    calls.append(("restore", path, key["passphrase"], changes))
+def fake_restore(base, path, key, changes, package_version, **kw):
+    calls.append(("restore", path, key["passphrase"], changes) + ((kw["actor"],) if kw else ()))
     if restore["fail"]:
         raise ValidationError(restore["fail"])
     return {"leftover": [("dns.lab.test.A.www", "10.0.0.5")]}
@@ -124,6 +124,69 @@ rc, out = run(["--key-stdin", "--yes"])
 restore["fail"] = None
 check("negative: the restore fails after the uninstall: the bundle is named with how to restore it, no setup",
       rc == 1 and calls[-1][0] == "restore" and BUNDLE in out and "fabricctl restore" in out, (rc, calls, out))
+
+print("--- reinstall --from <bundle>: the console's whole restore (1.3.7.9)")
+CHOSEN = "/var/backups/fabric/fabric-1-20261101T030000Z-scheduled.fabric.tar"
+whole = {"fail": None, "manifest": {"made": "2026-11-01T03:00:00Z", "opened_by": "passphrase"}}
+audits = []
+
+
+def fake_whole(base, path, key, version):
+    calls.append(("check", path, key))
+    if whole["fail"]:
+        raise ValidationError(whole["fail"])
+    return whole["manifest"]
+
+
+rrc.check_whole_restore = fake_whole
+rrc.write_audit = lambda *a, **k: audits.append(a)
+rrc.make_backup = lambda base, v, sf, kind, method, **key: calls.append(("bundle", kind, method, key.get("passphrase"),
+                                                                        key.get("public_key"))) or BUNDLE
+key_file = os.path.join(tmp, "console-restore.key")
+
+
+def key_in(text):
+    with open(key_file, "w") as f:
+        f.write(text + "\n")
+    os.chmod(key_file, 0o600)
+
+
+key_in(PASSPHRASE)
+os.environ["FABRIC_ACTOR"] = "dana"
+rc, out = run(["--from", CHOSEN, "--key-file-once", key_file, "--yes", "--non-interactive"], stdin="")
+# covers: cli:reinstall +
+check("--from: checked first, a safety bundle with the same passphrase, uninstall keeping the host's account, the "
+      "chosen bundle restored unchanged by the person, audited, setup with its own options; the key file gone",
+      [c[0] for c in calls] == ["check", "bundle", "uninstall", "restore", "setup"]
+      and calls[1] == ("bundle", "reinstall", "cold", PASSPHRASE, None) and calls[2] == ("uninstall", False)
+      and calls[3] == ("restore", os.path.realpath(CHOSEN), PASSPHRASE, {}, "dana") and calls[4][1] == ["setup", "--yes",
+                                                                                       "--non-interactive"]
+      and audits and audits[-1][1] == "RESTORE_WHOLE" and not os.path.exists(key_file), (rc, calls, out))
+whole["manifest"] = {"made": "x", "opened_by": "age1scheduledpublickey"}
+key_in("AGE-SECRET-KEY-1ABCDEF")
+rc, out = run(["--from", CHOSEN, "--key-file-once", key_file, "--yes"], stdin="")
+check("--from a scheduled bundle: opened with its private key, the safety bundle sealed to its public key",
+      len(calls) > 1 and calls[1] == ("bundle", "reinstall", "cold", None, "age1scheduledpublickey"), calls)
+whole["fail"] = "the bundle was made by fabric 0.11.0, newer than this install (0.10.1): update fabric first"
+key_in(PASSPHRASE)
+rc, out = run(["--from", CHOSEN, "--key-file-once", key_file, "--yes"], stdin="")
+whole["fail"] = None
+# covers: cli:reinstall -
+check("negative: a bundle the check refuses: nothing made, stopped or restored, said why",
+      rc == 1 and [c[0] for c in calls] == ["check"] and "newer than this install" in out, (rc, calls, out))
+key_in(PASSPHRASE)
+rc, out = run(["--from", CHOSEN, "--key-file-once", key_file, "--set", "host_ip=10.0.5.2", "--yes"], stdin="")
+check("negative: --from with --set: refused, the move is 4.2.4.8", rc == 1 and calls == [] and "4.2.4.8" in out,
+      (rc, out))
+rc, out = run(["--from", "--yes"], stdin="")
+check("negative: --from with no bundle: refused", rc == 1 and calls == [] and "needs a bundle" in out, (rc, out))
+key_in(PASSPHRASE)
+restore["fail"] = "age: no identity matched"
+rc, out = run(["--from", CHOSEN, "--key-file-once", key_file, "--yes"], stdin="")
+restore["fail"] = None
+check("negative: the restore fails after the uninstall: both bundles named with how to restore each, no setup",
+      rc == 1 and calls[-1][0] == "restore" and os.path.realpath(CHOSEN) in out and BUNDLE in out, (rc, calls, out))
+del os.environ["FABRIC_ACTOR"]
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

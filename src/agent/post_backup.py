@@ -6,6 +6,7 @@ from agent.job_store import JOBS
 from agent.read_text import read_text
 from agent.require_domain_admin import require_domain_admin
 from fabriclib.backup.backup_running import backup_running
+from fabriclib.backup.check_whole_restore import check_whole_restore
 from fabriclib.backup.is_domain_admin import is_domain_admin
 from fabriclib.backup.make_backup import make_backup
 from fabriclib.backup.read_backup_key import MIN_PASSPHRASE
@@ -13,6 +14,7 @@ from fabriclib.backup.read_build import read_build
 from fabriclib.backup.restore_section import restore_section
 from fabriclib.backup.sections import SECTIONS
 from fabriclib.backup.set_backup_schedule import set_backup_schedule
+from fabriclib.backup.start_console_restore import start_console_restore
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.load_vars import load_vars
 from fabriclib.common.paths import SECRETS_FILE
@@ -62,17 +64,21 @@ def _open_key(data):
 
 
 def post_backup(route, actor, data, caller, load=load_vars, allowed=is_domain_admin, jobs=JOBS, audit=write_audit,
-                make=make_backup, restore=restore_section, schedule=set_backup_schedule):
+                make=make_backup, restore=restore_section, schedule=set_backup_schedule, whole=check_whole_restore,
+                start=start_console_restore):
     """Purpose: the console's Backups page changes (manual 1.3.7.9, 1.3.3.1): POST /v1/backup/now (a job), /schedule,
              /restore (one section, a job). A Domain Admin only (1.3.7.12), checked first; the key never leaves this
              process's memory and is never in a job's result.
-    Inputs:  route — ["backup", "now"|"schedule"|"restore"]; actor — the audit's user; data — the body: now
-             (passphrase, or scheduled_key true), schedule (time, keep, public_key, or off true), restore (file,
-             section, key, confirm: the site's name typed); caller — the token's user (None: a root peer); load,
-             allowed, jobs, audit, make, restore, schedule — the functions used (tests give their own).
-    Returns: now, restore: {"id"} of the job (its result {"message"}); schedule: set_backup_schedule's result.
+    Inputs:  route — ["backup", "now"|"schedule"|"restore"|"reinstall"]; actor — the audit's user; data — the body:
+             now (passphrase, or scheduled_key true), schedule (time, keep, public_key, or off true), restore (file,
+             section, key, confirm: the site's name typed), reinstall (file, key, confirm); caller — the token's user
+             (None: a root peer); load, allowed, jobs, audit, make, restore, schedule, whole, start — the functions
+             used (tests give their own).
+    Returns: now, restore: {"id"} of the job (its result {"message"}); schedule: set_backup_schedule's result;
+             reinstall: {"started", "unit"} once the unit has started (the console goes down soon after).
     Fails:   ValidationError (-> 400): not a Domain Admin, a backup or restore running, a bad key, a section restored
-             alone that may not be (secrets) or that is unknown, the site's name not typed, the schedule's refusals;
+             alone that may not be (secrets) or that is unknown, the site's name not typed, the schedule's refusals,
+             what check_whole_restore refuses (before anything is stopped), a console restore running;
              NotFound for a bundle that is not there; RouteNotFound for another route.
     Feeds:   agent/post_route."""
     v = load()
@@ -115,4 +121,15 @@ def post_backup(route, actor, data, caller, load=load_vars, allowed=is_domain_ad
             return {"message": f"{section} restored from {os.path.basename(path)}. The state it replaced is in "
                                f"{os.path.basename(out['safety'])}."}
         return jobs.start("restore", owner, restored)
+    if route == ["backup", "reinstall"]:            # the whole bundle: a unit of its own (1.3.7.9)
+        path = backup_file(data.get("file"))
+        if read_text(data, "confirm") != site_name(v):
+            raise ValidationError(f"type the site's name ({site_name(v)}) to restore the whole bundle: nothing "
+                                  "changed")
+        key = _open_key(data)
+        _running()
+        whole(base, path, key, read_build(os.path.join(base, "fabric"))["version"])
+        out = start(path, key, actor)
+        audit(actor, "RESTORE_WHOLE_START", f"bundle={os.path.basename(path)}", source="web")
+        return {"started": True, "unit": out["unit"]}
     raise RouteNotFound()

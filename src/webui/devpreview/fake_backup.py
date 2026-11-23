@@ -1,3 +1,5 @@
+import re
+
 from webui.devpreview.fabric_rules import ValidationError
 from webui.devpreview.fake_job import fake_job
 
@@ -63,6 +65,7 @@ def fake_backup(state, who, route, body):
         return {"allowed": True}
     if route == ["backup"]:
         return {"bundles": data["bundles"], "schedule": data["schedule"], "running": False, "site": "lan",
+                "console_restore": data.get("console_restore") or {"running": False, "tail": ""},
                 "version": "0.10.1", "sections": SECTIONS}
     if len(route) == 3 and route[1] == "bundles":
         if route[2] not in {b["file"] for b in data["bundles"]}:
@@ -91,4 +94,24 @@ def fake_backup(state, who, route, body):
             raise ValidationError("key: the bundle's passphrase, or the schedule's private key (AGE-SECRET-KEY-1…)")
         return fake_job(state, "restore", {"message": f"{body.get('section')} restored from {body.get('file')} (in "
                                                       "the preview: nothing was restored)."})
+    if route == ["backup", "upload"]:
+        name = body.get("name") or ""
+        if not re.fullmatch(r"fabric-[A-Za-z0-9-]+-\d{8}T\d{6}Z-[a-z]+\.fabric\.tar", name):
+            raise ValidationError("the file's name is not a bundle's (fabric-<host>-<when>-<kind>.fabric.tar): keep "
+                                  "the name it was downloaded with")
+        if name in {b["file"] for b in data["bundles"]}:
+            raise ValidationError(f"{name} is already in the backups folder")
+        if not body.get("head", "").startswith("manifest.json"):
+            raise ValidationError("not a bundle: it has no manifest.json")
+        when = name.rsplit("-", 2)
+        data["bundles"].insert(0, dict(_bundle(when[-2], when[-1].split(".")[0], body["size"], "0.10.1"), file=name))
+        return {"file": name, "size": body["size"]}
+    if route == ["backup", "reinstall"]:
+        if body.get("confirm") != "lan":
+            raise ValidationError("type the site's name (lan) to restore the whole bundle: nothing changed")
+        if not body.get("key"):
+            raise ValidationError("key: the bundle's passphrase, or the schedule's private key (AGE-SECRET-KEY-1…)")
+        data["console_restore"] = {"running": True, "tail": f"Restore {body.get('file')} in place of this install "
+                                                            "(in the preview: nothing is restored)\n"}
+        return {"started": True, "unit": "fabric-console-restore"}
     return None

@@ -51,3 +51,8 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `set_backup_schedule.py` | The schedule's time, keep and public key in vars.yaml, then its timer |
 | `is_domain_admin.py` | Whether a person is one of the domain's Domain Admins, asked of the DC (1.3.7.12) |
 | `schedule_status.py` | The schedule as the console shows it: its settings, and its runs from systemd |
+| `check_whole_restore.py` | Whether a bundle can be restored whole here, checked before anything is stopped |
+| `console_restore_running.py` | Whether the console's whole restore (its unit) runs; its unit and log |
+| `start_console_restore.py` | The console's whole restore started as the unit fabric-console-restore, the key in a RAM file |
+| `receive_upload.py` | An uploaded bundle written to a hidden .part file, checked whole, then renamed into the list |
+| `fabric_version.py` | A fabric version as a comparable tuple |

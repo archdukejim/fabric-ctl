@@ -106,5 +106,56 @@ check("the schedule: passed on as set_backup_schedule takes it",
       calls[0][1] == {"time": "04:15", "keep": 3, "public_key": "age1abc", "off": False, "source": "web"}, calls)
 out, err, _, _ = call("schedule", {"keep": "many"})
 check("negative: keep that is not a number: refused, nothing saved", "keep:" in (err or "") and not calls, err)
+print("--- the whole bundle (reinstall)")
+started = []
+
+
+def call_whole(data, admin=True, refuse=None, start_refuse=None):
+    audits = []
+    started.clear()
+
+    def whole(base, path, key, version):
+        started.append(("checked", key))
+        if refuse:
+            raise ValidationError(refuse)
+
+    def start(path, key, actor):
+        if start_refuse:
+            raise ValidationError(start_refuse)
+        started.append(("started", os.path.basename(path), key, actor))
+        return {"unit": "fabric-console-restore", "log": "/x"}
+
+    try:
+        out = pb.post_backup(["backup", "reinstall"], "dana", data, "dana", load=lambda: dict(V),
+                             allowed=lambda vv, c: admin, audit=lambda *a, **k: audits.append(a), whole=whole,
+                             start=start)
+        return out, None, audits
+    except ValidationError as exc:
+        return None, str(exc), audits
+
+
+ok = {"file": NAME, "key": "a passphrase 12", "confirm": "lan"}
+out, err, audits = call_whole(ok)
+# covers: agent:post.backup.reinstall +
+check("checked, then started as its own unit by the person, audited at its start; the key only passed on",
+      out == {"started": True, "unit": "fabric-console-restore"} and [s[0] for s in started] == ["checked", "started"]
+      and started[1] == ("started", NAME, {"passphrase": "a passphrase 12", "private_key": None}, "dana")
+      and audits[0][1] == "RESTORE_WHOLE_START" and "a passphrase 12" not in str(audits), (out, err, started))
+# covers: agent:post.backup.reinstall -
+for name, kw, words in (("not a Domain Admin", {"admin": False}, "Domain Admins"),
+                        ("the site's name not typed", {"data": dict(ok, confirm="x")}, "type the site's name"),
+                        ("no key", {"data": dict(ok, key="")}, "key:"),
+                        ("a bundle the check refuses", {"refuse": "made by fabric 0.11.0, newer"}, "newer"),
+                        ("one already running", {"start_refuse": "a whole restore from the console is running"},
+                         "running")):
+    out, err, audits = call_whole(kw.pop("data", ok), **kw)
+    check(f"negative: {name}: refused, nothing started or audited", words in (err or "")
+          and not any(s[0] == "started" for s in started) and not audits, (err, started))
+running = "77"
+out, err, audits = call_whole(ok)
+running = None
+check("negative: a backup or restore running: refused before the bundle is even checked", "pid 77" in (err or "")
+      and not started, (err, started))
+
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

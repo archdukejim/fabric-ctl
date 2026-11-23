@@ -50,15 +50,21 @@ class FakeConnection:
         Feeds:   connection.call_agent."""
         self._reply = None
 
-    def request(self, method, path, body=None, headers=None):
+    def request(self, method, path, body=None, headers=None, encode_chunked=False):
         """Purpose: Answer one agent request from memory.
-        Inputs:  method — "GET" or "POST"; path — "/v1/..." with quoted segments; body — JSON bytes or None; headers
-                 — ignored (the preview has no token: its person is FakeConnection.who).
+        Inputs:  method — "GET" or "POST"; path — "/v1/..." with quoted segments; body — JSON bytes, None, or an
+                 upload's pieces (its name from headers' X-Fabric-Bundle); headers — otherwise ignored (the preview has
+                 no token: its person is FakeConnection.who); encode_chunked — ignored.
         Returns: None; the reply is kept for getresponse.
         Fails:   never (fake_agent answers every refusal as a status).
         Feeds:   connection.call_agent."""
         route = [urllib.parse.unquote(p) for p in urllib.parse.urlsplit(path).path.strip("/").split("/")][1:]
-        data = json.loads(body) if body else {}
+        if body is not None and not isinstance(body, (bytes, str)):       # an upload, sent as it arrives (1.3.7.9)
+            pieces = list(body)
+            data = {"name": (headers or {}).get("X-Fabric-Bundle", ""), "size": sum(len(p) for p in pieces),
+                    "head": b"".join(pieces)[:262].decode("latin-1")}
+        else:
+            data = json.loads(body) if body else {}
         self._reply = _Reply(*fake_agent(self.state, self.who, method, route, data))
 
     def getresponse(self):

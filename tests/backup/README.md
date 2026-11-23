@@ -16,3 +16,4 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | `section_of_key_test.py` | Every vars.yaml key belongs to exactly one section |
 | `section_paths_test.py` | What each section packs; every folder fabric installs is in one |
 | `schedule_status_test.py` | The schedule's settings and runs from systemd's words, and with no systemd |
+| `start_console_restore_test.py` | The console's whole restore started as its own unit, the key never on its command line; the checks before anything stops |

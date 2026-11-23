@@ -1278,6 +1278,46 @@ agent_json /v1/backup/schedule '{"actor": "sandbox", "off": true}' > /dev/null
 check "the schedule turned off through the agent: its timer gone" \
     "! in_box 'systemctl is-active fabric-backup.timer' | grep -qx active"
 
+echo "--- an upload and a whole restore through the agent (1.3.7.9)"
+UP="fabric-uploaded-20261101T010000Z-manual.fabric.tar"
+in_box "cp /var/backups/fabric/$BN /root/$UP && $AGENT -X POST -H 'Transfer-Encoding: chunked' -H 'X-Fabric-Bundle: $UP' -T /root/$UP http://agent/v1/backup/upload" > "$OUT/agent-upload.json"
+# covers: agent:post.backup.upload +
+check "an upload, chunked: listed under its name, byte for byte, no .part file left, audited" \
+    "grep -q '\"file\": \"$UP\"' '$OUT/agent-upload.json' \
+     && [ \"\$(in_box \"sha256sum < /var/backups/fabric/$UP\")\" = \"\$(in_box \"sha256sum < /var/backups/fabric/$BN\")\" ] \
+     && ! in_box 'ls -A /var/backups/fabric' | grep -q '\.part\$' && in_box 'grep BACKUP_UPLOAD /opt/fabric/archive/audit.log' | grep -q '$UP'"
+in_box "head -c 300000 /root/$UP > /root/cut.tar && $AGENT -X POST -H 'Transfer-Encoding: chunked' -H 'X-Fabric-Bundle: fabric-cut-20261101T010000Z-manual.fabric.tar' -T /root/cut.tar http://agent/v1/backup/upload" > "$OUT/agent-upload-cut.json"
+# covers: agent:post.backup.upload -
+check "negative: a bundle cut short is refused once whole-checked: not listed, no .part file left" \
+    "grep -q '\"error\"' '$OUT/agent-upload-cut.json' && ! in_box 'ls /var/backups/fabric/fabric-cut-*' >/dev/null 2>&1 \
+     && ! in_box 'ls -A /var/backups/fabric' | grep -q '\.part\$'"
+in_box "rm -f /root/$UP /root/cut.tar /var/backups/fabric/$UP"
+# a person made after the bundle: the whole restore takes her away again
+in_box 'python3 /root/make_person.py frank' > "$OUT/frank.log" 2>&1
+# covers: agent:post.backup.reinstall -
+check "negative: a whole restore with a wrong key is refused before anything is stopped" \
+    "agent_json /v1/backup/reinstall '{\"actor\": \"sandbox\", \"file\": \"$BN\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw-short\"}}' | grep -q '\"error\"' \
+     && in_box 'systemctl is-active fabric.target' | grep -qx active && ! in_box 'systemctl is-active fabric-console-restore' | grep -qx active"
+agent_json /v1/backup/reinstall "{\"actor\": \"sandbox\", \"file\": \"$BN\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}" > "$OUT/agent-reinstall.json"
+for _ in $(seq 1 240); do
+    in_box 'systemctl is-active fabric-console-restore' 2>/dev/null | grep -qE '^(active|activating)$' || break
+    sleep 5
+done
+in_box 'cat /var/backups/fabric/console-restore.log' > "$OUT/console-restore.log" 2>&1
+# covers: agent:post.backup.reinstall +
+check "the whole restore through the agent: started as its own unit, set up again from the bundle, the key file gone" \
+    "grep -q '\"started\": true' '$OUT/agent-reinstall.json' && grep -q 'fabric is ready' '$OUT/console-restore.log' \
+     && ! in_box 'test -e /run/fabric/console-restore.key' && in_box 'systemctl is-active fabric.target' | grep -qx active"
+check "…the install is the bundle's: a person made after it is gone, one made before is there, the safety bundle kept" \
+    "! in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=frank)' sAMAccountName\" | grep -q frank \
+     && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=erin)' sAMAccountName\" | grep -q erin \
+     && grep -q 'safety bundle: /var/backups/fabric/.*-reinstall.fabric.tar' '$OUT/console-restore.log'"
+check "…audited in the restored log by the person who asked" \
+    "in_box 'grep RESTORE_WHOLE /opt/fabric/archive/audit.log' | grep -q sandbox"
+in_box 'fabricctl doctor' > "$OUT/doctor-console-restore.log" 2>&1
+check "…and doctor passes" "! grep -q '✗' '$OUT/doctor-console-restore.log' && grep -q '✓' '$OUT/doctor-console-restore.log'"
+doctor_why "$OUT/doctor-console-restore.log"
+
 echo "--- a move to another VLAN and subnet, by the operator's procedure (4.2.4.8)"
 # the box's network is the VLAN: a second Docker network on another subnet stands for the new one
 NET2=fabric-sbx-net2; SUBNET2=10.79.0.0/24; IP2=10.79.0.10; GW2=10.79.0.1

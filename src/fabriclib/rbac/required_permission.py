@@ -89,7 +89,8 @@ POST = {
     ("pending", "hold"): "session", ("pending", "*", "drop"): "session", ("pending", "*", "discard"): "session",
     ("pending", "*", "apply"): "session",
     ("backup", "now"): "session", ("backup", "schedule"): "session",   # Domain Admins, checked by fabric-agent
-    ("backup", "restore"): "session",                                 # (1.3.7.12)
+    ("backup", "restore"): "session", ("backup", "reinstall"): "session",   # (1.3.7.12)
+    ("backup", "upload"): "session",
     ("local-admin", "checkout"): "session",           # the DC host's local-admin: fabric-agent asks the DC the
     ("local-admin", "ssh"): "session",                # caller's tier, the Enterprise Admin's alone (2.1.7.18)
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",

@@ -134,3 +134,5 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `backup_now.py` | Back up now, a job. Agent route: POST /v1/backup/now. |
 | `backup_schedule.py` | The backup schedule. Agent route: POST /v1/backup/schedule. |
 | `backup_restore.py` | One section restored, a job. Agent route: POST /v1/backup/restore. |
+| `backup_upload.py` | An uploaded bundle passed on as it arrives, chunked. Agent route: POST /v1/backup/upload. |
+| `backup_reinstall.py` | The whole bundle restored as its own unit. Agent route: POST /v1/backup/reinstall. |

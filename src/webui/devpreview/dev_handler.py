@@ -6,7 +6,9 @@ from webui import agentclient as actions
 from webui import views
 from webui.devpreview.dev_state import DevState
 from webui.devpreview.fabric_rules import FABRIC_PERMISSIONS
+from webui.httpio.multipart_stream import MultipartStream
 from webui.httpio.read_form import read_form
+from webui.routes.backups_upload import backups_upload
 from webui.routes.get_page import get_page
 from webui.routes.post_action import post_action
 
@@ -147,6 +149,14 @@ class DevHandler(BaseHTTPRequestHandler):
             self.state.toggles = {k: query[k] for k in TOGGLES if query.get(k)}
             actions.set_token("dev")
             try:
+                if method == "POST" and path == "/settings/backups/upload":    # streamed, as production (1.3.7.9)
+                    parts = MultipartStream(self.rfile, self.headers.get("Content-Length") or 0,
+                                            self.headers.get("Content-Type", ""))
+                    first = parts.next_part()
+                    if not first or first[0] != "csrf" or parts.read_small() != "dev":
+                        self.close_connection = True
+                        return self.deny(403, "Request rejected (CSRF check failed).")
+                    return backups_upload(self, sess, parts)
                 if method == "POST":
                     form = read_form(self.headers, self.rfile)
                     if path == "/logout":

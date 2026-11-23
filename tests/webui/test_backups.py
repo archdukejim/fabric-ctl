@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """The console's Backups page in the dev preview (manual 1.3.7.9): the list with each bundle's check, Download, Back up
-now, the schedule, and Restore one section (a section picked, its warning in full, the key and the site's name typed),
-each change a job or saved; the refusals (passphrases that differ or too short, the site's name not typed, a key that is
-not age1…, a path instead of a bundle's name); the page and every form refused to someone the sign-in did not find a
+now, the schedule, Restore one section (a section picked, its warning in full, the key and the site's name typed) or the
+whole bundle (started, then shown running with its log), Upload a bundle (streamed, its CSRF field first), each change a
+job, saved or started; the refusals (passphrases that differ or too short, the site's name not typed, a key that is
+not age1…, a path instead of a bundle's name, an upload not named or made as a bundle, or before its CSRF field); the page and every form refused to someone the sign-in did not find a
 Domain Admin. The real agent's side is tests/sandbox/run.sh (the routes on a running install) and tests/samba/grants.py
 (the Domain Admins check in a real DC).
 
@@ -45,6 +46,23 @@ def post(path, form):
     if st == 303 and loc:
         page = req("GET", loc)[3]
     return st, loc or "", page
+
+
+def upload(fields, filename, data):
+    """POST the upload form as a browser does (multipart: the fields in order, then the file), following a 303."""
+    boundary = "----fabrictest7MA4YWxkTrZu0gW"
+    body = b"".join(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
+                    for k, v in fields)
+    body += (f'--{boundary}\r\nContent-Disposition: form-data; name="bundle"; filename="{filename}"\r\n'
+             "Content-Type: application/x-tar\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+    c = http.client.HTTPConnection("127.0.0.1", PORT, timeout=20)
+    c.request("POST", "/settings/backups/upload", body=body,
+              headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    r = c.getresponse()
+    st, loc, page = r.status, r.getheader("Location") or "", r.read().decode()
+    if st == 303 and loc:
+        page = req("GET", loc)[3]
+    return st, loc, page
 
 
 def flash(page):
@@ -118,8 +136,8 @@ with serve():
 
     print("--- Restore one section")
     page = req("GET", "/settings/backups?" + urllib.parse.urlencode({"restore": BUNDLE}))[3]
-    check("a bundle picked: the whole restore said to be the host's, the sections offered, secrets only with the whole",
-          "sudo fabricctl restore /var/backups/fabric/" + BUNDLE in page and 'value="dns"' in page
+    check("a bundle picked: the whole restore offered, the sections offered, secrets only with the whole",
+          "Restore the whole bundle…" in page and 'value="dns"' in page
           and re.search(r'value="secrets" required disabled', page), page[-400:])
     page = req("GET", "/settings/backups?" + urllib.parse.urlencode({"restore": BUNDLE, "section": "directory"}))[3]
     check("a section picked: its warning in full (what is replaced, lost, cannot be undone, what depends on it)",
@@ -140,6 +158,47 @@ with serve():
     check("typed: a job, its result naming the section and the bundle", loc.startswith("/jobs/")
           and f"dns restored from {BUNDLE}" in page and "Restore a section" in page, (loc, page[-300:]))
 
+    print("--- Upload a bundle")
+    page = req("GET", "/settings/backups")[3]
+    check("the upload form: multipart, its CSRF field first, then the file",
+          re.search(r'action="/settings/backups/upload" enctype="multipart/form-data"[^>]*>\s*<input type="hidden" '
+                    r'name="csrf"', page) and 'name="bundle"' in page)
+    NEW = "fabric-fabric-20261123T010000Z-manual.fabric.tar"
+    # covers: web:post.settings.backups.upload +
+    st, loc, page = upload([("csrf", "dev")], NEW, b"manifest.json" + b"\0" * 5000)
+    check("a bundle uploaded: said with its name, now in the list", f"Uploaded {NEW}" in flash(page)
+          and page.count(NEW) >= 1, flash(page))
+    # covers: web:post.settings.backups.upload -
+    st, loc, page = upload([("csrf", "dev")], NEW, b"manifest.json" + b"\0" * 10)
+    check("negative: the same name again: refused, said", "already in the backups folder" in flash(page), flash(page))
+    st, loc, page = upload([("csrf", "dev")], "holiday.tar", b"manifest.json")
+    check("negative: a file not named as a bundle: refused, said", "not a bundle's" in flash(page), flash(page))
+    st, loc, page = upload([("csrf", "dev")], "fabric-fabric-20261123T020000Z-manual.fabric.tar", b"PK\3\4 a zip")
+    check("negative: a file that is not a bundle: refused, nothing listed", "no manifest.json" in flash(page)
+          and "20261123T020000Z" not in page, flash(page))
+    st = upload([("csrf", "wrong")], "fabric-fabric-20261123T030000Z-manual.fabric.tar", b"manifest.json")[0]
+    check("negative: a wrong CSRF field: refused (403) before the file is read", st == 403, st)
+    st = upload([], "fabric-fabric-20261123T030000Z-manual.fabric.tar", b"manifest.json")[0]
+    check("negative: the file before any CSRF field: refused (403)", st == 403, st)
+
+    print("--- Restore the whole bundle")
+    page = req("GET", "/settings/backups?" + urllib.parse.urlencode({"restore": BUNDLE, "whole": "1"}))[3]
+    check("its warning in full: what is replaced, lost, the safety bundle, the console going down, the move "
+          "procedure instead", "Restoring the whole bundle replaces this install" in page and "is lost" in page
+          and "safety bundle" in page and "goes down" in page and "4.2.4.8" in page
+          and 'action="/settings/backups/reinstall"' in page, page[-600:])
+    # covers: web:post.settings.backups.reinstall -
+    st, loc, page = post("/settings/backups/reinstall", {"file": BUNDLE, "key": "preview-pass-1", "confirm": "nope"})
+    check("the site's name not typed: refused, nothing started", "site's name" in flash(page)
+          and "running now" not in page, flash(page))
+    # covers: web:post.settings.backups.reinstall +
+    st, loc, page = post("/settings/backups/reinstall", {"file": BUNDLE, "key": "preview-pass-1", "confirm": "lan"})
+    check("typed: started, said; the page then shows it running with its log", "has started on the host" in flash(page)
+          and "The last whole restore from the console" in page and "running now" in page, flash(page))
+    page = req("GET", "/settings/backups?" + urllib.parse.urlencode({"restore": BUNDLE, "whole": "1"}))[3]
+    check("negative: while it runs, no second whole restore is offered", "running already" in page
+          and 'action="/settings/backups/reinstall"' not in page)
+
 with serve("fabric-auditor"):
     print("--- not a Domain Admin")
     # covers: web:get.settings.backups -
@@ -147,7 +206,10 @@ with serve("fabric-auditor"):
     check("the page is refused (403) and its entry is not shown", st == 403
           and 'href="/settings/backups"' not in req("GET", "/account")[3], st)
     check("a download is refused (403)", req("GET", f"/settings/backups/download/{BUNDLE}")[0] == 403)
+    st = upload([("csrf", "dev")], "fabric-fabric-20261123T040000Z-manual.fabric.tar", b"manifest.json")[0]
+    check("an upload refused (403)", st == 403, st)
     for form, data in (("now", {"passphrase": "twelve-chars-1", "passphrase_again": "twelve-chars-1"}),
+                       ("reinstall", {"file": BUNDLE, "key": "k", "confirm": "lan"}),
                        ("schedule", {"action": "off"}),
                        ("restore", {"file": BUNDLE, "section": "dns", "key": "k", "confirm": "lan"})):
         st = req("POST", f"/settings/backups/{form}", {"csrf": "dev", **data})[0]

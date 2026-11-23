@@ -163,6 +163,25 @@ try:
     check("negative: a key file others can read is refused", False)
 except ValidationError as exc:
     check("negative: a key file others can read is refused", "chmod 600" in str(exc), exc)
+with open(key_file, "w") as f:
+    f.write("a passphrase of words\n")
+os.chmod(key_file, 0o600)
+check("positive: a file with no private key: its first line is the passphrase, the file kept",
+      rbk.read_backup_key(["--key-file", key_file], {}, opening=True) == {"passphrase": "a passphrase of words",
+                                                                          "private_key": None}
+      and os.path.exists(key_file))
+check("positive: --key-file-once reads it, then removes it (the console's whole restore, 1.3.7.9)",
+      rbk.read_backup_key(["--key-file-once", key_file], {}, opening=True)["passphrase"] == "a passphrase of words"
+      and not os.path.exists(key_file))
+with open(key_file, "w") as f:
+    f.write("x\n")
+os.chmod(key_file, 0o644)
+try:
+    rbk.read_backup_key(["--key-file-once", key_file], {}, opening=True)
+    check("negative: --key-file-once refuses a file others can read, and still removes it", False)
+except ValidationError as exc:
+    check("negative: --key-file-once refuses a file others can read, and still removes it",
+          "chmod 600" in str(exc) and not os.path.exists(key_file), exc)
 answers[:] = [PRIVATE]
 got = rbk.read_backup_key([], {}, opening=True)
 # covers: ask:backup.open_key +

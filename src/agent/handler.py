@@ -13,6 +13,7 @@ from agent.file_answer import FileAnswer
 from agent.get_route import get_route
 from agent.kept_store import KEPT
 from agent.post_route import post_route
+from agent.post_upload import post_upload
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import NotFound, ValidationError
 from fabriclib.common.load_vars import load_vars
@@ -178,11 +179,35 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Purpose: entry point for POST requests (called by BaseHTTPRequestHandler).
         Inputs:  none; the request is in self.path / self.headers / self.rfile.
-        Returns: None; the answer is sent by dispatch.
+        Returns: None; the answer is sent by dispatch (an upload: by upload).
         Fails:   as dispatch (errors become JSON replies).
-        Feeds:   dispatch("POST")."""
+        Feeds:   dispatch("POST"), upload."""
+        if urllib.parse.urlsplit(self.path).path == "/v1/backup/upload":
+            return self.upload()
         self.drain()
         self.dispatch("POST")
+
+    def upload(self):
+        """Purpose: POST /v1/backup/upload (manual 1.3.7.9): a bundle of up to 8 GiB, its body passed to post_upload as
+                 it arrives instead of read whole (drain's 64 KiB limit); the peer and the token checked first, as
+                 every route's. The connection is closed after it, whatever was left unread.
+        Inputs:  none; the request is in self.path / self.headers / self.rfile.
+        Returns: None; replies 200 {"file", "size"}, or 403/401 as authorize, 400 with why, 500 "internal error".
+        Fails:   never raises.
+        Feeds:   do_POST."""
+        self.close_connection = True
+        if self.peer_uid() not in self.allowed_uids:
+            return self.reply(403, {"error": "peer not allowed"})
+        try:
+            refused = self.authorize("POST", ["backup", "upload"])
+            if refused:
+                return self.reply(refused[0], {"error": refused[1]})
+            return self.reply(200, post_upload(self.user, self.headers, self.rfile))
+        except ValidationError as exc:
+            self.reply(400, {"error": str(exc)})
+        except Exception:                   # the journal gets the traceback
+            traceback.print_exc()
+            self.reply(500, {"error": "internal error"})
 
     def unsupported(self):
         """Purpose: any other method (PUT, DELETE, PATCH, OPTIONS): its body read first, as for GET and POST, then

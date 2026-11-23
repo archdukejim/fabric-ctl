@@ -10,7 +10,8 @@ PREFIX = "/settings/backups/download/"
 
 def backups_page(h, sess, ctx, path, query):
     """Purpose: the Backups page (manual 1.3.7.9): GET /settings/backups shows the list, Back up now, the schedule, or a
-             bundle's Restore (?restore=<file>[&section=<name>]); GET /settings/backups/download/<file> streams the
+             bundle's Restore (?restore=<file>[&section=<name> | &whole=1]); GET
+             /settings/backups/download/<file> streams the
              bundle as it is.
     Inputs:  h — the request handler (send, send_stream, deny); sess — dict from find_session (auth_at); ctx — page
              context; path — the path; query — dict: restore, section.
@@ -34,5 +35,6 @@ def backups_page(h, sess, ctx, path, query):
     if path == "/settings/backups":
         return h.send(200, views.backups(ctx, actions.backup_overview(), query.get("restore", ""),
                                          query.get("section", ""),
-                                         signin_old=time.time() - sess.get("auth_at", 0) > STEP_UP))
+                                         signin_old=time.time() - sess.get("auth_at", 0) > STEP_UP,
+                                         whole=query.get("whole") == "1"))
     return h.deny(404, "Not found.")

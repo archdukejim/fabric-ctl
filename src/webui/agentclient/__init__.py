@@ -128,3 +128,5 @@ from webui.agentclient.backup_now import backup_now  # noqa: F401
 from webui.agentclient.backup_overview import backup_overview  # noqa: F401
 from webui.agentclient.backup_restore import backup_restore  # noqa: F401
 from webui.agentclient.backup_schedule import backup_schedule  # noqa: F401
+from webui.agentclient.backup_upload import backup_upload  # noqa: F401
+from webui.agentclient.backup_reinstall import backup_reinstall  # noqa: F401

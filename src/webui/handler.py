@@ -9,7 +9,9 @@ from webui import agentclient as actions
 from webui import views
 from webui.app_state import App
 from webui.constants import NO_CERT
+from webui.httpio.multipart_stream import MultipartStream
 from webui.httpio.read_form import read_form
+from webui.routes.backups_upload import backups_upload
 from webui.routes.get_page import get_page
 from webui.routes.post_action import post_action
 from webui.security.verified_client_cert import verified_client_cert
@@ -201,6 +203,16 @@ class Handler(BaseHTTPRequestHandler):
                 with self.app.lock:
                     sess["flash"] = (self.app.sessions.get(sess["sid"]) or {}).pop("flash", None)
 
+            if method == "POST" and path == "/settings/backups/upload":   # a bundle, up to 8 GiB (1.3.7.9)
+                parts = MultipartStream(self.rfile, self.headers.get("Content-Length") or 0,
+                                        self.headers.get("Content-Type", ""))
+                first = parts.next_part()
+                csrf = parts.read_small() if first and first[0] == "csrf" else ""
+                if (self.headers.get("Origin", "") != self.app.public_url
+                        or not hmac.compare_digest(csrf, sess["csrf"])):
+                    self.close_connection = True
+                    return self.deny(403, "Request rejected (CSRF check failed). Reload the page and try again.")
+                return backups_upload(self, sess, parts)
             if method == "POST":
                 origin = self.headers.get("Origin", "")
                 form = read_form(self.headers, self.rfile)

@@ -12,12 +12,12 @@ def backups_post(h, sess, parts, form):
              its page, and the schedule saved or turned off. A Domain Admin only, after a sign-in from the last 5
              minutes (1.3.7.12); fabric-agent checks both again.
     Inputs:  h — the request handler (back, redirect, deny); sess — dict from find_session (auth_at, domain_admin);
-             parts — segments after /settings/backups/: ['now'], ['schedule'], ['restore']; form — now: passphrase,
-             passphrase_again, use_schedule; schedule: time, keep, public_key, action (save|off); restore: file,
-             section, key, confirm.
+             parts — segments after /settings/backups/: ['now'], ['schedule'], ['restore'], ['reinstall']; form —
+             now: passphrase, passphrase_again, use_schedule; schedule: time, keep, public_key, action (save|off);
+             restore: file, section, key, confirm; reinstall: file, key, confirm.
     Returns: 303 to /login?next=/settings/backups?signed_in=1 when the sign-in is older than STEP_UP; now and restore:
-             303 to the job's page; schedule: 303 back with what was saved; a refusal: 303 back (a restore: to its
-             section) with why, nothing changed.
+             303 to the job's page; schedule: 303 back with what was saved; reinstall: 303 back saying it started;
+             a refusal: 303 back (a restore: to its section or the whole bundle's step) with why, nothing changed.
     Fails:   403 for someone the sign-in did not find a Domain Admin; 404 for another path; AgentError,
              PermissionDenied and AuthError propagate to handle_request.
     Feeds:   post_action (/settings/backups/…)."""
@@ -47,6 +47,12 @@ def backups_post(h, sess, parts, form):
             job = actions.backup_restore(form.get("file", ""), form.get("section", ""), form.get("key", ""),
                                          form.get("confirm", ""))
             return h.redirect("/jobs/" + urllib.parse.quote(job, safe=""))
+        if parts == ["reinstall"]:
+            back = BACK + "?" + urllib.parse.urlencode({"restore": form.get("file", ""), "whole": "1"})
+            actions.backup_reinstall(form.get("file", ""), form.get("key", ""), form.get("confirm", ""))
+            return h.back(BACK, msg=f"The whole restore of {form.get('file', '')} has started on the host. This "
+                                    "console goes down in a moment and comes back from the bundle in some minutes: "
+                                    "then sign in again, and this page shows how it went.")
     except (actions.ValidationError, actions.NotFound) as exc:
         return h.back(back, err=f"Refused, nothing changed: {exc}")
     return h.deny(404, "Not found.")
