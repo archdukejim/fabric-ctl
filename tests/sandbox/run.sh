@@ -1269,6 +1269,9 @@ agent_job "$JOB" > "$OUT/agent-restore-job.json"
 check "Restore one section through the agent: dhcp restored as a job, a safety bundle named, Kea running" \
     "grep -q '\"state\": \"done\"' '$OUT/agent-restore-job.json' && grep -q 'dhcp restored from $BN' '$OUT/agent-restore-job.json' \
      && in_box 'systemctl is-active kea' | grep -qx active"
+{   # what the check saw, the passphrase hidden
+    echo "  the restore job for $BN, as the agent gave it; kea: $(in_box 'systemctl is-active kea')"
+    sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-restore-job.json" | head -c 2000; echo; }
 # covers: agent:post.backup.schedule -
 check "negative: a schedule with a key that is not age1… is refused, the schedule unchanged" \
     "agent_json /v1/backup/schedule '{\"actor\": \"sandbox\", \"time\": \"04:15\", \"public_key\": \"ssh-ed25519 AAAA\"}' | grep -q 'age1' \

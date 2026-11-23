@@ -57,8 +57,9 @@ def _meta(base, v, method, only=None):
 def make_backup(base, v, secrets_file, kind, method, passphrase=None, public_key=None, actor="root", source="cli",
                 folder=FOLDER, only=None):
     """Purpose: make one bundle of the install (manual 1.3.7.4): online while fabric runs (by hand, scheduled), or
-             cold (uninstall, reinstall: fabric's secrets read out of OpenBao into RAM, then fabric stopped and proven
-             stopped). One at a time, with room for it checked first, and audited either way.
+             cold (uninstall, reinstall: fabric stopped and proven stopped). Either way fabric's secrets are read out of
+             OpenBao into RAM and packed in the secrets section, for the restore's setup. One at a time, with room for
+             it checked first, and audited either way.
     Inputs:  base — install root; v — vars.yaml dict; secrets_file — fabric-secrets.yml's path; kind — bundle kind;
              method — "online" or "cold"; passphrase / public_key — exactly one (make_bundle); actor, source — who
              (audit); folder — the backups folder; only — the sections to pack (the others empty), or None for all.
@@ -75,13 +76,15 @@ def make_backup(base, v, secrets_file, kind, method, passphrase=None, public_key
             shutil.rmtree(DUMPS, ignore_errors=True)
             os.makedirs(DUMPS, mode=0o700)
             try:
+                # fabric's own secrets read out of OpenBao, cold or online: a restore's setup needs them before OpenBao
+                # runs again (an online bundle's vault snapshot loads only after; found by the sandbox, 2026-11-23)
+                if (only is None or "secrets" in only) and secrets_in_openbao(secrets_file):
+                    export_secrets(secrets_file, os.path.join(DUMPS, "secrets", "fabric-secrets.yml"))
                 if method == "cold":
-                    if secrets_in_openbao(secrets_file):
-                        export_secrets(secrets_file, os.path.join(DUMPS, "secrets", "fabric-secrets.yml"))
                     info("stopping fabric for a consistent copy")
                     stop_for_copy(base)
                 plan = backup_plan(base, v, method, only=only)
-                if method == "cold" and os.path.isdir(os.path.join(DUMPS, "secrets")):
+                if os.path.isdir(os.path.join(DUMPS, "secrets")):
                     plan = [(s, p, os.path.join(DUMPS, "secrets") if s == "secrets" else x, a) for s, p, x, a in plan]
                 path = make_bundle(plan, v.get("hostname") or "fabric", _meta(base, v, method, only), kind,
                                    passphrase=passphrase, public_key=public_key, folder=folder)

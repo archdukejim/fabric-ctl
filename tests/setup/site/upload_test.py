@@ -82,6 +82,12 @@ def multipart(browser, fields, file_name, data, origin="same"):
     return r.status, text
 
 
+def default_of(page):
+    """The question field's prefilled value (its other attributes come between name and value)."""
+    m = re.search(r'<input id="value"[^>]*\svalue="([^"]*)"', page)
+    return m.group(1) if m else None
+
+
 def page_until(browser, words, wait=10):
     end = time.monotonic() + wait
     while time.monotonic() < end:
@@ -159,9 +165,9 @@ check("negative: an upload when the bundle is not being asked: 409, nothing kept
 browser.answer(page, "a passphrase for this test")
 for label in ("The host's address", "Its subnet", "The subnet's gateway"):    # the bundle's kept
     page = page_until(browser, label)
-    check(f"{label}: the bundle's own as its default", label in label_of(page) and browser.field(page, "value"),
-          label_of(page))
-    browser.answer(page, browser.field(page, "value"))
+    check(f"{label}: the bundle's own as its default", label in label_of(page) and default_of(page),
+          (label_of(page), default_of(page)))
+    browser.answer(page, default_of(page) or "")
 page = page_until(browser, "Proceed with this plan?")
 browser.post("/answer", {"csrf": browser.field(page, "csrf"), "seq": browser.field(page, "seq"), "value": "q"})
 time.sleep(1)

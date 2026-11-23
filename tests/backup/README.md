@@ -11,6 +11,7 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | `prune_bundles_test.py` | Keeping the newest scheduled bundles; the others never removed |
 | `restore_test.py` | A whole restore of a real bundle with address changes, its refusals, and the dump loaders |
 | `postgres_login_test.py` | The dump and load log in as Postgres's admin once it exists, objects made as Keycloak's role; the bootstrap role before |
+| `make_backup_test.py` | Fabric's secrets packed in an online bundle as in a cold one, never in a safety bundle of another section; fabric stopped only for cold |
 | `restore_section_test.py` | One section restored on a running install, its refusals, and `fabricctl restore --section` |
 | `run_backup_command_test.py` | `fabricctl backup`: routing, the key never an argument, one backup at a time |
 | `schedule_test.py` | The schedule in vars.yaml and its timer's units: on, changed, refused, off |
