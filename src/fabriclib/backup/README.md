@@ -18,6 +18,7 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `check_changes.py` | The address changes a whole restore or reinstall may make, checked before anything is touched |
 | `dump_directory.py` | The domain copied while the DC runs (`samba-tool domain backup offline`) |
 | `dump_signin.py` | Keycloak's database dumped while it runs (`pg_dump -Fc` over the container's own socket) |
+| `postgres_login.py` | The role the dump and its load reach Postgres as: its own admin once setup moved off the bootstrap role |
 | `freeze_zones.py` | BIND's zones written out and held still while they are copied (`rndc freeze`, `thaw`) |
 | `install_backup_timer.py` | fabric-backup.timer and its service as vars.yaml says, or removed |
 | `list_bundles.py` | The bundles in the backups folder, newest first, from their names and manifests |

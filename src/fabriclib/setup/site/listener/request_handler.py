@@ -19,6 +19,7 @@ ROUTES = {("get", "/"): "_home", ("get", "/events"): "_events", ("get", "/static
           ("post", "/code"): "_code", ("post", "/answer"): "_answer", ("post", "/cancel"): "_cancel",
           ("post", "/finish"): "_finish", ("post", "/upload"): "_upload"}
 UPLOAD_QID = "restore.bundle"      # the one question an upload answers (manual 1.3.7.10)
+DISCARD_MAX = (8 << 30) + (1 << 20)   # what a refused upload from a signed-in browser is read to its end up to
 # what a browser whose session has ended is told (decision 2.1.8.62)
 ENDED = {"taken": "This session was ended from another browser, which now holds setup. Use that browser, or enter "
                   "the code here to take it back.",
@@ -148,11 +149,12 @@ class RequestHandler(RequestBase):
         if not (given.isascii() and given.isdigit()):
             self._refuse(411, "Refused: this upload's length is not given. Nothing was kept.")
             return
-        state = self.server.state
+        state, length = self.server.state, int(given)
         with state.changed:
             asking = state.phase == "question" and bool(state.question) and state.question.get("qid") == UPLOAD_QID
         if not asking or not state.upload_dir:
             self._refuse(409, "Refused: setup is not asking for a bundle now. Nothing was kept.")
+            self._discard(length)
             return
         last = [time.monotonic()]
 
@@ -161,10 +163,15 @@ class RequestHandler(RequestBase):
                 last[0] = time.monotonic()
                 self._note_activity()
         try:
-            seq, path = save_upload(MultipartReader(self.rfile, int(given), self.headers.get("Content-Type")),
-                                    state.csrf, state.upload_dir, tick=still_here)
+            reader = MultipartReader(self.rfile, length, self.headers.get("Content-Type"))
+            seq, path = save_upload(reader, state.csrf, state.upload_dir, tick=still_here)
+        except ValueError as exc:                   # not a multipart form at all
+            self._refuse(400, f"Refused: {exc}. Nothing was kept.")
+            self._discard(length)
+            return
         except UploadRefused as exc:
             self._refuse(exc.status, str(exc))
+            self._discard(reader.left)
             return
         with state.changed:
             current = (state.phase == "question" and bool(state.question)
@@ -177,6 +184,25 @@ class RequestHandler(RequestBase):
             return
         self.server.control.send({"t": "answer", "seq": seq, "value": path})
         self._see()
+
+    def _discard(self, length):
+        """Purpose: read and drop what is left of a refused upload from a signed-in browser, so it shows the refusal
+                 instead of a reset connection (a browser sends the whole file before it reads the answer). Past the
+                 largest upload, the connection is just closed.
+        Inputs:  length — the bytes still to come.
+        Returns: None.
+        Fails:   never (a connection that ends is the end).
+        Feeds:   _upload."""
+        if length > DISCARD_MAX:
+            return
+        try:
+            while length > 0:
+                piece = self.rfile.read(min(length, 1 << 20))
+                if not piece:
+                    return
+                length -= len(piece)
+        except (OSError, ValueError):
+            return
 
     def _cancel(self):
         """Purpose: leave before Proceed; setup closes the site with nothing changed.

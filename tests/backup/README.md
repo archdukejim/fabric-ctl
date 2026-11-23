@@ -10,6 +10,7 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | `old_address_uses_test.py` | What still names the old address or subnet after a move; fabric's own and other networks left out |
 | `prune_bundles_test.py` | Keeping the newest scheduled bundles; the others never removed |
 | `restore_test.py` | A whole restore of a real bundle with address changes, its refusals, and the dump loaders |
+| `postgres_login_test.py` | The dump and load log in as Postgres's admin once it exists, objects made as Keycloak's role; the bootstrap role before |
 | `restore_section_test.py` | One section restored on a running install, its refusals, and `fabricctl restore --section` |
 | `run_backup_command_test.py` | `fabricctl backup`: routing, the key never an argument, one backup at a time |
 | `schedule_test.py` | The schedule in vars.yaml and its timer's units: on, changed, refused, off |

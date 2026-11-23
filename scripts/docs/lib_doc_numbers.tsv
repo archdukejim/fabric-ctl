@@ -257,6 +257,7 @@ file	fabriclib-backup|src/fabriclib/backup/open_bundle_key.py	6
 file	fabriclib-backup|src/fabriclib/backup/open_section.py	7	
 file	fabriclib-backup|src/fabriclib/backup/pack_section.py	8	
 file	fabriclib-backup|src/fabriclib/backup/pause_unit.py	24	
+file	fabriclib-backup|src/fabriclib/backup/postgres_login.py	50	
 file	fabriclib-backup|src/fabriclib/backup/prune_bundles.py	25	
 file	fabriclib-backup|src/fabriclib/backup/read_backup_key.py	26	
 file	fabriclib-backup|src/fabriclib/backup/read_build.py	38	
@@ -2257,6 +2258,7 @@ function	fabriclib-backup|src/fabriclib/backup/open_bundle_key.py|open_bundle_ke
 function	fabriclib-backup|src/fabriclib/backup/open_section.py|open_section	1	
 function	fabriclib-backup|src/fabriclib/backup/pack_section.py|pack_section	1	
 function	fabriclib-backup|src/fabriclib/backup/pause_unit.py|pause_unit	1	
+function	fabriclib-backup|src/fabriclib/backup/postgres_login.py|postgres_login	1	
 function	fabriclib-backup|src/fabriclib/backup/prune_bundles.py|prune_bundles	1	
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_key_file	2	
 function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_value	1	
@@ -3884,6 +3886,7 @@ function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|Re
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._check_result	12	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._code	4	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._code_page	13	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._discard	15	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._events	10	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._finish	7	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._home	3	

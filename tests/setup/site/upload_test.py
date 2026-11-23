@@ -10,6 +10,7 @@ The bundle's own check and the key's are stood in for (tests/backup/restore_test
 import http.client
 import os
 import re
+import ssl
 import sys
 import tempfile
 import threading
@@ -70,10 +71,14 @@ def multipart(browser, fields, file_name, data, origin="same"):
         headers["Cookie"] = browser.cookie
     if origin:
         headers["Origin"] = f"https://{browser.host}:{browser.port}" if origin == "same" else origin
-    c.request("POST", "/upload", body=body, headers=headers)
-    r = c.getresponse()
-    text = r.read().decode("utf-8", "replace")
-    c.close()
+    try:
+        c.request("POST", "/upload", body=body, headers=headers)
+        r = c.getresponse()
+        text = r.read().decode("utf-8", "replace")
+    except (ssl.SSLError, ConnectionError) as exc:    # refused before the file was read: the connection closed
+        return None, str(exc)
+    finally:
+        c.close()
     return r.status, text
 
 
@@ -124,13 +129,16 @@ fields = {"csrf": browser.field(page, "csrf"), "seq": browser.field(page, "seq")
 # covers: site:post.upload -
 stranger = Browser(site.port)
 status, text = multipart(stranger, fields, NAME, DATA)
-check("negative: no session: 403, nothing in the upload folder", status == 403 and not os.listdir(uploads),
+check("negative: no session: refused (403, or the connection closed unread), nothing in the upload folder",
+      status in (403, None) and not os.listdir(uploads),
       (status, os.listdir(uploads)))
 status, text = multipart(browser, fields, NAME, DATA, origin="https://evil.example")
-check("negative: another site's form (Origin): refused, nothing kept", status == 403 and not os.listdir(uploads),
+check("negative: another site's form (Origin): refused, nothing kept", status in (403, None)
+      and not os.listdir(uploads),
       (status, text[-300:]))
 status, text = multipart(browser, dict(fields, csrf="stale"), NAME, DATA)
-check("negative: a stale token: 403, nothing kept", status == 403 and "stale" in text and not os.listdir(uploads),
+check("negative: a stale token, signed in: the refusal page itself (the rest read and dropped), nothing kept",
+      status == 403 and "stale" in text and not os.listdir(uploads),
       (status, text[-300:]))
 status, text = multipart(browser, fields, "holiday.tar", DATA)
 check("negative: a file not named as a bundle: refused, saying so, nothing kept",
