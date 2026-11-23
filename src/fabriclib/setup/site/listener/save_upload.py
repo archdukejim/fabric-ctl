@@ -56,7 +56,7 @@ def save_upload(reader, csrf, folder, limit=LIMIT, reserve=RESERVE, free=_free, 
         part = reader.next_part()
         if not part or part[0] != "bundle" or part[1] is None:
             raise UploadRefused(400, "Refused: no file was chosen. Nothing was changed.")
-        name = os.path.basename(part[1])
+        name = part[1].replace("\\", "/").rsplit("/", 1)[-1]     # some browsers send C:\…\name
     except ValueError as exc:
         raise UploadRefused(400, f"Refused: {exc}. Nothing was changed.") from None
     if not NAME.match(name):
