@@ -15,3 +15,4 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | `schedule_test.py` | The schedule in vars.yaml and its timer's units: on, changed, refused, off |
 | `section_of_key_test.py` | Every vars.yaml key belongs to exactly one section |
 | `section_paths_test.py` | What each section packs; every folder fabric installs is in one |
+| `schedule_status_test.py` | The schedule's settings and runs from systemd's words, and with no systemd |

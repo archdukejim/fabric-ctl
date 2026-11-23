@@ -7,7 +7,8 @@ from fabriclib.directory import held_op
 from fabriclib.federation.common.is_root_site import is_root_site
 
 
-READS = {"list", "show", "explain", "reaching", "managed", "authorize"}       # a held process may answer (2.1.8.35)
+# a held process may answer (2.1.8.35)
+READS = {"list", "show", "explain", "reaching", "managed", "authorize", "domain_admin"}
 
 
 def grant_request(v, request, container="samba"):

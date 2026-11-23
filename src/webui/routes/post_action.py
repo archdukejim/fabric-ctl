@@ -18,6 +18,7 @@ from webui.routes.stepca_post import stepca_post
 from webui.routes.tsig_post import tsig_post
 from webui.routes.security_post import security_post
 from webui.routes.settings_post import settings_post
+from webui.routes.backups_post import backups_post
 from webui.routes.vault_post import vault_post
 from webui.routes.zone_post import zone_post
 from webui.routes.zones_post import zones_post
@@ -57,7 +58,7 @@ def post_action(h, sess, path, form):
              (lists, rules, upstreams, fetch); /overview/… (jobs); /freeradius/clients…; /freeradius/people…;
              /bind9/tsig/…; /overview/sizing/dismiss (a sizing alert, 1.8.8.8); /kept/refresh (a page's Refresh,
              1.8.9.4);
-             /settings/… (the setup wizard: step,
+             /settings/backups/… (Backups: now, schedule, restore, 1.3.7.9); /settings/… (the setup wizard: step,
              plan, import, apply, dismiss).
     Returns: /logout: session dropped, LOGOUT audited, 303 to Keycloak's logout URL clearing the session cookie;
              the rest as their route modules.
@@ -93,6 +94,8 @@ def post_action(h, sess, path, form):
         return vault_post(h, sess, _segments(path, 2), form)
     if path.startswith("/security/"):
         return security_post(h, sess, _segments(path, 2), form)
+    if path.startswith("/settings/backups/"):            # Backups (1.3.7.9)
+        return backups_post(h, sess, _segments(path, 3), form)
     if path.startswith("/settings/"):
         return settings_post(h, sess, _segments(path, 2), form)
     if path.startswith("/directory/"):

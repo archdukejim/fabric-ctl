@@ -17,13 +17,22 @@ class _Reply:
         self.status = status
         self._body = json.dumps(obj).encode()
 
-    def read(self):
-        """Purpose: The reply's body.
-        Inputs:  none.
+    def read(self, n=-1):
+        """Purpose: The reply's body, or its next n bytes (a download read as a stream).
+        Inputs:  n — how many bytes (-1: all that is left).
         Returns: bytes (JSON).
         Fails:   never.
-        Feeds:   connection.call_agent."""
-        return self._body
+        Feeds:   connection.call_agent, agentclient/backup_download."""
+        out, self._body = (self._body, b"") if n is None or n < 0 else (self._body[:n], self._body[n:])
+        return out
+
+    def getheader(self, name, default=None):
+        """Purpose: A header of the reply: only its length is known.
+        Inputs:  name — the header; default — for any other.
+        Returns: str or default.
+        Fails:   never.
+        Feeds:   agentclient/backup_download."""
+        return str(len(self._body)) if name.lower() == "content-length" else default
 
 
 class FakeConnection:

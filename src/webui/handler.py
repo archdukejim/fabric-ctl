@@ -1,4 +1,5 @@
 import hmac
+import shutil
 import sys
 import traceback
 import urllib.parse
@@ -55,9 +56,33 @@ class Handler(BaseHTTPRequestHandler):
         """
         if isinstance(body, str):
             body = body.encode()
+        self._head(status, len(body), content_type, headers)
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def send_stream(self, stream, length, content_type, headers=None):
+        """Purpose: Send a 200 whose body is read from a stream a MiB at a time, never held whole (manual 1.3.7.9: a
+                 bundle's download), with the same security headers as send.
+        Inputs:  stream — an object with read(n); length — its length in bytes; content_type — str; headers — extra
+                 (name, value) headers, e.g. Content-Disposition.
+        Returns: None; the response is written (no body for HEAD).
+        Fails:   OSError (BrokenPipeError) when nginx or the browser has gone; the stream's own read errors.
+        Feeds:   routes/backups_page (a bundle's download).
+        """
+        self._head(200, length, content_type, headers)
+        if self.command != "HEAD":
+            shutil.copyfileobj(stream, self.wfile, 1 << 20)
+
+    def _head(self, status, length, content_type, headers):
+        """Purpose: The status line and headers of a response: the fixed security headers and the extra ones.
+        Inputs:  status — int; length — the body's length; content_type — str; headers — list of (name, value) or None.
+        Returns: None; the headers are written and ended.
+        Fails:   OSError when the connection has closed.
+        Feeds:   send, send_stream.
+        """
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Length", str(length))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         # same-origin, not no-referrer: with no-referrer a browser sends "Origin: null" on its own form posts, which the
@@ -71,8 +96,6 @@ class Handler(BaseHTTPRequestHandler):
         for k, v in (headers or []):
             self.send_header(k, v)
         self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
 
     def redirect(self, location, headers=None):
         """Purpose: Send a 303 See Other to a location.

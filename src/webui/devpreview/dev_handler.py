@@ -81,6 +81,14 @@ class DevHandler(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(data)
 
+    def send_stream(self, stream, length, content_type, headers=None):
+        """Purpose: A streamed 200 as production's (a bundle's download, 1.3.7.9): here the sample's bytes at once.
+        Inputs:  stream — read(); length — ignored; content_type — str; headers — extra headers.
+        Returns: None.
+        Fails:   as send.
+        Feeds:   routes/backups_page."""
+        self.send(200, stream.read(), content_type, headers)
+
     def redirect(self, location, headers=None):
         """Purpose: 303 See Other, as production.
         Inputs:  location — str; headers — extra headers.
@@ -110,13 +118,15 @@ class DevHandler(BaseHTTPRequestHandler):
 
     def _session(self):
         """Purpose: The preview's signed-in person, shaped as production's session (signed in just now, so no
-                 step-up; the setup wizard already opened once).
+                 step-up; the setup wizard already opened once; a Domain Admin, for Backups, unless shown
+                 --as a narrower bundle).
         Inputs:  none (reads DevHandler.who: user, perms).
         Returns: dict.
         Fails:   never.
         Feeds:   _run."""
         return {"user": self.who["user"], "csrf": "dev", "perms": list(self.who["perms"]), "id_token": "dev",
-                "sid": "dev", "auth_at": 4102444800, "reminders": [], "wizard_opened": True, "preview": True}
+                "sid": "dev", "auth_at": 4102444800, "reminders": [], "wizard_opened": True, "preview": True,
+                "domain_admin": set(self.who["perms"]) >= set(FABRIC_PERMISSIONS)}
 
     def _run(self, method):
         """Purpose: One request through the production routes, the preview's flash and toggles set around it, and the

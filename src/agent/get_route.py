@@ -68,6 +68,7 @@ from fabriclib.setup.context import SetupContext
 from fabriclib.settings.export_settings import export_settings
 from fabriclib.settings.settings_overview import settings_overview
 from fabriclib.sizing.state import read_sizing
+from agent.get_backup import get_backup
 
 
 
@@ -210,7 +211,8 @@ def get_route(route, user=None, perms=None):
              TSIG key's names are picked from, 2.1.4.12); vault/slots: the unlock methods with
              this host's name; images: the image status rows; reminders: host_reminders (the console's top bar);
              pki/acme: {info, machines, domain}; pki/certs: certs_overview; pki/lifetimes: read_lifetimes;
-             jobs/<id>: the job; domain/grants: list_grants; domain/grants/<name>:
+             jobs/<id>: the job; backup[/allowed|/bundles/<file>]: get_backup's (a bundle: a FileAnswer);
+             domain/grants: list_grants; domain/grants/<name>:
              show_grant; domain/grants/explain/<person>[/<machine>]: explain_grant; domain/kerberos: kerberos_overview;
              domain/kerberos/spns: list_spns; groups: list_groups; groups/<name>: show_group; ous: list_ous;
              account: my_account (the signed-in person's own details, groups, certificates and devices);
@@ -244,6 +246,8 @@ def get_route(route, user=None, perms=None):
         return READS[tuple(route)]()
     if len(route) == 2 and route[0] == "zones":
         return _kept(tuple(route), lambda: zone_detail(route[1]), perms)
+    if route[:1] == ["backup"]:                     # Backups (1.3.7.9): Domain Admins, checked there
+        return get_backup(route, user)
     if len(route) == 2 and route[0] == "jobs":
         return JOBS.read(route[1], user)
     if len(route) == 2 and route[0] == "tsig-choices":       # a TSIG key's names picked from its zone (2.1.4.12)

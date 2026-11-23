@@ -28,6 +28,7 @@ from webui.routes.roles_page import roles_page
 from webui.routes.policies_page import policies_page
 from webui.routes.settings_page import settings_page
 from webui.routes.stepca_page import stepca_page
+from webui.routes.backups_page import backups_page
 from webui.session.page_context import page_context
 from webui.routes.note_kept import note_kept
 
@@ -103,7 +104,8 @@ def get_page(h, sess, path, query):
              (/8021x, /8021x/decisions, /8021x/guides, /8021x/devices[/_new|/<name>], /8021x/roles[/_new|/<name>]),
              Secrets
              (/secrets[/<view>]),
-             Settings (/settings, /settings/export, /settings/sign-in), My account (/account, /account/groups,
+             Settings (/settings, /settings/export, /settings/sign-in, /settings/backups[/download/<file>], 1.3.7.9),
+             My account (/account, /account/groups,
              1.8.6.6), a job (/jobs/<id>), a page's pending changes and queue (/changes/<page id>, 1.8.6.5); 303
              from / to the first page they may see for a person who may not see the Overview (My account for one
              with no fabric role); 403 for a navigation page whose permission they lack (checked here too, not only
@@ -132,6 +134,8 @@ def get_page(h, sess, path, query):
             shown = listing
     if path.startswith("/8021x/clients/") or path.startswith("/8021x/people/"):
         shown = "/8021x"
+    if path.startswith("/settings/backups/"):              # a bundle's download: Backups' (1.3.7.9)
+        shown = "/settings/backups"
     if path in ("/networks/scan", "/networks/export"):     # pages of Networks (1.10.4.40.1)
         shown = "/networks"
     if path.startswith("/pki/issued/") or path.startswith("/pki/acme/"):
@@ -206,6 +210,8 @@ def get_page(h, sess, path, query):
         return openbao_page(h, ctx, {**query, "view": _rest(path, "/secrets/")})
     if _rest(path, "/changes/") in views.PENDING_PAGES:      # a page's Review and queue (1.8.6.5)
         return h.send(200, views.changes(ctx, actions.pending_page(_rest(path, "/changes/"))))
+    if path == "/settings/backups" or path.startswith("/settings/backups/"):
+        return backups_page(h, sess, ctx, path, query)
     if path == "/settings" or path == "/settings/export":
         return settings_page(h, sess, ctx, path, query)
     if path == "/settings/sign-in":

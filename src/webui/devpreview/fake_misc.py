@@ -4,21 +4,10 @@ import secrets
 from webui import views
 from webui.devpreview.fabric_rules import ValidationError
 from webui.devpreview.fake_certs import fake_certs
+from webui.devpreview.fake_job import fake_job
 from webui.devpreview.sample_data import SAMPLE_DOCTOR, SAMPLE_INFO, SAMPLE_PEM, SAMPLE_SECURITY, SAMPLE_SIZING
 from webui.devpreview.sample_result import sample_result
 from webui.devpreview.sample_settings import SAMPLE_PLAN
-
-
-def _job(state, kind, result):
-    """Purpose: A background job, done at once in the preview.
-    Inputs:  state — DevState; kind — "doctor", "images", "settings"; result — its result.
-    Returns: {"id"}.
-    Fails:   never.
-    Feeds:   fake_misc."""
-    jobs = state.data.setdefault("jobs", {})
-    job_id = f"dev-{len(jobs) + 1}"
-    jobs[job_id] = {"id": job_id, "kind": kind, "state": "done", "error": "", "result": result}
-    return {"id": job_id}
 
 
 def _pki(state, op, body):
@@ -133,13 +122,13 @@ def fake_misc(state, who, route, body):
         state.sizing_dismissed = getattr(state, "sizing_dismissed", set()) | {body["resource"]}
         return {"resource": body["resource"], "level": "warn", "objects": 7}
     if route == ["jobs", "doctor"]:
-        return _job(state, "doctor", SAMPLE_DOCTOR)
+        return fake_job(state, "doctor", SAMPLE_DOCTOR)
     if route == ["jobs", "images"]:
         action, service = body.get("action"), body.get("service", "")
         if action not in ("update", "rollback") or not service:
             raise ValidationError("action: update or rollback, and a service")
         verb = "updated" if action == "update" else "rolled back"
-        return _job(state, "images", {"action": action, "service": service, "moved": [service],
+        return fake_job(state, "images", {"action": action, "service": service, "moved": [service],
                                       "message": f"{verb} {service} (in memory)"})
     if len(route) == 2 and route[0] == "pki":
         return _pki(state, route[1], body)
@@ -155,7 +144,7 @@ def fake_misc(state, who, route, body):
     if route == ["settings", "plan"]:
         return {**SAMPLE_PLAN, "source": "file" if body.get("file") else "web"}
     if route == ["settings", "apply"]:
-        return _job(state, "settings", {"message": "Applied (in memory): install_fluentbit, host_ram_capacity.",
+        return fake_job(state, "settings", {"message": "Applied (in memory): install_fluentbit, host_ram_capacity.",
                                         "output": "DEV PREVIEW — nothing was rendered or reloaded."})
     if route == ["settings", "dismiss"]:
         return {}

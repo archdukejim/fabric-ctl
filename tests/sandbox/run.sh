@@ -1208,6 +1208,76 @@ check "dns restored alone: a safety bundle made first, DNS answering after" \
     "grep -q 'dns restored from' '$OUT/section.log' && in_box 'ls /var/backups/fabric/*-manual.fabric.tar' >/dev/null 2>&1 \
      && [ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
 
+echo "--- the console's Backups routes in fabric-agent (1.3.7.9), as a root peer (Domain Admins: tests/samba/grants.py)"
+AGENT="curl -s --unix-socket /opt/webui/agent/agent.sock"
+agent_json() {   # POST a body built in the box from files, so no passphrase is on a command line (global Rule 10)
+    in_box "umask 077; python3 -c 'import json,sys; b=json.loads(sys.argv[1]); [b.__setitem__(k, open(v).read().strip()) for k, v in b.pop(\"from_files\", {}).items()]; json.dump(b, open(\"/root/agent-body.json\", \"w\"))' '$2' && $AGENT -X POST -H 'Content-Type: application/json' --data @/root/agent-body.json http://agent$1; rm -f /root/agent-body.json"
+}
+agent_job() {    # wait for a job: its final JSON
+    for _ in $(seq 1 120); do
+        J=$(in_box "$AGENT http://agent/v1/jobs/$1")
+        echo "$J" | grep -q '"state": "running"' || { echo "$J"; return; }
+        sleep 3
+    done; echo "$J"
+}
+in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"; sleep 20      # the first read starts the checks
+in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"
+SITE=$(sed -n 's/.*"site": "\([^"]*\)".*/\1/p' "$OUT/agent-backup.json")
+# covers: agent:get.backup +
+check "GET /v1/backup: the bundles with their checks (whole), the schedule and the seven sections, no host paths" \
+    "grep -q '\"check\": \"whole\"' '$OUT/agent-backup.json' && grep -q '\"secrets\"' '$OUT/agent-backup.json' \
+     && grep -q '\"schedule\"' '$OUT/agent-backup.json' && ! grep -q '\"path\"' '$OUT/agent-backup.json' && [ -n '$SITE' ]"
+# covers: agent:get.backup.allowed +
+check "GET /v1/backup/allowed: root on the host is allowed" \
+    "in_box '$AGENT http://agent/v1/backup/allowed' | grep -q '\"allowed\": true'"
+BF=$(basename "$(in_box 'ls -t /var/backups/fabric/*.fabric.tar' | head -1)")
+in_box "$AGENT -o /root/download.tar http://agent/v1/backup/bundles/$BF"
+# covers: agent:get.backup.bundles.* +
+check "a bundle's download is the file itself, byte for byte, and audited" \
+    "[ \"\$(in_box 'sha256sum < /root/download.tar')\" = \"\$(in_box \"sha256sum < /var/backups/fabric/$BF\")\" ] \
+     && in_box 'grep BACKUP_DOWNLOAD /opt/fabric/archive/audit.log' | grep -q '$BF'"
+in_box 'rm -f /root/download.tar'
+# covers: agent:get.backup.bundles.* -
+check "negative: a path instead of a bundle's name is refused, nothing read" \
+    "in_box \"$AGENT http://agent/v1/backup/bundles/..%2F..%2Fetc%2Fshadow\" | grep -q 'the name of a bundle' \
+     && in_box \"$AGENT http://agent/v1/backup/bundles/fabric-x-20990101T000000Z-manual.fabric.tar\" | grep -q 'no bundle'"
+# covers: agent:post.backup.restore -
+check "negative: secrets restored alone through the agent is refused, as by the CLI" \
+    "agent_json /v1/backup/restore '{\"actor\": \"sandbox\", \"file\": \"$BF\", \"section\": \"secrets\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}' | grep -q 'only with the whole bundle'"
+check "negative: a restore without the site's name typed is refused" \
+    "agent_json /v1/backup/restore '{\"actor\": \"sandbox\", \"file\": \"$BF\", \"section\": \"dhcp\", \"confirm\": \"nope\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}' | grep -q \"type the site's name\""
+# covers: agent:post.backup.now -
+check "negative: Back up now with a passphrase under 12 characters is refused, nothing made" \
+    "agent_json /v1/backup/now '{\"actor\": \"sandbox\", \"from_files\": {\"passphrase\": \"/root/bundle-pw-short\"}}' | grep -q '12 characters'"
+N0=$(in_box 'ls /var/backups/fabric/*-manual.fabric.tar | wc -l')
+JOB=$(agent_json /v1/backup/now '{"actor": "sandbox", "from_files": {"passphrase": "/root/bundle-pw"}}' | sed -n 's/.*"id": "\([^"]*\)".*/\1/p')
+agent_job "$JOB" > "$OUT/agent-backup-job.json"
+# covers: agent:post.backup.now +
+check "Back up now through the agent: a job, a new bundle, the passphrase nowhere in its result" \
+    "grep -q '\"state\": \"done\"' '$OUT/agent-backup-job.json' && grep -q 'Bundle made' '$OUT/agent-backup-job.json' \
+     && [ \"\$(in_box 'ls /var/backups/fabric/*-manual.fabric.tar | wc -l')\" -gt '$N0' ] \
+     && ! grep -qF \"\$(cat '$OUT/bundle-pw')\" '$OUT/agent-backup-job.json'"
+BN=$(basename "$(in_box 'ls -t /var/backups/fabric/*-manual.fabric.tar' | head -1)")
+JOB=$(agent_json /v1/backup/restore "{\"actor\": \"sandbox\", \"file\": \"$BN\", \"section\": \"dhcp\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}" | sed -n 's/.*"id": "\([^"]*\)".*/\1/p')
+agent_job "$JOB" > "$OUT/agent-restore-job.json"
+# covers: agent:post.backup.restore +
+check "Restore one section through the agent: dhcp restored as a job, a safety bundle named, Kea running" \
+    "grep -q '\"state\": \"done\"' '$OUT/agent-restore-job.json' && grep -q 'dhcp restored from $BN' '$OUT/agent-restore-job.json' \
+     && in_box 'systemctl is-active kea' | grep -qx active"
+# covers: agent:post.backup.schedule -
+check "negative: a schedule with a key that is not age1… is refused, the schedule unchanged" \
+    "agent_json /v1/backup/schedule '{\"actor\": \"sandbox\", \"time\": \"04:15\", \"public_key\": \"ssh-ed25519 AAAA\"}' | grep -q 'age1' \
+     && ! in_box 'grep -q \"backup_schedule_time: .04:15\" /opt/fabric/config/vars.yaml'"
+PUB=$(in_box 'age-keygen -o /root/schedule.key 2>&1' | sed -n 's/^Public key: //p')
+agent_json /v1/backup/schedule "{\"actor\": \"sandbox\", \"time\": \"04:15\", \"keep\": \"3\", \"public_key\": \"$PUB\"}" > "$OUT/agent-schedule.json"
+# covers: agent:post.backup.schedule +
+check "the schedule set through the agent: its timer on at 04:15, keeping 3, shown with its next run" \
+    "grep -q '\"schedule\": \"on 04:15\"' '$OUT/agent-schedule.json' && in_box 'systemctl is-active fabric-backup.timer' | grep -qx active \
+     && in_box '$AGENT http://agent/v1/backup' | grep -q '\"next\": \"[A-Z]'"
+agent_json /v1/backup/schedule '{"actor": "sandbox", "off": true}' > /dev/null
+check "the schedule turned off through the agent: its timer gone" \
+    "! in_box 'systemctl is-active fabric-backup.timer' | grep -qx active"
+
 echo "--- a move to another VLAN and subnet, by the operator's procedure (4.2.4.8)"
 # the box's network is the VLAN: a second Docker network on another subnet stands for the new one
 NET2=fabric-sbx-net2; SUBNET2=10.79.0.0/24; IP2=10.79.0.10; GW2=10.79.0.1

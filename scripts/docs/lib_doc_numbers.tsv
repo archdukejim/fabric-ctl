@@ -1,6 +1,10 @@
 # fabric: numbers of the function reference (manual 1.17.1.2). Written by gen_lib_doc.py; never edit.
 file	fabricctl-agent|src/agent/apply_filter_now.py	48	
+file	fabricctl-agent|src/agent/backup_file.py	53	
+file	fabricctl-agent|src/agent/bundle_checks.py	54	
 file	fabricctl-agent|src/agent/change_dns_filter.py	49	
+file	fabricctl-agent|src/agent/file_answer.py	55	
+file	fabricctl-agent|src/agent/get_backup.py	56	
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
@@ -15,6 +19,7 @@ file	fabricctl-agent|src/agent/pending_thing.py	33
 file	fabricctl-agent|src/agent/pending_tsig.py	51	
 file	fabricctl-agent|src/agent/plan_store.py	25	
 file	fabricctl-agent|src/agent/post_account.py	28	
+file	fabricctl-agent|src/agent/post_backup.py	57	
 file	fabricctl-agent|src/agent/post_dhcp.py	3	
 file	fabricctl-agent|src/agent/post_directory.py	4	
 file	fabricctl-agent|src/agent/post_dns.py	5	
@@ -44,6 +49,7 @@ file	fabricctl-agent|src/agent/read_strings.py	11
 file	fabricctl-agent|src/agent/read_text.py	12	
 file	fabricctl-agent|src/agent/read_tree.py	44	
 file	fabricctl-agent|src/agent/read_tsig_edit.py	52	
+file	fabricctl-agent|src/agent/require_domain_admin.py	58	
 file	fabricctl-agent|src/agent/server.py	13	
 file	fabricctl-jinja|packaging/images/bake_env.py	9	
 file	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py	1	0.5.0 / 2026-10-04
@@ -86,6 +92,7 @@ file	fabricctl-jinja|src/containers/samba/delete_ou.py	120
 file	fabricctl-jinja|src/containers/samba/directory_op.py	25	
 file	fabricctl-jinja|src/containers/samba/directory_scope.py	164	
 file	fabricctl-jinja|src/containers/samba/directory_size.py	165	
+file	fabricctl-jinja|src/containers/samba/domain_admin.py	172	
 file	fabricctl-jinja|src/containers/samba/domain_facts.py	140	
 file	fabricctl-jinja|src/containers/samba/edit_person.py	121	
 file	fabricctl-jinja|src/containers/samba/ensure_ad_site.py	14	
@@ -231,6 +238,7 @@ file	fabriclib-backup|src/fabriclib/backup/dump_directory.py	18
 file	fabriclib-backup|src/fabriclib/backup/dump_signin.py	19	
 file	fabriclib-backup|src/fabriclib/backup/freeze_zones.py	20	
 file	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py	21	
+file	fabriclib-backup|src/fabriclib/backup/is_domain_admin.py	42	
 file	fabriclib-backup|src/fabriclib/backup/list_bundles.py	22	
 file	fabriclib-backup|src/fabriclib/backup/live_paths.py	36	
 file	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py	30	
@@ -255,6 +263,7 @@ file	fabriclib-backup|src/fabriclib/backup/restore_section.py	37
 file	fabriclib-backup|src/fabriclib/backup/run_age.py	10	
 file	fabriclib-backup|src/fabriclib/backup/run_backup_command.py	27	
 file	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py	28	
+file	fabriclib-backup|src/fabriclib/backup/schedule_status.py	43	
 file	fabriclib-backup|src/fabriclib/backup/seal_bundle_key.py	11	
 file	fabriclib-backup|src/fabriclib/backup/section_of_key.py	12	
 file	fabriclib-backup|src/fabriclib/backup/section_paths.py	13	
@@ -1334,6 +1343,12 @@ file	webui|src/webui/agentclient/add_subnet.py	5
 file	webui|src/webui/agentclient/add_zone.py	153	
 file	webui|src/webui/agentclient/apply_changes.py	6	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/audit.py	7	
+file	webui|src/webui/agentclient/backup_allowed.py	314	
+file	webui|src/webui/agentclient/backup_download.py	315	
+file	webui|src/webui/agentclient/backup_now.py	316	
+file	webui|src/webui/agentclient/backup_overview.py	317	
+file	webui|src/webui/agentclient/backup_restore.py	318	
+file	webui|src/webui/agentclient/backup_schedule.py	319	
 file	webui|src/webui/agentclient/browse_ou.py	294	
 file	webui|src/webui/agentclient/ca_summary.py	8	
 file	webui|src/webui/agentclient/cert_warnings.py	136	
@@ -1472,6 +1487,7 @@ file	webui|src/webui/devpreview/dev_settings.py	195	0.8.0 / 2026-10-22
 file	webui|src/webui/devpreview/dev_state.py	67	
 file	webui|src/webui/devpreview/fake_account.py	221	
 file	webui|src/webui/devpreview/fake_agent.py	202	
+file	webui|src/webui/devpreview/fake_backup.py	320	
 file	webui|src/webui/devpreview/fake_certs.py	310	
 file	webui|src/webui/devpreview/fake_connection.py	203	
 file	webui|src/webui/devpreview/fake_directory.py	204	
@@ -1479,6 +1495,7 @@ file	webui|src/webui/devpreview/fake_dns.py	205
 file	webui|src/webui/devpreview/fake_grants.py	251	
 file	webui|src/webui/devpreview/fake_groups.py	232	
 file	webui|src/webui/devpreview/fake_ipam.py	281	
+file	webui|src/webui/devpreview/fake_job.py	321	
 file	webui|src/webui/devpreview/fake_machines.py	241	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
@@ -1498,6 +1515,8 @@ file	webui|src/webui/oidc.py	76
 file	webui|src/webui/routes/access_page.py	252	
 file	webui|src/webui/routes/account_page.py	222	
 file	webui|src/webui/routes/account_post.py	223	
+file	webui|src/webui/routes/backups_page.py	322	
+file	webui|src/webui/routes/backups_post.py	323	
 file	webui|src/webui/routes/bind9_page.py	77	
 file	webui|src/webui/routes/changes_post.py	216	
 file	webui|src/webui/routes/computers_page.py	242	
@@ -1568,6 +1587,7 @@ file	webui|src/webui/views/account.py	225
 file	webui|src/webui/views/apply_result.py	102	0.8.0 / 2026-10-23
 file	webui|src/webui/views/audit.py	103	
 file	webui|src/webui/views/b64.py	104	
+file	webui|src/webui/views/backups.py	324	
 file	webui|src/webui/views/bind9.py	105	
 file	webui|src/webui/views/changes.py	217	
 file	webui|src/webui/views/computers.py	243	
@@ -1612,8 +1632,15 @@ file	webui|src/webui/views/stepca.py	118
 file	webui|src/webui/views/tree.py	298	
 file	webui|src/webui/views/tsig_result.py	119	
 function	fabricctl-agent|src/agent/apply_filter_now.py|apply_filter_now	1	
+function	fabricctl-agent|src/agent/backup_file.py|backup_file	1	
+function	fabricctl-agent|src/agent/bundle_checks.py|BundleChecks.__init__	1	
+function	fabricctl-agent|src/agent/bundle_checks.py|BundleChecks._run	2	
+function	fabricctl-agent|src/agent/bundle_checks.py|BundleChecks.of	3	
 function	fabricctl-agent|src/agent/change_dns_filter.py|_on	1	
 function	fabricctl-agent|src/agent/change_dns_filter.py|change_dns_filter	2	
+function	fabricctl-agent|src/agent/file_answer.py|FileAnswer.__init__	1	
+function	fabricctl-agent|src/agent/get_backup.py|get_backup	2	
+function	fabricctl-agent|src/agent/get_backup.py|site_name	1	
 function	fabricctl-agent|src/agent/get_route.py|_kept	5	
 function	fabricctl-agent|src/agent/get_route.py|_overview	3	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
@@ -1631,6 +1658,7 @@ function	fabricctl-agent|src/agent/handler.py|Handler.drain	11
 function	fabricctl-agent|src/agent/handler.py|Handler.log_message	2	
 function	fabricctl-agent|src/agent/handler.py|Handler.peer_uid	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.reply	3	
+function	fabricctl-agent|src/agent/handler.py|Handler.send_file	13	
 function	fabricctl-agent|src/agent/handler.py|Handler.unsupported	12	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
@@ -1691,6 +1719,10 @@ function	fabricctl-agent|src/agent/plan_store.py|PlanStore.__init__	1
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.put	2	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.take	3	
 function	fabricctl-agent|src/agent/post_account.py|post_account	1	
+function	fabricctl-agent|src/agent/post_backup.py|_make_key	2	
+function	fabricctl-agent|src/agent/post_backup.py|_open_key	3	
+function	fabricctl-agent|src/agent/post_backup.py|_running	1	
+function	fabricctl-agent|src/agent/post_backup.py|post_backup	4	
 function	fabricctl-agent|src/agent/post_dhcp.py|_vlan	1	
 function	fabricctl-agent|src/agent/post_dhcp.py|_where	2	
 function	fabricctl-agent|src/agent/post_dhcp.py|post_dhcp	3	
@@ -1739,6 +1771,7 @@ function	fabricctl-agent|src/agent/read_strings.py|read_strings	1
 function	fabricctl-agent|src/agent/read_text.py|read_text	1	
 function	fabricctl-agent|src/agent/read_tree.py|read_tree	1	
 function	fabricctl-agent|src/agent/read_tsig_edit.py|read_tsig_edit	1	
+function	fabricctl-agent|src/agent/require_domain_admin.py|require_domain_admin	1	
 function	fabricctl-agent|src/agent/server.py|main	1	
 function	fabricctl-jinja|packaging/images/bake_env.py|bake_env	1	
 function	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py|_signal	1	0.5.0 / 2026-10-04
@@ -1864,6 +1897,7 @@ function	fabricctl-jinja|src/containers/samba/directory_scope.py|in_an_ou	1
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|is_fabric_host_dn	3	
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|is_person_dn	2	
 function	fabricctl-jinja|src/containers/samba/directory_size.py|directory_size	1	
+function	fabricctl-jinja|src/containers/samba/domain_admin.py|domain_admin	1	
 function	fabricctl-jinja|src/containers/samba/domain_facts.py|domain_facts	1	
 function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	0.8.0 / 2026-10-22
 function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1	
@@ -2179,6 +2213,7 @@ function	fabriclib-backup|src/fabriclib/backup/dump_directory.py|dump_directory	
 function	fabriclib-backup|src/fabriclib/backup/dump_signin.py|dump_signin	1	
 function	fabriclib-backup|src/fabriclib/backup/freeze_zones.py|freeze_zones	1	
 function	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py|install_backup_timer	1	
+function	fabriclib-backup|src/fabriclib/backup/is_domain_admin.py|is_domain_admin	1	
 function	fabriclib-backup|src/fabriclib/backup/list_bundles.py|list_bundles	1	
 function	fabriclib-backup|src/fabriclib/backup/live_paths.py|live_paths	1	
 function	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py|load_directory_dump	1	
@@ -2215,6 +2250,8 @@ function	fabriclib-backup|src/fabriclib/backup/run_age.py|run_age	2
 function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|_flag	1	
 function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|run_backup_command	2	
 function	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py|save_vault_snapshot	1	
+function	fabriclib-backup|src/fabriclib/backup/schedule_status.py|_show	1	
+function	fabriclib-backup|src/fabriclib/backup/schedule_status.py|schedule_status	2	
 function	fabriclib-backup|src/fabriclib/backup/seal_bundle_key.py|seal_bundle_key	1	
 function	fabriclib-backup|src/fabriclib/backup/section_of_key.py|_owns	1	
 function	fabriclib-backup|src/fabriclib/backup/section_of_key.py|section_of_key	2	
@@ -4019,6 +4056,12 @@ function	webui|src/webui/agentclient/add_subnet.py|add_subnet	1
 function	webui|src/webui/agentclient/add_zone.py|add_zone	1	
 function	webui|src/webui/agentclient/apply_changes.py|apply_changes	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/audit.py|audit	1	
+function	webui|src/webui/agentclient/backup_allowed.py|backup_allowed	1	
+function	webui|src/webui/agentclient/backup_download.py|backup_download	1	
+function	webui|src/webui/agentclient/backup_now.py|backup_now	1	
+function	webui|src/webui/agentclient/backup_overview.py|backup_overview	1	
+function	webui|src/webui/agentclient/backup_restore.py|backup_restore	1	
+function	webui|src/webui/agentclient/backup_schedule.py|backup_schedule	1	
 function	webui|src/webui/agentclient/browse_ou.py|browse_ou	1	
 function	webui|src/webui/agentclient/ca_summary.py|ca_summary	1	
 function	webui|src/webui/agentclient/cert_warnings.py|cert_warnings	1	
@@ -4163,6 +4206,7 @@ function	webui|src/webui/devpreview/dev_handler.py|DevHandler.do_POST	4
 function	webui|src/webui/devpreview/dev_handler.py|DevHandler.log_message	1	
 function	webui|src/webui/devpreview/dev_handler.py|DevHandler.redirect	7	
 function	webui|src/webui/devpreview/dev_handler.py|DevHandler.send	2	
+function	webui|src/webui/devpreview/dev_handler.py|DevHandler.send_stream	13	
 function	webui|src/webui/devpreview/dev_handler.py|_DevApp.__init__	6	
 function	webui|src/webui/devpreview/dev_handler.py|_DevOIDC.logout_url	5	
 function	webui|src/webui/devpreview/dev_post_action.py|dev_post_action	1	0.8.0 / 2026-10-22
@@ -4200,6 +4244,9 @@ function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3
 function	webui|src/webui/devpreview/fake_agent.py|_read_ous	4	
 function	webui|src/webui/devpreview/fake_agent.py|_read_tree	7	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
+function	webui|src/webui/devpreview/fake_backup.py|_bundle	1	
+function	webui|src/webui/devpreview/fake_backup.py|_state	2	
+function	webui|src/webui/devpreview/fake_backup.py|fake_backup	3	
 function	webui|src/webui/devpreview/fake_certs.py|fake_certs	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -4207,6 +4254,7 @@ function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.getrespons
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.install	7	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.request	4	
 function	webui|src/webui/devpreview/fake_connection.py|_Reply.__init__	1	
+function	webui|src/webui/devpreview/fake_connection.py|_Reply.getheader	8	
 function	webui|src/webui/devpreview/fake_connection.py|_Reply.read	2	
 function	webui|src/webui/devpreview/fake_directory.py|_devices	3	
 function	webui|src/webui/devpreview/fake_directory.py|_edit	7	
@@ -4239,12 +4287,13 @@ function	webui|src/webui/devpreview/fake_ipam.py|_site	2
 function	webui|src/webui/devpreview/fake_ipam.py|_vlan_add	6	
 function	webui|src/webui/devpreview/fake_ipam.py|fake_ipam	8	
 function	webui|src/webui/devpreview/fake_ipam.py|network_read	1	
+function	webui|src/webui/devpreview/fake_job.py|fake_job	1	
 function	webui|src/webui/devpreview/fake_machines.py|_keytab	4	
 function	webui|src/webui/devpreview/fake_machines.py|_machine	2	
 function	webui|src/webui/devpreview/fake_machines.py|_overview	3	
 function	webui|src/webui/devpreview/fake_machines.py|_rows	1	
 function	webui|src/webui/devpreview/fake_machines.py|fake_machines	5	
-function	webui|src/webui/devpreview/fake_misc.py|_job	1	
+function	webui|src/webui/devpreview/fake_misc.py|_job	1	0.10.0 / 2026-11-22
 function	webui|src/webui/devpreview/fake_misc.py|_pki	2	
 function	webui|src/webui/devpreview/fake_misc.py|_vault	3	
 function	webui|src/webui/devpreview/fake_misc.py|fake_misc	4	
@@ -4281,6 +4330,7 @@ function	webui|src/webui/devpreview/fake_tree.py|fake_tree	2
 function	webui|src/webui/devpreview/sample_data.py|_list	1	
 function	webui|src/webui/devpreview/sample_radius_guides.py|sample_radius_guides	1	
 function	webui|src/webui/devpreview/sample_result.py|sample_result	1	
+function	webui|src/webui/handler.py|Handler._head	12	
 function	webui|src/webui/handler.py|Handler.address_string	1	
 function	webui|src/webui/handler.py|Handler.back	10	
 function	webui|src/webui/handler.py|Handler.deny	5	
@@ -4291,6 +4341,7 @@ function	webui|src/webui/handler.py|Handler.handle_request	9
 function	webui|src/webui/handler.py|Handler.log_message	2	
 function	webui|src/webui/handler.py|Handler.redirect	4	
 function	webui|src/webui/handler.py|Handler.send	3	
+function	webui|src/webui/handler.py|Handler.send_stream	11	
 function	webui|src/webui/httpio/cookie_header.py|cookie_header	1	
 function	webui|src/webui/httpio/read_cookie.py|read_cookie	1	
 function	webui|src/webui/httpio/read_form.py|read_form	1	
@@ -4309,6 +4360,8 @@ function	webui|src/webui/routes/access_page.py|access_page	1
 function	webui|src/webui/routes/account_page.py|_factors_url	1	
 function	webui|src/webui/routes/account_page.py|account_page	2	
 function	webui|src/webui/routes/account_post.py|account_post	1	
+function	webui|src/webui/routes/backups_page.py|backups_page	1	
+function	webui|src/webui/routes/backups_post.py|backups_post	1	
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
 function	webui|src/webui/routes/changes_post.py|changes_post	1	
 function	webui|src/webui/routes/computers_page.py|computers_page	1	
@@ -4422,6 +4475,7 @@ function	webui|src/webui/views/account.py|account	1
 function	webui|src/webui/views/apply_result.py|apply_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/audit.py|audit	1	
 function	webui|src/webui/views/b64.py|b64	1	
+function	webui|src/webui/views/backups.py|backups	1	
 function	webui|src/webui/views/bind9.py|bind9	1	
 function	webui|src/webui/views/changes.py|changes	1	
 function	webui|src/webui/views/computers.py|_filtered	1	

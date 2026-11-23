@@ -23,7 +23,12 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
   - 4.3.6.4 Troubleshoot the setup site
   - 4.3.6.5 Get the code back from another terminal
   - 4.3.6.6 Continue in another browser
-- 4.3.7 Backups — designed for 0.10.1, not built: see 1.3.7
+- [4.3.7 Backups](4.3.7-backups.md)
+  - 4.3.7.1 Back up now
+  - 4.3.7.2 Set the backup schedule
+  - 4.3.7.3 Download a bundle
+  - 4.3.7.4 Restore one section
+  - 4.3.7.5 Troubleshoot backups
 
 ## 4.4 DNS: BIND
 

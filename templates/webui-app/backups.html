@@ -1,0 +1,76 @@
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
+{#- The Backups page (manual 1.3.7.9): Domain Admins only, every change after a sign-in from the last 5 minutes. -#}
+<h1>Backups</h1>
+<p class="muted">Encrypted bundles of this install, in <code>/var/backups/fabric/</code> on the host. Only the domain's Domain Admins see this page.</p>
+{% if signin_old %}<p class="flash warn">Backing up, the schedule and a restore need a sign-in from the last 5 minutes: <a href="/login?next=/settings/backups">sign in again</a> first, or you will be asked to.</p>{% endif %}
+{% if ov.running %}<p class="flash warn" role="status">A backup or restore is running now: another waits until it ends.</p>{% endif %}
+
+{% if picked %}
+<p><a href="/settings/backups">← Backups</a></p>
+<section class="card"><h2>Restore {{ picked.file }}</h2>
+<dl class="facts"><dt>Made</dt><dd>{{ picked.when }} ({{ picked.kind }})</dd><dt>Fabric</dt><dd>{{ picked.fabric_version or '?' }}</dd>
+<dt>Check</dt><dd>{{ p.status('ok' if picked.check == 'whole' else ('warn' if picked.check == 'checking' else 'bad'), picked.check) }}</dd></dl>
+<h3>The whole bundle</h3>
+<p class="muted">A whole restore is a reinstall: fabric is removed and set up again from the bundle, and this console goes down while it runs. From here it is not built yet: on the host, run <code>sudo fabricctl uninstall</code>, then <code>sudo fabricctl restore /var/backups/fabric/{{ picked.file }}</code> (manual 1.3.7.6).</p>
+<h3>One section</h3>
+{% if not same_version %}<p class="flash bad">This bundle is from fabric {{ picked.fabric_version or '?' }}; this install is {{ ov.version }}. A section is restored only into the same version: restore the whole bundle instead.</p>
+{% elif picked.check != 'whole' %}<p class="flash bad">This bundle's check has not passed ({{ picked.check }}): nothing can be restored from it.</p>
+{% elif not chosen %}
+<form method="get" action="/settings/backups" class="stack">
+<input type="hidden" name="restore" value="{{ picked.file }}">
+<fieldset><legend>Which section?</legend>
+{% for name in picked.sections %}{% set s = parts[name] %}<label class="check"><input type="radio" name="section" value="{{ name }}" required{{ '' if s.alone else ' disabled' }}> <strong>{{ name }}</strong> <span class="muted small">{{ s.what }}{% if not s.alone %} — only with the whole bundle{% endif %}</span></label>
+{% endfor %}</fieldset>
+<div><button>Next</button></div></form>
+{% else %}
+<div class="flash bad" role="alert"><p><strong>Restoring {{ chosen.name }} replaces it on this install:</strong> {{ chosen.what }}.</p>
+<p>What it holds now is lost and this cannot be undone. A safety bundle of it is made first, so the state it replaces can be put back the same way.</p>
+{% if chosen.depends %}<p>Depends on it: {{ chosen.depends | join(', ') }}. They keep what they hold now, which may no longer match.</p>{% endif %}
+<p>Its services stop while it is restored, then fabric applies the install.</p></div>
+<form method="post" action="/settings/backups/restore" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<input type="hidden" name="file" value="{{ picked.file }}"><input type="hidden" name="section" value="{{ chosen.name }}">
+<label class="wide">{{ 'The schedule\'s private key (AGE-SECRET-KEY-1…)' if picked.opened_by and picked.opened_by != 'passphrase' else 'The bundle\'s passphrase' }}<input type="password" name="key" autocomplete="off" required></label>
+<label class="wide">Type the site's name ({{ ov.site }}) to restore {{ chosen.name }}<input name="confirm" autocomplete="off" required placeholder="{{ ov.site }}"></label>
+<div><button class="danger">Restore {{ chosen.name }}</button> <a href="/settings/backups?{{ {'restore': picked.file} | urlencode }}">Another section</a></div></form>
+{% endif %}
+</section>
+
+{% else %}
+<section class="card"><h2>Bundles</h2>
+{% if bundles %}{% call p.list(['', 'Bundle', 'Kind', 'Size', 'Fabric', 'Sections', '']) %}
+{% for b in bundles %}<tr>
+<td>{{ p.light('ok' if b.check == 'whole' else ('warn' if b.check == 'checking' else 'bad'), 'whole' if b.check == 'whole' else b.check) }}</td>
+<td data-label="Bundle"><code class="small">{{ b.file }}</code>{% if b.check != 'whole' %}<br><span class="muted small">{{ b.check }}</span>{% endif %}</td>
+<td data-label="Kind">{{ b.kind }}</td><td data-label="Size">{{ b.size | filesizeformat(true) }}</td>
+<td data-label="Fabric">{{ b.fabric_version or '?' }}</td><td data-label="Sections" class="muted small">{{ b.sections | join(', ') }}</td>
+<td><a href="/settings/backups/download/{{ b.file | urlencode }}">Download</a> · <a href="/settings/backups?{{ {'restore': b.file} | urlencode }}">Restore…</a></td></tr>
+{% endfor %}{% endcall %}
+<p class="muted small">A download is the encrypted file as it is; it opens only with its passphrase or the schedule's private key.</p>
+{% else %}{{ p.empty('No bundles yet. Back up now, or set the schedule.') }}{% endif %}
+</section>
+
+<section class="card"><h2>Back up now</h2>
+<p class="muted">An encrypted bundle of all seven sections, made while fabric runs. You follow it on its own page.</p>
+<form method="post" action="/settings/backups/now" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+{% if ov.schedule.public_key %}<label class="check wide"><input type="checkbox" name="use_schedule" value="1"> Use the schedule's public key instead of a passphrase</label>{% endif %}
+<label>A passphrase (12 characters or more)<input type="password" name="passphrase" autocomplete="new-password" minlength="12"></label>
+<label>The same passphrase again<input type="password" name="passphrase_again" autocomplete="new-password" minlength="12"></label>
+<div><button>Back up now</button></div></form>
+<p class="muted small">Keep the passphrase somewhere safe: without it the bundle cannot be opened, and fabric does not keep it.</p></section>
+
+<section class="card"><h2>Schedule</h2>
+{% set s = ov.schedule %}
+<dl class="facts"><dt>State</dt><dd>{{ p.status('ok' if s.on else 'warn', ('on, daily at ' ~ s.time) if s.on else 'off') }}</dd>
+{% if s.on %}<dt>Keeps</dt><dd>the newest {{ s.keep }} scheduled bundles</dd><dt>Next run</dt><dd>{{ s.next or 'not planned' }}</dd>
+<dt>Last run</dt><dd>{% if s.last %}{{ s.last }}{% if s.last_result %} — {{ p.status('ok' if s.last_result == 'ok' else 'bad', 'done' if s.last_result == 'ok' else 'failed') }}{% endif %}{% else %}none yet{% endif %}</dd>{% endif %}</dl>
+<form method="post" action="/settings/backups/schedule" class="grid">
+<input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<label>Time of day (the host's)<input name="time" value="{{ s.time }}" pattern="[0-2][0-9]:[0-5][0-9]" required></label>
+<label>Scheduled bundles kept<input name="keep" type="number" min="1" max="365" value="{{ s.keep }}" required></label>
+<label class="wide">Public key (age1…)<input name="public_key" value="{{ s.public_key }}" autocomplete="off" spellcheck="false" placeholder="age1…"></label>
+<div><button name="action" value="save">Save the schedule</button>{% if s.on %} <button name="action" value="off" class="danger">Turn it off</button>{% endif %}</div></form>
+<p class="muted small">Scheduled bundles are encrypted to this public key; only its private key opens them, and it never comes onto this host except to restore. Make the pair on another machine: <code>age-keygen -o fabric-backup.key</code> prints the public key.</p></section>
+{% endif %}
+{% endblock %}

@@ -1435,7 +1435,7 @@ with serve():
 # covers: web:get.directory.computers web:get.directory.policies.gpo web:get.directory.policies.sudo +-
 # covers: web:get.8021x web:get.8021x.decisions +-
 # covers: web:get.8021x.guides web:get.8021x.devices web:get.8021x.roles web:get.secrets +-
-# covers: web:get.settings web:get.settings.sign-in +-
+# covers: web:get.settings web:get.settings.sign-in web:get.settings.backups +-
 # covers: web:get.account web:get.account.groups +
 for bundle, entries in ENTRIES.items():
     with serve(None if bundle == "admin" else bundle):
@@ -1443,6 +1443,8 @@ for bundle, entries in ENTRIES.items():
         check(f"--as {bundle}: the navigation shows exactly its entries ({', '.join(entries)})", shown == entries,
               shown)
         perms, wrong = set(BUNDLES.get(bundle, ())), []
+        if bundle == "admin":                 # the preview's admin is a Domain Admin: Backups (1.3.7.9)
+            perms.add(views.BACKUPS)
         for entry, label, pages in views.NAV:
             for href, plabel, need in pages:
                 may = not need or bool(perms & set(need))

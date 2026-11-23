@@ -5,3 +5,4 @@ fabric-agent's own units with no container, run with the `deploy` suite. Against
 | File | What |
 |---|---|
 | `pending_store_test.py` | A held change done with a warning says it on its row of the Review, and DNS' Apply says a failed resolver flush on its last row (2.1.4.9); without one the row stays empty. Pure: the routes and `apply_dns` stood in for |
+| `post_backup_test.py` | The backup changes' logic: every route refuses a non-Domain Admin first; jobs never hold the key; each refusal starts nothing. The work stood in for |

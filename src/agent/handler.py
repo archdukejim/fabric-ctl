@@ -1,5 +1,7 @@
 import json
+import os
 import re
+import shutil
 import socket
 import struct
 import sys
@@ -7,6 +9,7 @@ import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
 
+from agent.file_answer import FileAnswer
 from agent.get_route import get_route
 from agent.kept_store import KEPT
 from agent.post_route import post_route
@@ -58,6 +61,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def send_file(self, answer):
+        """Purpose: send a file as the answer, streamed a MiB at a time, never read whole into memory (manual 1.3.7.9:
+                 a bundle can be gigabytes).
+        Inputs:  answer — FileAnswer (path, name).
+        Returns: None; 200 with Content-Type application/octet-stream, Content-Length, Content-Disposition and the
+                 file's bytes.
+        Fails:   OSError opening or reading the file (inside dispatch: 500 before anything is sent); BrokenPipeError
+                 when the peer goes while it is sent.
+        Feeds:   dispatch (a GET route's FileAnswer)."""
+        with open(answer.path, "rb") as f:
+            size = os.fstat(f.fileno()).st_size
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(size))
+            self.send_header("Content-Disposition", f'attachment; filename="{answer.name}"')
+            self.end_headers()
+            shutil.copyfileobj(f, self.wfile, 1 << 20)
 
     def peer_uid(self):
         """Purpose: the uid of the process on the other end of the unix socket (SO_PEERCRED; kernel-supplied, cannot be
@@ -197,7 +218,10 @@ class Handler(BaseHTTPRequestHandler):
             if refused:
                 return self.reply(refused[0], {"error": refused[1]})
             if method == "GET":
-                return self.reply(200, get_route(route, self.user, self.perms))
+                answer = get_route(route, self.user, self.perms)
+                if isinstance(answer, FileAnswer):      # a bundle's download (1.3.7.9): the file, not JSON
+                    return self.send_file(answer)
+                return self.reply(200, answer)
             data = self.body()
             try:
                 answer = post_route(route, self.actor(data), data, self.perms, self.session)

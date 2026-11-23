@@ -49,3 +49,5 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `section_paths.py` | What one section packs: its folders, less the deeper ones another section claims |
 | `sections.py` | The seven sections: what each holds, its vars.yaml keys, what depends on it |
 | `set_backup_schedule.py` | The schedule's time, keep and public key in vars.yaml, then its timer |
+| `is_domain_admin.py` | Whether a person is one of the domain's Domain Admins, asked of the DC (1.3.7.12) |
+| `schedule_status.py` | The schedule as the console shows it: its settings, and its runs from systemd |
