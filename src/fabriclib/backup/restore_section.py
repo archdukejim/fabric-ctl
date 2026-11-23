@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import tempfile
 
+from fabriclib.backup.running_dependents import running_dependents
 from fabriclib.backup.backup_lock import backup_lock
 from fabriclib.backup.backup_plan import DUMPS
 from fabriclib.backup.bundle_key_from import bundle_key_from
@@ -102,6 +103,7 @@ def restore_section(base, config_dir, path, section, key, installed_version, act
         theirs = _bundle_vars(path, identity)
         units = [u for u in UNITS.get(section, [])
                  if subprocess.run(["systemctl", "is-active", "--quiet", u]).returncode == 0]
+        units += running_dependents(units, subprocess.run)   # stopped with them by systemd: started again too
         if units:
             subprocess.run(["systemctl", "stop", *units], capture_output=True)
         try:

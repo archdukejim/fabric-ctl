@@ -1314,9 +1314,11 @@ for _ in $(seq 1 240); do
 done
 in_box 'cat /var/backups/fabric/console-restore.log' > "$OUT/console-restore.log" 2>&1
 grep -q 'fabric is ready' "$OUT/console-restore.log" || {   # why, when it did not finish: the units that stopped it
-    in_box 'for u in bind9 stepca samba; do echo "== $u"; journalctl -u $u -n 25 --no-pager; done; ls -la /opt/fabric/samba/data /opt/fabric/samba/data/bind-dns 2>&1 | head -30' \
-        > "$OUT/console-restore-units.log" 2>&1
-    tail -60 "$OUT/console-restore-units.log"; }
+    in_box 'echo "== bind9, its own lines"; journalctl -u bind9 --no-pager | grep "bind9  |" | tail -40
+            echo "== samba"; journalctl -u samba -n 15 --no-pager
+            echo "== the DC folder and BIND'"'"'s includes"; ls -la /opt/samba/data /opt/samba/data/bind-dns 2>&1 | head -30
+            cat /opt/samba/bind/dlz.conf /opt/samba/bind/options.conf 2>&1' > "$OUT/console-restore-units.log" 2>&1
+    cat "$OUT/console-restore-units.log"; }
 # covers: agent:post.backup.reinstall +
 check "the whole restore through the agent: started as its own unit, set up again from the bundle, the key file gone" \
     "grep -q '\"started\": true' '$OUT/agent-reinstall.json' && grep -q 'fabric is ready' '$OUT/console-restore.log' \

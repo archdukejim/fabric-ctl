@@ -41,6 +41,7 @@ Backups: one encrypted bundle of seven sections, made by hand or on a schedule, 
 | `read_manifest.py` | A bundle's manifest, read without any key |
 | `restore_bundle.py` | A whole restore: the bundle checked and opened, every section in place, address changes written |
 | `restore_section.py` | One section restored on a running install: a safety bundle first, its services stopped and started |
+| `running_dependents.py` | The running services systemd stops along with a section's own (Kea with BIND): started again after the restore |
 | `restore_pending.py` | The dumps an online restore leaves for setup to load, crossed off as each is loaded |
 | `run_age.py` | `age` with a passphrase typed on a pty of its own, never on its command line |
 | `run_backup_command.py` | `fabricctl backup`, `list`, `check`, `schedule`: routes and prints |

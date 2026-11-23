@@ -270,6 +270,7 @@ file	fabriclib-backup|src/fabriclib/backup/restore_pending.py	34
 file	fabriclib-backup|src/fabriclib/backup/restore_section.py	37	
 file	fabriclib-backup|src/fabriclib/backup/run_age.py	10	
 file	fabriclib-backup|src/fabriclib/backup/run_backup_command.py	27	
+file	fabriclib-backup|src/fabriclib/backup/running_dependents.py	51	
 file	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py	28	
 file	fabriclib-backup|src/fabriclib/backup/schedule_status.py	43	
 file	fabriclib-backup|src/fabriclib/backup/seal_bundle_key.py	11	
@@ -2280,6 +2281,7 @@ function	fabriclib-backup|src/fabriclib/backup/run_age.py|_pump	1
 function	fabriclib-backup|src/fabriclib/backup/run_age.py|run_age	2	
 function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|_flag	1	
 function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|run_backup_command	2	
+function	fabriclib-backup|src/fabriclib/backup/running_dependents.py|running_dependents	1	
 function	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py|save_vault_snapshot	1	
 function	fabriclib-backup|src/fabriclib/backup/schedule_status.py|_show	1	
 function	fabriclib-backup|src/fabriclib/backup/schedule_status.py|schedule_status	2	

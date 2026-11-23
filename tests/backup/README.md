@@ -13,6 +13,7 @@ checked; `age` and `zstd` are needed (the package depends on them).
 | `postgres_login_test.py` | The dump and load log in as Postgres's admin once it exists, objects made as Keycloak's role; the bootstrap role before |
 | `make_backup_test.py` | Fabric's secrets packed in an online bundle as in a cold one, never in a safety bundle of another section; fabric stopped only for cold |
 | `restore_section_test.py` | One section restored on a running install, its refusals, and `fabricctl restore --section` |
+| `running_dependents_test.py` | The running units that depend on a section's units, each once, the section's own and stopped ones left out |
 | `run_backup_command_test.py` | `fabricctl backup`: routing, the key never an argument, one backup at a time |
 | `schedule_test.py` | The schedule in vars.yaml and its timer's units: on, changed, refused, off |
 | `section_of_key_test.py` | Every vars.yaml key belongs to exactly one section |
