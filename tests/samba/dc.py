@@ -1330,7 +1330,7 @@ back = sh(["docker", "run", "--rm", *mounts, "--entrypoint", "sh", IMAGE, "-c",
           ok=False)
 check("BIND's copy of the DNS partitions and its keytab made again in the DC's image (samba_upgradedns, as a restore "
       "from an online bundle does)", gone.returncode == 0 and upg.returncode == 0 and back.returncode == 0
-      and ".ldb" in back.stdout, " | ".join((upg.stdout + upg.stderr + back.stderr).splitlines()))
+      and ".ldb" in back.stdout, " | ".join((upg.stdout + upg.stderr + back.stderr).splitlines())[-390:])   # the cause: the end
 
 if not os.environ.get("SAMBA_TEST_KEEP"):        # keep the containers to look into a failure
     cleanup()
