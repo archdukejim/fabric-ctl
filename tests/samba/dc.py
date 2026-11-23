@@ -1321,6 +1321,16 @@ fin = [sh(["docker", "run", "--rm", *mounts, "--entrypoint", "python3", IMAGE, "
 check("a restored copy's backup mark is removed in the DC's image (finish_restore), and a second run finds none",
       mark.returncode == 0 and fin[0].returncode == 0 and "backupDate" in fin[0].stdout
       and "none were there" in fin[1].stdout, (mark.stderr + fin[0].stdout + fin[0].stderr)[-600:])
+# an online bundle brings no bind-dns/dns (BIND's links into the partitions): the loader makes it again the same way
+gone = sh(["docker", "run", "--rm", *mounts, "--entrypoint", "sh", IMAGE, "-c", "rm -rf /data/bind-dns/dns"], ok=False)
+upg = sh(["docker", "run", "--rm", *mounts, "--entrypoint", "samba_upgradedns", IMAGE, "--dns-backend=BIND9_DLZ",
+          "--configfile=/data/etc/smb.conf"], ok=False)
+back = sh(["docker", "run", "--rm", *mounts, "--entrypoint", "sh", IMAGE, "-c",
+           "test -f /data/bind-dns/dns/sam.ldb && test -s /data/bind-dns/dns.keytab && ls /data/bind-dns/dns/sam.ldb.d"],
+          ok=False)
+check("BIND's copy of the DNS partitions and its keytab made again in the DC's image (samba_upgradedns, as a restore "
+      "from an online bundle does)", gone.returncode == 0 and upg.returncode == 0 and back.returncode == 0
+      and ".ldb" in back.stdout, (upg.stdout + upg.stderr + back.stderr)[-600:])
 
 if not os.environ.get("SAMBA_TEST_KEEP"):        # keep the containers to look into a failure
     cleanup()

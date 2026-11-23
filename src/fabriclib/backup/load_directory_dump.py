@@ -12,11 +12,15 @@ PARTS = ("private/", "state/", "etc/", "bind-dns/")   # the offline copy's folde
 def load_directory_dump(base, config_dir):
     """Purpose: before the DC first starts after an online bundle's restore (manual 1.3.7.6): the offline copy's
              databases put over the folders that were packed live, then its backup marks removed in the DC's own
-             image (src/containers/samba/finish_restore.py), so Samba starts on the domain as it was.
+             image (src/containers/samba/finish_restore.py), so Samba starts on the domain as it was. BIND's copy of
+             the DNS partitions (bind-dns/dns: links into private/sam.ldb.d, and its keytab), which the copy does not
+             bring, is made again there by `samba_upgradedns --dns-backend=BIND9_DLZ` (found 2026-11-23 by the
+             sandbox: the AD zone went unanswered); start_services then turns BIND's include on, as on a first
+             install.
     Inputs:  base — install root (the DC's /data is base/samba/data); config_dir — fabric's config folder.
     Returns: True when a dump was loaded, False when none was pending.
-    Fails:   ValidationError when the copy names a path outside its parts, or the marks cannot be removed (the dump
-             stays pending: setup can be run again); OSError.
+    Fails:   ValidationError when the copy names a path outside its parts, the marks cannot be removed or BIND's copy
+             cannot be made (the dump stays pending: setup can be run again); OSError.
     Feeds:   setup/start_services (before the samba unit starts)."""
     pending = read_restore_pending(config_dir)
     dump = pending.get("directory")
@@ -44,6 +48,14 @@ def load_directory_dump(base, config_dir):
     if res.returncode != 0:
         why = (res.stderr or res.stdout)[-300:]
         raise ValidationError(f"the restored domain's backup marks could not be removed: {why}")
+    if not os.path.exists(os.path.join(data, "bind-dns", "dns", "sam.ldb")):
+        res = subprocess.run(["docker", "compose", "-f", compose, "run", "--rm", "--no-deps", "--entrypoint",
+                              "samba_upgradedns", "samba", "--dns-backend=BIND9_DLZ",
+                              "--configfile=/data/etc/smb.conf"],
+                             capture_output=True, text=True, timeout=300)
+        if res.returncode != 0:
+            why = (res.stderr or res.stdout)[-300:]
+            raise ValidationError(f"BIND's copy of the restored domain's DNS could not be made: {why}")
     pending.pop("directory")
     write_restore_pending(config_dir, pending)
     os.remove(dump)

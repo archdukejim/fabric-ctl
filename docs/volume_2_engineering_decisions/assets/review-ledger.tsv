@@ -78,7 +78,7 @@ docs/volume_1_description_and_architecture/1.17.40-fabriclib-ipam.md	ef0a5a06b37
 docs/volume_1_description_and_architecture/1.17.41-fabriclib-move.md	e52db801e9b49b8338b29b777dc539dba94ce953	2026-11-22	
 docs/volume_1_description_and_architecture/1.17.42-fabriclib-sizing.md	33e07417750cde5f5f4b7143b13c8f21a3c41785	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.43-fabriclib-readcache.md	090caf47ba9cf5a9c645eda35ad9839828e3143e	2026-11-19	
-docs/volume_1_description_and_architecture/1.17.44-fabriclib-backup.md	192b70cff47c4dd9e4a9f0f014a3e5cfbe359f2f	2026-11-23	
+docs/volume_1_description_and_architecture/1.17.44-fabriclib-backup.md	70fd780102c702c4f38aeb2299e7485b91f9d90c	2026-11-23	
 docs/volume_1_description_and_architecture/1.17.5-fabriclib-common.md	205ce1421c7d339528dc32b7ab8d908d47f9892e	2026-11-23	
 docs/volume_1_description_and_architecture/1.17.6-fabriclib-consent.md	78ffd46f6b62a75fa9e4fd0afb530156232c5d43	2026-11-23	
 docs/volume_1_description_and_architecture/1.17.7-fabriclib-core.md	c0e772899c5a3017bd51219c0cbd55614110e8e3	2026-11-19	
@@ -104,7 +104,7 @@ docs/volume_1_description_and_architecture/1.3.1-host-package.md	66ee0318b3c811f
 docs/volume_1_description_and_architecture/1.3.2-setup-design.md	561a2a82fd1256ef185273619d844c62b0b4a298	2026-11-16	
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	20e70fd12f741fdc61e7ab58f8d72e756bca937a	2026-11-23	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	2f1a5dabfcccdfb9bbaca3392102c65b36f02517	2026-11-23	
-docs/volume_1_description_and_architecture/1.3.7-backups.md	5e7085f3bfaf9def044c6bfb730e62b7972fdf70	2026-11-23	
+docs/volume_1_description_and_architecture/1.3.7-backups.md	ccebc5e8dd5f0de7519d99d5e901b4c6bb332445	2026-11-23	
 docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	fefe3ac9d326c674617be44b483e5a3336b6e253	2026-11-22	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
@@ -630,7 +630,7 @@ src/fabriclib/backup/install_backup_timer.py	45e370df764dce7fdb9e846f5c587be9abf
 src/fabriclib/backup/is_domain_admin.py	572544139d85b86dca1a6f0e550089d040bac435	2026-11-23	
 src/fabriclib/backup/list_bundles.py	63cfa4fad2215a0c5673e10d5689ddea70d78f43	2026-11-19	
 src/fabriclib/backup/live_paths.py	35d2c4afa766b4a2a81ae21cebd6e24875768bad	2026-11-19	
-src/fabriclib/backup/load_directory_dump.py	c44f2bd57666765fd928d525b98ab4d2360069ea	2026-11-23	
+src/fabriclib/backup/load_directory_dump.py	1467e79b2a640f34736fff377beaea9394ac8544	2026-11-23	
 src/fabriclib/backup/load_signin_dump.py	81fa8b5ab15fbc7e2d651406e1839c5e7538bdfd	2026-11-23	
 src/fabriclib/backup/load_vault_snapshot.py	4fea29cd914b4f54c651dfac6cd3074563d6871f	2026-11-19	
 src/fabriclib/backup/make_backup.py	a10e7529d417d2f01975ddf569997fbdae3fe792	2026-11-23	
@@ -2323,7 +2323,7 @@ tests/backup/old_address_uses_test.py	8769a016e75d9251088d09847617a774bb76a2da	2
 tests/backup/postgres_login_test.py	b813a32dffb0b79adb60eb4a12c420ea8498b70b	2026-11-23	
 tests/backup/prune_bundles_test.py	10cef5e1dc853852d88d4ceb5bb1fab21da173e5	2026-11-19	
 tests/backup/restore_section_test.py	fe5fb7aad5497f0b210f4969ad40a93e3406f195	2026-11-19	
-tests/backup/restore_test.py	317a611ee72e58651252bdfc0ceb1a26d3caba47	2026-11-23	
+tests/backup/restore_test.py	ddc01df961ee4abdd8c9dc6b486e7a61dadd930b	2026-11-23	
 tests/backup/run_backup_command_test.py	e91e1e51cc641b5157481f64f4e201733cc14ceb	2026-11-23	
 tests/backup/running_dependents_test.py	77f26946ecd50a036649485da8b71dd615282347	2026-11-23	
 tests/backup/schedule_status_test.py	a912c4e53ca505a815a3d8ccc4ee248b1929e322	2026-11-23	
@@ -2495,7 +2495,7 @@ tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29
 tests/run-all.sh	2d949d1f02774887ae9a93e985f423b99e2ecb3d	2026-11-23	
 tests/samba/README.md	b3a1ffbfd6a1e7db1d380184f48304156f5b759e	2026-11-23	
 tests/samba/acl_entries_test.py	17613db26e83d400d26c826e42a4927fe9355681	2026-11-03	
-tests/samba/dc.py	542fb117072d95f2ade17468f8d8bddbce79b792	2026-11-23	
+tests/samba/dc.py	9f18f46a86b901f75fdfe348798696d3efc2e56b	2026-11-23	
 tests/samba/deploy_samba_test.py	186633ad7adf9d8866936d5bb8a7f17095dd4317	2026-11-23	
 tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25	
 tests/samba/domain.py	0d100d7e4c1d1df3bc46b49d740ecd177141cfb7	2026-11-04	
