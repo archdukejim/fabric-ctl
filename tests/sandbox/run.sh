@@ -1257,6 +1257,9 @@ check "Back up now through the agent: a job, a new bundle, the passphrase nowher
     "grep -q '\"state\": \"done\"' '$OUT/agent-backup-job.json' && grep -q 'Bundle made' '$OUT/agent-backup-job.json' \
      && [ \"\$(in_box 'ls /var/backups/fabric/*-manual.fabric.tar | wc -l')\" -gt '$N0' ] \
      && ! grep -qF \"\$(cat '$OUT/bundle-pw')\" '$OUT/agent-backup-job.json'"
+{   # what the check saw, the passphrase hidden
+    echo "  the job, as the agent gave it (passphrase hidden), started as id '$JOB', manual bundles before: $N0, now: $(in_box 'ls /var/backups/fabric/*-manual.fabric.tar 2>/dev/null | wc -l')"
+    sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-backup-job.json" | head -c 2000; echo; }
 BN=$(basename "$(in_box 'ls -t /var/backups/fabric/*-manual.fabric.tar' | head -1)")
 JOB=$(agent_json /v1/backup/restore "{\"actor\": \"sandbox\", \"file\": \"$BN\", \"section\": \"dhcp\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}" | sed -n 's/.*"id": "\([^"]*\)".*/\1/p')
 agent_job "$JOB" > "$OUT/agent-restore-job.json"
