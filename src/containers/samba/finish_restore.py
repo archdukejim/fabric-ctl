@@ -4,7 +4,6 @@ copied sam.ldb, with which Samba refuses to start. `docker compose run --rm --no
 import sys
 
 import ldb
-from samba.auth import system_session
 from samba.param import LoadParm
 
 MARKS = ("sidForRestore", "backupRename", "backupDate", "backupType")
@@ -13,14 +12,15 @@ MARKS = ("sidForRestore", "backupRename", "backupDate", "backupType")
 def finish_restore(conf="/data/etc/smb.conf"):
     """Purpose: the backup marks removed from @SAMBA_DSDB of the restored sam.ldb, as `samba-tool domain backup restore`
              does, without that tool's new DC name (fabric never renames its DC, 2.1.6.45).
-    Inputs:  conf — the DC's smb.conf (its private dir names sam.ldb).
+    Inputs:  conf — the DC's smb.conf (its private dir names sam.ldb). The file is opened as a plain ldb, without
+             Samba's modules: @SAMBA_DSDB is a record of sam.ldb itself (ldb.Ldb takes no session or LoadParm, unlike
+             SamDB: found 2026-11-23 by the sandbox's whole restore).
     Returns: the marks removed, list of str (empty: none was there).
     Fails:   ldb.LdbError when sam.ldb cannot be opened (the DC is running and holds it, or the copy is not there).
     Feeds:   main."""
     lp = LoadParm()
     lp.load(conf)
-    db = ldb.Ldb(url=lp.samdb_url(), session_info=system_session(), lp=lp, options=["modules:"],
-                 flags=ldb.FLG_DONT_CREATE_DB)
+    db = ldb.Ldb(url=lp.private_path("sam.ldb"), flags=ldb.FLG_DONT_CREATE_DB, options=["modules:"])
     found = db.search(base=ldb.Dn(db, "@SAMBA_DSDB"), scope=ldb.SCOPE_BASE, attrs=list(MARKS))
     m = ldb.Message()
     m.dn = ldb.Dn(db, "@SAMBA_DSDB")

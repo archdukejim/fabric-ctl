@@ -1307,6 +1307,21 @@ check("the RODC is hardened like the DC (the six capabilities, read-only, a limi
       len(rinfo["CapAdd"]) == 6 and rinfo["ReadonlyRootfs"] and rinfo["Memory"] > 0)
 print("RODC memory: " + sh(["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", RODC], ok=False).stdout.strip())
 
+# a restore's last step on the DC's copy (backup/load_directory_dump, 1.3.7.6), with the DC stopped as there: the
+# marks Samba's offline backup leaves on sam.ldb, removed by finish_restore in the DC's own image and mounts
+mounts = [x for m in compose["volumes"] for x in ("-v", m)]
+mark = sh(["docker", "run", "--rm", *mounts, "--entrypoint", "python3", IMAGE, "-c",
+           "import ldb\nfrom samba.param import LoadParm\nlp = LoadParm(); lp.load('/data/etc/smb.conf')\n"
+           "db = ldb.Ldb(url=lp.private_path('sam.ldb'), flags=ldb.FLG_DONT_CREATE_DB, options=['modules:'])\n"
+           "m = ldb.Message(); m.dn = ldb.Dn(db, '@SAMBA_DSDB')\n"
+           "m['backupDate'] = ldb.MessageElement(['20261123000000.0Z'], ldb.FLAG_MOD_ADD, 'backupDate')\n"
+           "db.modify(m)"], ok=False)
+fin = [sh(["docker", "run", "--rm", *mounts, "--entrypoint", "python3", IMAGE, "/fabric/finish_restore.py"], ok=False)
+       for _ in range(2)]
+check("a restored copy's backup mark is removed in the DC's image (finish_restore), and a second run finds none",
+      mark.returncode == 0 and fin[0].returncode == 0 and "backupDate" in fin[0].stdout
+      and "none were there" in fin[1].stdout, (mark.stderr + fin[0].stdout + fin[0].stderr)[-600:])
+
 if not os.environ.get("SAMBA_TEST_KEEP"):        # keep the containers to look into a failure
     cleanup()
 print(f"\n{PASS} passed, {FAIL} failed")

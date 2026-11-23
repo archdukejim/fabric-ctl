@@ -63,7 +63,7 @@ docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	f8b7a04f759d79ab3623953719d5031f82bc4c2a	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.28-installers.md	986b323d7a4ca2e8cbf71d23fdd677f464f51139	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.29-webui.md	b6d0177dd2273a237d7e14b5c6eb3f87e56a60da	2026-11-23	
-docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	f3567f7ff8520acecd16f5dd3d7b809ce7042adf	2026-11-23	
+docs/volume_1_description_and_architecture/1.17.3-fabricctl-jinja.md	8c79edb5fca6f4fc2a256da3100918c20caed675	2026-11-23	
 docs/volume_1_description_and_architecture/1.17.30-fabriclib-samba.md	bc3a13011c0a3ae03825e89f2db29b8b3326dcfc	2026-11-23	
 docs/volume_1_description_and_architecture/1.17.31-fabriclib-directory.md	bd2ec41452d03f9d42f6c949882b6f1e1fe0309b	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.33-fabriclib-settings.md	a260de6e65c6894c47fa6764ffdbbeea25761ebb	2026-11-19	
@@ -516,7 +516,7 @@ src/containers/samba/explain_grants.py	64503ffd9155d0f4021e405d36a23b6286d3b920	
 src/containers/samba/find_gpo.py	98da171fc1be0fd912831157493b6c6bb56a8e53	2026-10-20	
 src/containers/samba/find_machine.py	8692c7703216593ef3567cd1924ab1f22bd81fa7	2026-11-05	
 src/containers/samba/find_person.py	6dd72d1201e213e0de4be6fe4b001f635db513bf	2026-11-04	
-src/containers/samba/finish_restore.py	ef0e3e009295873cf93b8600b0c0ff5c39865e02	2026-11-19	
+src/containers/samba/finish_restore.py	980db57610519cbfe0491a2cd8cc429170587906	2026-11-23	
 src/containers/samba/get_person.py	6995233fa0751d357a3573a07883a04a2f3e3577	2026-10-23	
 src/containers/samba/gpo_tool.py	a3b26135e0db70cc802fdfd1371fa2b4e886fc38	2026-10-08	
 src/containers/samba/grant_members.py	d52f11eaff679026555daf9c37e7b1db19d0896a	2026-10-20	
@@ -2495,7 +2495,7 @@ tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29
 tests/run-all.sh	2d949d1f02774887ae9a93e985f423b99e2ecb3d	2026-11-23	
 tests/samba/README.md	b3a1ffbfd6a1e7db1d380184f48304156f5b759e	2026-11-23	
 tests/samba/acl_entries_test.py	17613db26e83d400d26c826e42a4927fe9355681	2026-11-03	
-tests/samba/dc.py	36f6ea3e78877acc398e20e699055c868ddde23e	2026-11-04	
+tests/samba/dc.py	542fb117072d95f2ade17468f8d8bddbce79b792	2026-11-23	
 tests/samba/deploy_samba_test.py	186633ad7adf9d8866936d5bb8a7f17095dd4317	2026-11-23	
 tests/samba/devices.py	6ab42b2f1dfc36dacff89ba078ed5a6d5f4a3069	2026-10-25	
 tests/samba/domain.py	0d100d7e4c1d1df3bc46b49d740ecd177141cfb7	2026-11-04	
