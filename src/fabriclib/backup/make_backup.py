@@ -36,11 +36,12 @@ def _linked(path):
     return bool(links.get("upstream") or links.get("sites"))
 
 
-def _meta(base, v, method):
+def _meta(base, v, method, only=None):
     """Purpose: the manifest's description of the install (manual 1.3.7.2).
-    Inputs:  base — install root; v — vars; method — "cold" or "online".
+    Inputs:  base — install root; v — vars; method — "cold" or "online"; only — the sections packed, when not all.
     Returns: dict: fabric_version and commit (the install's BUILD, else the package's), domain, host_ip, lan_cidr,
-             lan_gateway, dns_server, base, method, linked (whether it has linked sites, 2.1.1.77).
+             lan_gateway, dns_server, base, method, linked (whether it has linked sites, 2.1.1.77); only (sorted),
+             for a bundle of some sections, which a whole restore refuses.
     Fails:   never (an unknown version is "?").
     Feeds:   make_backup."""
     build = read_build(os.path.join(base, "fabric"))
@@ -49,7 +50,8 @@ def _meta(base, v, method):
     return {"fabric_version": build["version"], "commit": build["commit"],
             "domain": v.get("domain"), "host_ip": v.get("host_ip"), "lan_cidr": v.get("lan_cidr"),
             "lan_gateway": v.get("lan_gateway"), "dns_server": v.get("dns_server"), "base": base, "method": method,
-            "linked": _linked(os.path.join(base, "fabric", "config", "federation.yaml"))}
+            "linked": _linked(os.path.join(base, "fabric", "config", "federation.yaml")),
+            **({"only": sorted(only)} if only else {})}
 
 
 def make_backup(base, v, secrets_file, kind, method, passphrase=None, public_key=None, actor="root", source="cli",
@@ -81,7 +83,7 @@ def make_backup(base, v, secrets_file, kind, method, passphrase=None, public_key
                 plan = backup_plan(base, v, method, only=only)
                 if method == "cold" and os.path.isdir(os.path.join(DUMPS, "secrets")):
                     plan = [(s, p, os.path.join(DUMPS, "secrets") if s == "secrets" else x, a) for s, p, x, a in plan]
-                path = make_bundle(plan, v.get("hostname") or "fabric", _meta(base, v, method), kind,
+                path = make_bundle(plan, v.get("hostname") or "fabric", _meta(base, v, method, only), kind,
                                    passphrase=passphrase, public_key=public_key, folder=folder)
             finally:
                 shutil.rmtree(DUMPS, ignore_errors=True)

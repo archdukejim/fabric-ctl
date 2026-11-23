@@ -254,6 +254,10 @@ check("negative: a gateway outside the new subnet: check_changes refuses",
       "must both be in" in (whole({"host_ip": "10.20.0.5", "lan_cidr": "10.20.0.0/24"}) or ""))
 check("negative: the host's name: refused, rename after the restore", "4.2.4.3" in (whole({"hostname": "x"}) or ""))
 check("no changes: the bundle's own addresses, as before", whole({}) is None and seen["host_ip"] == "10.0.0.5", seen)
+cwr.check_bundle = lambda path: dict(MANIFEST, only=["dns"])
+check("negative: a bundle of some sections only (a section restore's safety bundle): refused whole, before the key",
+      "holds only dns" in (whole({}) or ""))
+cwr.check_bundle = lambda path: dict(MANIFEST)
 
 print("--- the finish shows what moved")
 from fabriclib.setup.site.listener.page_for import _restored  # noqa: E402

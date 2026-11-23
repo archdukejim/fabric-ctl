@@ -6,6 +6,7 @@ import subprocess
 from fabriclib.common.errors import ValidationError
 
 INSIDE = "/data/.fabric-backup"         # in the samba container: its /data is <base>/samba/data on the host
+CONF = "/data/etc/smb.conf"            # the DC's own, not /etc/samba's (found by the sandbox, 2026-11-23)
 
 
 def dump_directory(base, dest_dir):
@@ -19,7 +20,8 @@ def dump_directory(base, dest_dir):
     host_side = os.path.join(base, "samba", "data", ".fabric-backup")
     shutil.rmtree(host_side, ignore_errors=True)
     res = subprocess.run(["docker", "exec", "samba", "sh", "-c",
-                          f"mkdir -m 0700 {INSIDE} && samba-tool domain backup offline --targetdir={INSIDE}"],
+                          f"mkdir -m 0700 {INSIDE} && samba-tool domain backup offline --configfile={CONF} "
+                          f"--targetdir={INSIDE}"],
                          capture_output=True, text=True, timeout=1800)
     made = glob.glob(os.path.join(host_side, "samba-backup-*.tar.bz2"))
     try:

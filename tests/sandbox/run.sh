@@ -1260,7 +1260,9 @@ check "Back up now through the agent: a job, a new bundle, the passphrase nowher
 {   # what the check saw, the passphrase hidden
     echo "  the job, as the agent gave it (passphrase hidden), started as id '$JOB', manual bundles before: $N0, now: $(in_box 'ls /var/backups/fabric/*-manual.fabric.tar 2>/dev/null | wc -l')"
     sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-backup-job.json" | head -c 2000; echo; }
-BN=$(basename "$(in_box 'ls -t /var/backups/fabric/*-manual.fabric.tar' | head -1)")
+# Back up now's own bundle, by the name its job gave: the newest manual one may be a section restore's safety bundle,
+# which holds that section only and is refused whole (1.3.7.6)
+BN=$(sed -n 's/.*Bundle made: \(fabric-[^ ]*\.fabric\.tar\)\..*/\1/p' "$OUT/agent-backup-job.json")
 JOB=$(agent_json /v1/backup/restore "{\"actor\": \"sandbox\", \"file\": \"$BN\", \"section\": \"dhcp\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}" | sed -n 's/.*"id": "\([^"]*\)".*/\1/p')
 agent_job "$JOB" > "$OUT/agent-restore-job.json"
 # covers: agent:post.backup.restore +

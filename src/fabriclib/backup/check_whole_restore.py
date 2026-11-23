@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.backup.require_all_sections import require_all_sections
 from fabriclib.backup.bundle_key_from import bundle_key_from
 from fabriclib.backup.check_bundle import check_bundle
 from fabriclib.backup.check_changes import NETWORK, check_changes
@@ -22,6 +23,7 @@ def check_whole_restore(base, path, key, package_version, changes=None, problem=
              (network_problem's words), a wrong key.
     Feeds:   run_reinstall_command (--from), agent/post_backup (reinstall), setup/site/ask_restore."""
     manifest = check_bundle(path)
+    require_all_sections(manifest)
     made, have = fabric_version(manifest.get("fabric_version")), fabric_version(package_version)
     if made and have and made > have:
         raise ValidationError(f"the bundle was made by fabric {manifest['fabric_version']}, newer than this "

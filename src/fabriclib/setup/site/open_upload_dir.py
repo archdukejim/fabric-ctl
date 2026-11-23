@@ -12,10 +12,10 @@ def open_upload_dir(path=UPLOAD_DIR, uid=SITE_ID, chown=None):
     Returns: path.
     Fails:   OSError.
     Feeds:   setup/site/ask_restore."""
+    close_upload_dir(path)                 # first: it also removes an empty parent
     parent = os.path.dirname(path)
     os.makedirs(parent, mode=0o755, exist_ok=True)
     os.chmod(parent, 0o755)
-    close_upload_dir(path)
     os.mkdir(path, 0o700)
     (chown or os.chown)(path, uid, uid)
     return path

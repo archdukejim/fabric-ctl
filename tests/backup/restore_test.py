@@ -93,6 +93,11 @@ check("negative: a new address this host does not have yet: refused before anyth
       "4.2.4.8" in (refused(lambda: rb.restore_bundle(base, bundle, key, {"host_ip": "10.0.0.9"})) or "")
       and not os.path.exists(base))
 here["problem"] = ""
+partial = make_bundle([(s, section_paths(s, base, V) if s == "dns" else [], None, None) for s in ORDER], "fabric-1",
+                      dict(META, only=["dns"]), "manual", passphrase=PASS, folder=folder)
+check("negative: a section restore's safety bundle (dns only) restored whole: refused, naming --section, nothing unpacked",
+      "holds only dns" in (refused(lambda: rb.restore_bundle(base, partial, key)) or "") and not os.path.exists(base))
+os.remove(partial)
 check("negative: a new address for an install with linked sites: refused (2.1.1.77)",
       "linked sites" in (refused(lambda: rb.restore_bundle(base, linked, key, {"host_ip": "10.0.0.9"})) or "")
       and not os.path.exists(base))

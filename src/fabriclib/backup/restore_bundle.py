@@ -1,6 +1,7 @@
 import os
 import shutil
 
+from fabriclib.backup.require_all_sections import require_all_sections
 from fabriclib.backup.backup_lock import backup_lock
 from fabriclib.backup.backup_plan import DUMPS
 from fabriclib.backup.bundle_key_from import bundle_key_from
@@ -40,6 +41,7 @@ def restore_bundle(base, path, key, changes=None, package_version="?", actor="ro
             raise ValidationError(f"fabric is installed here ({vars_file}): `sudo fabricctl uninstall` first, "
                                   "or restore one section with --section")
         manifest = check_bundle(path)
+        require_all_sections(manifest)
         made, have = fabric_version(manifest.get("fabric_version")), fabric_version(package_version)
         if made and have and made > have:
             raise ValidationError(f"the bundle was made by fabric {manifest['fabric_version']}, newer than this "

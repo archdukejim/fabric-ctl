@@ -263,6 +263,7 @@ file	fabriclib-backup|src/fabriclib/backup/read_build.py	38
 file	fabriclib-backup|src/fabriclib/backup/read_changes.py	40	
 file	fabriclib-backup|src/fabriclib/backup/read_manifest.py	9	
 file	fabriclib-backup|src/fabriclib/backup/receive_upload.py	47	
+file	fabriclib-backup|src/fabriclib/backup/require_all_sections.py	49	
 file	fabriclib-backup|src/fabriclib/backup/restore_bundle.py	33	
 file	fabriclib-backup|src/fabriclib/backup/restore_pending.py	34	
 file	fabriclib-backup|src/fabriclib/backup/restore_section.py	37	
@@ -2264,6 +2265,7 @@ function	fabriclib-backup|src/fabriclib/backup/read_build.py|read_build	1
 function	fabriclib-backup|src/fabriclib/backup/read_changes.py|read_changes	1	
 function	fabriclib-backup|src/fabriclib/backup/read_manifest.py|read_manifest	1	
 function	fabriclib-backup|src/fabriclib/backup/receive_upload.py|receive_upload	1	
+function	fabriclib-backup|src/fabriclib/backup/require_all_sections.py|require_all_sections	1	
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_check_changes	2	0.10.0 / 2026-11-19
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_version	1	0.10.0 / 2026-11-22
 function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|restore_bundle	3	

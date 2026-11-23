@@ -130,5 +130,10 @@ with open(os.path.join(tmp, "plain.tar"), "wb") as f:
 check("negative: a file that is not a bundle is refused",
       refused(lambda: check_bundle(os.path.join(tmp, "plain.tar"))) is not None)
 shutil.rmtree(tmp)
+from fabriclib.backup.make_backup import _meta  # noqa: E402
+meta_base = tempfile.mkdtemp()
+check("a bundle of some sections (a section restore's safety bundle) says which in its manifest; a whole one does not",
+      _meta(meta_base, {}, "online", {"dns"})["only"] == ["dns"] and "only" not in _meta(meta_base, {}, "online"))
+
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

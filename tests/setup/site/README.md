@@ -9,6 +9,7 @@ Web-guided setup (manual 1.3.6.8), with a real listener process, real TLS and so
 | `guides_test.py` | In the `consent` suite: the finish's commands, filled in, are the same as manual 4.3.6.2 and 4.3.6.3 |
 | `ask_restore_test.py` | In the `consent` suite: Restore from a backup's questions: the first choice's buttons, the bundle by number or path, refusals asked again, the plan's Quit, the check with changes, what moved on the finish |
 | `save_upload_test.py` | In the `consent` suite: the listener's upload saving: the token first, the file whole under its name, each refusal with its status and nothing kept |
+| `open_upload_dir_test.py` | In the `consent` suite: the upload folder made fresh with its parent, 0700 for the listener; closed with its contents and empty parent; a planted link removed, not followed |
 | `upload_test.py` | In the `consent` suite: Restore from a backup's upload through a real listener: the form, the refusals (no session, Origin, stale token, bad name, not asked), root taking the file and removing the listener's folder |
 | `check_console_test.py` | In the `consent` suite: the host's half of the finish's check against a real DNS answer and a real TLS console: right, wrong address, no answer, another CA's certificate |
 | `listener_link_test.py` | In the `consent` suite: what root does with a listener that misbehaves: a line that is no message, an endless line, a listener that stops reading; and that a stop ends it at once |
