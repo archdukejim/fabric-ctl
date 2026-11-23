@@ -16,7 +16,7 @@ from fabriclib.setup.site.certificate_fingerprint import certificate_fingerprint
 from fabriclib.setup.site.check_console import check_console
 from fabriclib.setup.site.close_site_port import close_site_port
 from fabriclib.setup.site.constants import (AFTER_SECONDS, ATTACH_SOCKET, FIRST_PORT, IDLE_SECONDS, LAST_PORT,
-                                            PORT_RECORD, SITE_ID)
+                                            PORT_RECORD, SITE_ID, UPLOAD_DIR)
 from fabriclib.setup.site.finish_data import finish_data
 from fabriclib.setup.site.host_addresses import host_addresses
 from fabriclib.setup.site.make_certificate import make_certificate
@@ -43,18 +43,19 @@ class GuidedSite:
     unchanged; this object is their front end, and owns the unprivileged listener, the code and the session."""
 
     def __init__(self, ctx, term=None, first=FIRST_PORT, last=LAST_PORT, idle=IDLE_SECONDS, after=AFTER_SECONDS,
-                 record=PORT_RECORD, lib_dir=LIB_DIR, user=SITE_ID, grace=RESTART_GRACE, attach=ATTACH_SOCKET):
+                 record=PORT_RECORD, lib_dir=LIB_DIR, user=SITE_ID, grace=RESTART_GRACE, attach=ATTACH_SOCKET,
+                 upload_dir=UPLOAD_DIR):
         """Purpose: hold what the site needs; nothing starts until open().
         Inputs:  ctx — SetupContext; term — the terminal's stream (default sys.stdout); first, last — the ports; idle,
                  after — the limits, seconds; record — the port's record; lib_dir, user — start_listener's; grace —
-                 seconds an open page gets to hear of a restart; attach — the socket other terminals attach at. Tests
-                 give their own.
+                 seconds an open page gets to hear of a restart; attach — the socket other terminals attach at;
+                 upload_dir — where Restore from a backup's upload lands (1.3.7.10). Tests give their own.
         Returns: None.
         Fails:   never.
         Feeds:   setup/run_setup."""
         self.ctx, self.term = ctx, term or sys.stdout
         self.first, self.last, self.idle, self.after, self.record = first, last, idle, after, record
-        self.lib_dir, self.grace = lib_dir, grace
+        self.lib_dir, self.grace, self.upload_dir = lib_dir, grace, upload_dir
         self.answers = queue.Queue()
         self.done = threading.Event()   # Finish
         self.sock = None
@@ -145,7 +146,8 @@ class GuidedSite:
         self.listener.start(self.sock, cert, key, {
             "t": "hello", "files": read_site_files(self.lib_dir), "port": self.port, "fingerprint": self.fingerprint,
             "temporary": self.temporary, "phase": self.phase_now, "token": self.keeper.token, "csrf": self.keeper.csrf,
-            "log": self.log_text, "finish": self.finish, "ended": self.ended}, self._on_message)
+            "log": self.log_text, "finish": self.finish, "ended": self.ended, "upload_dir": self.upload_dir},
+            self._on_message)
 
     def _greeting(self):
         """Purpose: what a terminal that attaches sees first (decision 2.1.8.60): the URLs, the code and the fingerprint

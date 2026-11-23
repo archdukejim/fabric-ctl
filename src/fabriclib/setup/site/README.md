@@ -28,6 +28,8 @@ and the certificate; the unprivileged listener in [listener/](listener/README.md
 | `open_site_port.py` | Ask about the firewall, on the terminal, and open the port |
 | `keep_site_port.py` | Keep the port open through setup's own firewall step |
 | `close_site_port.py` | Remove what the site opened, by the rule's comment |
+| `open_upload_dir.py` | Restore from a backup's upload folder, made fresh as the listener's for the bundle's question |
+| `close_upload_dir.py` | The upload folder removed with whatever is in it |
 | `write_port_record.py` | Record the port for the firewall step |
 | `read_port_record.py` | Read that record |
 | `take_snapshot.py` | The install folder before the questions |

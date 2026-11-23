@@ -8,6 +8,8 @@ Web-guided setup (manual 1.3.6.8), with a real listener process, real TLS and so
 | `flow_test.py` | In the `consent` suite: from Proceed to Finish with a stood-in run: progress, a dropped connection, a failed step, Ctrl-C and SIGHUP, the new certificate, the finish's check (the trust failure with real TLS) and the clean-up |
 | `guides_test.py` | In the `consent` suite: the finish's commands, filled in, are the same as manual 4.3.6.2 and 4.3.6.3 |
 | `ask_restore_test.py` | In the `consent` suite: Restore from a backup's questions: the first choice's buttons, the bundle by number or path, refusals asked again, the plan's Quit, the check with changes, what moved on the finish |
+| `save_upload_test.py` | In the `consent` suite: the listener's upload saving: the token first, the file whole under its name, each refusal with its status and nothing kept |
+| `upload_test.py` | In the `consent` suite: Restore from a backup's upload through a real listener: the form, the refusals (no session, Origin, stale token, bad name, not asked), root taking the file and removing the listener's folder |
 | `check_console_test.py` | In the `consent` suite: the host's half of the finish's check against a real DNS answer and a real TLS console: right, wrong address, no answer, another CA's certificate |
 | `listener_link_test.py` | In the `consent` suite: what root does with a listener that misbehaves: a line that is no message, an endless line, a listener that stops reading; and that a stop ends it at once |
 | `attach_server_test.py` | In the `consent` suite: the attach socket: root's only, one way, a stuck terminal dropped, a peer that is not root closed |

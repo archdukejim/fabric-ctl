@@ -4,9 +4,11 @@ import socket
 import time
 
 from fabriclib.setup.site.listener.check_verdict import check_verdict
+from fabriclib.setup.site.listener.multipart_reader import MultipartReader
 from fabriclib.setup.site.listener.page_for import page_for
 from fabriclib.setup.site.listener.render_page import render_page
 from fabriclib.setup.site.listener.request_base import COOKIE, RequestBase
+from fabriclib.setup.site.listener.save_upload import UploadRefused, save_upload
 
 STREAM_SILENCE_MS = 30_000
 TYPES = {".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml"}
@@ -15,7 +17,8 @@ ROUTES = {("get", "/"): "_home", ("get", "/events"): "_events", ("get", "/static
           ("get", "/root-ca.crt"): "_root_ca", ("get", "/check/*"): "_check",
           ("get", "/check-result/*"): "_check_result",
           ("post", "/code"): "_code", ("post", "/answer"): "_answer", ("post", "/cancel"): "_cancel",
-          ("post", "/finish"): "_finish"}
+          ("post", "/finish"): "_finish", ("post", "/upload"): "_upload"}
+UPLOAD_QID = "restore.bundle"      # the one question an upload answers (manual 1.3.7.10)
 # what a browser whose session has ended is told (decision 2.1.8.62)
 ENDED = {"taken": "This session was ended from another browser, which now holds setup. Use that browser, or enter "
                   "the code here to take it back.",
@@ -128,6 +131,51 @@ class RequestHandler(RequestBase):
             self._see()                  # a second click, or an old page: what is asked now is shown
             return
         self.server.control.send({"t": "answer", "seq": form.get("seq"), "value": form.get("value", "")})
+        self._see()
+
+    def _upload(self):
+        """Purpose: Restore from a backup's upload (manual 1.3.7.10 step 1): the bundle streamed to the upload folder,
+                 then given to setup as the bundle question's answer, its path; setup checks it and copies it out.
+                 While it arrives, setup hears that the person is still here (the idle limits).
+        Inputs:  the multipart form: csrf, seq, bundle (the file), in that order.
+        Returns: None.
+        Fails:   OSError from a closed connection.
+        Feeds:   ROUTES."""
+        if not self._signed_in():
+            self._refuse(403, "Refused: this browser does not hold setup's session. Nothing was changed.")
+            return
+        given = self.headers.get("Content-Length") or ""
+        if not (given.isascii() and given.isdigit()):
+            self._refuse(411, "Refused: this upload's length is not given. Nothing was kept.")
+            return
+        state = self.server.state
+        with state.changed:
+            asking = state.phase == "question" and bool(state.question) and state.question.get("qid") == UPLOAD_QID
+        if not asking or not state.upload_dir:
+            self._refuse(409, "Refused: setup is not asking for a bundle now. Nothing was kept.")
+            return
+        last = [time.monotonic()]
+
+        def still_here():
+            if time.monotonic() - last[0] > 30:
+                last[0] = time.monotonic()
+                self._note_activity()
+        try:
+            seq, path = save_upload(MultipartReader(self.rfile, int(given), self.headers.get("Content-Type")),
+                                    state.csrf, state.upload_dir, tick=still_here)
+        except UploadRefused as exc:
+            self._refuse(exc.status, str(exc))
+            return
+        with state.changed:
+            current = (state.phase == "question" and bool(state.question)
+                       and str(state.question.get("seq")) == seq)
+            if current:
+                state.working()
+        if not current:
+            os.remove(path)
+            self._see()
+            return
+        self.server.control.send({"t": "answer", "seq": seq, "value": path})
         self._see()
 
     def _cancel(self):

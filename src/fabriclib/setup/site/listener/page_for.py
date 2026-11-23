@@ -31,6 +31,22 @@ def _field(q):
             'autocapitalize="off"><button>Continue</button>')
 
 
+def _upload_form(state, q):
+    """Purpose: Restore from a backup's other way to give the bundle: upload it from this computer (manual 1.3.7.10).
+             The hidden fields come first, so the browser sends the token before the file.
+    Inputs:  state — SiteState (csrf); q — the bundle's question (seq).
+    Returns: str, HTML.
+    Fails:   never.
+    Feeds:   _question."""
+    return (f'<form method="post" action="/upload" enctype="multipart/form-data" class="question upload">'
+            f'<input type="hidden" name="csrf" value="{escape(state.csrf)}">'
+            f'<input type="hidden" name="seq" value="{escape(str(q["seq"]))}">'
+            '<label for="bundle">Or upload one from this computer: up to 8 GiB, with the name it was downloaded '
+            'with. Keep this page open while it is sent.</label>'
+            '<div class="row"><input id="bundle" name="bundle" type="file" accept=".tar" required>'
+            '<button class="secondary">Upload</button></div></form>')
+
+
 def _question(state):
     """Purpose: the page of the question setup is asking now.
     Inputs:  state — SiteState.
@@ -43,7 +59,8 @@ def _question(state):
                        step=2 if plan else 1,
                        label=q.get("label", ""), csrf=state.csrf, seq=q["seq"],
                        raw_permanent='<span class="permanent">⚠ Permanent</span>' if q.get("permanent") else "",
-                       raw_notes=notes_html(q.get("notes") or []), raw_field=_field(q))
+                       raw_notes=notes_html(q.get("notes") or []), raw_field=_field(q),
+                       raw_upload=_upload_form(state, q) if q["qid"] == "restore.bundle" else "")
 
 
 def _restored(restored):

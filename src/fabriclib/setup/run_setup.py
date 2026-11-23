@@ -184,7 +184,7 @@ def main(argv=None):
             if args.step is None and site_wanted(ctx, mode, args.terminal):     # the same questions, in the browser
                 site = GuidedSite(ctx).open()
                 if ask_start() == "restore":   # Restore from a backup: its own questions, then its run (1.3.7.10)
-                    restore = ask_restore(ctx, read_build(ctx.source_dir)["version"])
+                    restore = ask_restore(ctx, read_build(ctx.source_dir)["version"], upload_dir=site.upload_dir)
                     site.proceeding()
                     return hand_over(ctx, STEPS, {"options": {"restore": restore, "assume_yes": True, "guided": True,
                                                               "offline": ctx.offline}}, follow=site.follow)

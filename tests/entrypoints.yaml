@@ -728,6 +728,7 @@
 "site:post.cancel": "src/fabriclib/setup/site/listener/request_handler.py"
 "site:post.code": "src/fabriclib/setup/site/listener/request_handler.py"
 "site:post.finish": "src/fabriclib/setup/site/listener/request_handler.py"
+"site:post.upload": "src/fabriclib/setup/site/listener/request_handler.py"
 "web:get.8021x": "src/webui/routes/get_page.py"
 "web:get.8021x.decisions": "src/webui/routes/get_page.py"
 "web:get.8021x.devices": "src/webui/routes/get_page.py"

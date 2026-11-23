@@ -65,7 +65,7 @@ LISTED = [{"file": NAME, "path": os.path.join(folder, NAME), "kind": "uninstall"
            "fabric_version": None, "size": 0, "error": "not a fabric bundle"}]
 
 
-def run(answers, refuse=None, bundles=LISTED):
+def run(answers, refuse=None, bundles=LISTED, upload_dir=None):
     """ask_restore with these answers; refuse: the messages check refuses with, in turn."""
     front, calls, refusals = Front(answers), [], list(refuse or [])
 
@@ -77,7 +77,8 @@ def run(answers, refuse=None, bundles=LISTED):
     use_front_end(front)
     ctx = Ctx(tmp)
     try:
-        out = ar.ask_restore(ctx, "0.10.1", folder=folder, bundles=lambda f: bundles, check=fake_check)
+        out = ar.ask_restore(ctx, "0.10.1", folder=folder, bundles=lambda f: bundles, check=fake_check,
+                             upload_dir=upload_dir)
         return out, None, ctx, front, calls
     except SetupError as exc:
         return None, str(exc), ctx, front, calls
@@ -162,6 +163,70 @@ out, err, _, front, _ = run(GOOD)
 check("negative: fabric already installed here: refused before any question, pointing to the console",
       "fabric is installed here" in (err or "") and not front.asked, err)
 os.remove(Ctx(tmp).vars_file)
+
+print("--- an upload, taken out of the listener's folder")
+from fabriclib.backup.receive_upload import receive_upload  # noqa: E402
+uploads = os.path.join(tmp, "upload")
+ar.open_upload_dir = lambda path: os.makedirs(path, exist_ok=True)     # the listener's uid: tests/setup/site/upload_test.py
+checked = []
+ar._take_upload.__defaults__ = (lambda name, pieces, folder: receive_upload(
+    name, pieces, folder=folder, check=lambda part: checked.append(open(part, "rb").read())),)
+UP = "fabric-fabric-1-20261120T030000Z-manual.fabric.tar"
+
+
+def upload(name, data=b"the bundle's bytes"):
+    os.makedirs(uploads, exist_ok=True)
+    with open(os.path.join(uploads, name), "wb") as f:
+        f.write(data)
+    return os.path.join(uploads, name)
+
+
+front = Front({})
+use_front_end(front)
+ctx = Ctx(tmp)
+try:
+    def answers(qid, prompt, secret):
+        front.asked.append((qid, secret))
+        if qid == "restore.bundle":
+            return upload(UP)
+        return {"restore.key": "a passphrase for this test", "restore.plan": "p"}.get(qid, "")
+    front.ask = answers
+    out = ar.ask_restore(ctx, "0.10.1", folder=folder, bundles=lambda f: LISTED, check=lambda *a: None,
+                         upload_dir=uploads)
+finally:
+    use_front_end(None)
+# covers: ask:restore.bundle +
+check("an upload's path: copied whole into the backups folder as root's, checked, the listener's folder gone",
+      out["bundle"] == os.path.join(folder, UP) and open(out["bundle"], "rb").read() == b"the bundle's bytes"
+      and checked == [b"the bundle's bytes"] and not os.path.exists(uploads), (out, checked))
+refusing = (lambda name, pieces, folder: receive_upload(name, pieces, folder=folder, check=lambda part: (
+    _ for _ in ()).throw(ValidationError("its dns section differs from the manifest's"))),)
+ar._take_upload.__defaults__ = refusing
+os.makedirs(uploads, exist_ok=True)
+out, err, _, front, _ = run(dict(GOOD, **{"restore.bundle": [upload(UP.replace("1120", "1121")), "1"]}),
+                           upload_dir=uploads)
+check("negative: an upload that is not whole: said, nothing of it kept anywhere, asked again",
+      out and [q for q, _ in front.asked].count("restore.bundle") == 2
+      and not os.path.exists(os.path.join(folder, UP.replace("1120", "1121")))
+      and not os.path.exists(os.path.join(uploads, UP.replace("1120", "1121"))), (out, front.asked))
+if hasattr(os, "symlink"):
+    os.makedirs(uploads, exist_ok=True)
+    secret = os.path.join(tmp, "root-only")
+    open(secret, "w").write("not for the listener")
+    link = os.path.join(uploads, UP.replace("1120", "1122"))
+    try:
+        os.symlink(secret, link)
+        linked = True
+    except OSError:                     # Windows without the right
+        linked = False
+    if linked:
+        try:
+            ar._take_upload(link, folder)
+            took = True
+        except (ValidationError, OSError):
+            took = False
+        check("negative: a link the listener planted is never followed: refused, the link removed, the target kept",
+              not took and not os.path.lexists(link) and open(secret).read() == "not for the listener")
 
 print("--- the check before anything is unpacked (check_whole_restore with changes)")
 cwr.check_bundle = lambda path: dict(MANIFEST)
