@@ -1271,7 +1271,8 @@ check "Restore one section through the agent: dhcp restored as a job, a safety b
      && in_box 'systemctl is-active kea' | grep -qx active"
 {   # what the check saw, the passphrase hidden
     echo "  the restore job for $BN, as the agent gave it; kea: $(in_box 'systemctl is-active kea')"
-    sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-restore-job.json" | head -c 2000; echo; }
+    sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-restore-job.json" | head -c 2000; echo
+    in_box 'systemctl is-active --quiet kea' || in_box 'journalctl -u kea -n 30 --no-pager; docker logs --tail 20 kea-dhcp4 2>&1' 2>&1 | tail -40; }
 # covers: agent:post.backup.schedule -
 check "negative: a schedule with a key that is not age1… is refused, the schedule unchanged" \
     "agent_json /v1/backup/schedule '{\"actor\": \"sandbox\", \"time\": \"04:15\", \"public_key\": \"ssh-ed25519 AAAA\"}' | grep -q 'age1' \
