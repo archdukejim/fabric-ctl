@@ -2,16 +2,20 @@ import ipaddress
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.federation.common.load_registry import load_registry
+from fabriclib.ipam.kept_plan_subnets import kept_plan_subnets
+from fabriclib.ipam.subnet_collision import subnet_collision
 
 
-def check_new_address(v, address, registry=None, network=None):
+def check_new_address(v, address, registry=None, network=None, plans=None):
     """Purpose: whether an address may be announced as the host's next (manual 4.2.4.1, 4.2.4.2, 4.2.4.8; decision
              2.1.1.79, revised 2026-11-19): an IPv4 address on the host's LAN, or on the other network named for a
              move to another VLAN and subnet; not that network's own network or broadcast address, not the LAN's
              gateway, not the address the host has now; on an install with no linked sites (2.1.1.77: a linked site
-             is not moved).
+             is not moved); another network colliding with nothing fabric holds (fabric's container network, the
+             address plan's other subnets: subnet_collision, 2.1.1.107).
     Inputs:  v — rendered vars (host_ip, lan_cidr, lan_gateway); address — str; registry — the federation registry
-             (default: load_registry()); network — the new network for a move off the LAN (`--network`), or None.
+             (default: load_registry()); network — the new network for a move off the LAN (`--network`), or None;
+             plans — kept_plan_subnets()'s list (default: read it).
     Returns: str, the address in its normal form.
     Fails:   ValidationError saying why.
     Feeds:   run_move_command."""
@@ -29,6 +33,10 @@ def check_new_address(v, address, registry=None, network=None):
             raise ValidationError(f"--network {net} is the host's LAN ({lan}) or overlaps it: give the address alone")
         if new not in net:
             raise ValidationError(f"{new} is not in --network {net}")
+        found = subnet_collision(net, v.get("fabric_subnet") or "10.255.0.0/24",
+                                 kept_plan_subnets() if plans is None else plans, moving=v["lan_cidr"])
+        if found:
+            raise ValidationError(f"--network {net} collides: {found}. Choose another subnet for the host's LAN")
         lan = net
     elif new not in lan:
         raise ValidationError(f"{new} is not on the host's LAN ({lan}): for another VLAN and subnet give its network, "

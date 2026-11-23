@@ -158,6 +158,8 @@ check("root took it: in the backups folder whole, checked, the listener's folder
       open(os.path.join(backups, NAME), "rb").read() == DATA and checked == [True] and not os.path.exists(uploads)
       and "passphrase" in label_of(page), (checked, os.path.exists(uploads), label_of(page)))
 check("the bundle's name and manifest are in the page's notes", NAME in page and "lab.test" in page, page[-2000:])
+check("the key's field lets a password manager fill a saved passphrase (current-password, 2.1.1.107)",
+      'type="password" autocomplete="current-password"' in page, page[-2000:])
 status, text = multipart(browser, dict(fields, seq=browser.field(page, "seq")), NAME.replace("1122", "1123"), DATA)
 check("negative: an upload when the bundle is not being asked: 409, nothing kept",
       status == 409 and not os.path.exists(os.path.join(backups, NAME.replace("1122", "1123"))), (status, text[-300:]))

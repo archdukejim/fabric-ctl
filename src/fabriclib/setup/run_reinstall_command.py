@@ -13,6 +13,8 @@ from fabriclib.common.ask import ask
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
 from fabriclib.federation.common.load_registry import load_registry
+from fabriclib.ipam.kept_plan_subnets import kept_plan_subnets
+from fabriclib.setup.common.address_in_use import address_in_use
 from fabriclib.setup.common.network_problem import network_problem
 from fabriclib.setup.context import SetupContext
 from fabriclib.setup.stage_source import stage_source
@@ -113,12 +115,19 @@ def run_reinstall_command(args, deploy_base):
             raise ValidationError("fabric is not installed here: `sudo fabricctl setup` installs it")
         changes = read_changes(args)
         links = load_registry(os.path.join(ctx.config_dir, "federation.yaml"))
-        changed = check_changes(changes, dict(v, linked=bool(links.get("upstream") or links.get("sites"))))
-        problem = network_problem({k: (changed[k][1] if k in changed else v.get(k)) for k in NETWORK})
+        changed = check_changes(changes, dict(v, linked=bool(links.get("upstream") or links.get("sites")),
+                                              fabric_subnet=v.get("fabric_subnet") or "10.255.0.0/24",
+                                              plan_subnets=kept_plan_subnets()))
+        new = {k: (changed[k][1] if k in changed else v.get(k)) for k in NETWORK}
+        problem = network_problem(new)
         if problem:
             raise ValidationError(f"{problem}. A reinstall runs setup at once, so this host needs its new address "
                                   "first; to move it to another VLAN or subnet, follow manual 4.2.4.8 (uninstall "
                                   "with a bundle, re-address the host, restore the bundle)")
+        mac = address_in_use(str(new["host_ip"])) if "host_ip" in changed else ""
+        if mac:
+            raise ValidationError(f"another machine ({mac}) answers at {new['host_ip']} on this network: give this "
+                                  "host an address no other machine uses (or stop the other machine) first")
         what = ", ".join(f"{k} {old} -> {new}" for k, (old, new) in changed.items()) or "no changes"
         print(f"Reinstall fabric ({what}): an encrypted backup bundle of all of it first, then fabric is removed and "
               "the bundle restored, then set up. Its passphrase opens the bundle if the reinstall stops part way.")

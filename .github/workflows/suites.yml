@@ -43,8 +43,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: What the suites need (3.1.2)
         # openbao's HSM and KMIP unlock tests: SoftHSM2 with PyKCS11, and PyKMIP's client and server; backup's age,
-        # zstd and attr (getfattr, to check extended attributes are kept)
-        run: sudo apt-get install -y -qq python3-yaml python3-jinja2 softhsm2 python3-pykcs11 python3-pykmip age zstd attr >/dev/null
+        # zstd and attr (getfattr, to check extended attributes are kept); the package's arping, for the address probe
+        run: sudo apt-get install -y -qq python3-yaml python3-jinja2 softhsm2 python3-pykcs11 python3-pykmip age zstd attr iputils-arping >/dev/null
       - name: sudo tests/run-all.sh ${{ matrix.suite }}
         env:
           FABRIC_TEST_OUT: /tmp/fabric-tests

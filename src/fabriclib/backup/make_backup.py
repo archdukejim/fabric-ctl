@@ -15,6 +15,7 @@ from fabriclib.common.console import info, ok
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.write_audit import write_audit
 from fabriclib.federation.common.load_registry import load_registry
+from fabriclib.ipam.kept_plan_subnets import kept_plan_subnets
 from fabriclib.secrets.export_secrets import export_secrets
 from fabriclib.secrets.secrets_in_openbao import secrets_in_openbao
 from fabriclib.setup.stop_for_copy import stop_for_copy
@@ -40,7 +41,8 @@ def _meta(base, v, method, only=None):
     """Purpose: the manifest's description of the install (manual 1.3.7.2).
     Inputs:  base — install root; v — vars; method — "cold" or "online"; only — the sections packed, when not all.
     Returns: dict: fabric_version and commit (the install's BUILD, else the package's), domain, host_ip, lan_cidr,
-             lan_gateway, dns_server, base, method, linked (whether it has linked sites, 2.1.1.77); only (sorted),
+             lan_gateway, dns_server, base, method, linked (whether it has linked sites, 2.1.1.77); fabric_subnet and
+             plan_subnets (the plan this site last read, for a restore's collision checks, 2.1.1.107); only (sorted),
              for a bundle of some sections, which a whole restore refuses.
     Fails:   never (an unknown version is "?").
     Feeds:   make_backup."""
@@ -50,6 +52,7 @@ def _meta(base, v, method, only=None):
     return {"fabric_version": build["version"], "commit": build["commit"],
             "domain": v.get("domain"), "host_ip": v.get("host_ip"), "lan_cidr": v.get("lan_cidr"),
             "lan_gateway": v.get("lan_gateway"), "dns_server": v.get("dns_server"), "base": base, "method": method,
+            "fabric_subnet": v.get("fabric_subnet") or "10.255.0.0/24", "plan_subnets": kept_plan_subnets(),
             "linked": _linked(os.path.join(base, "fabric", "config", "federation.yaml")),
             **({"only": sorted(only)} if only else {})}
 

@@ -57,6 +57,9 @@ rrc.ask = lambda qid, prompt, default=None: answer["v"]
 here = {"problem": "", "links": {}}
 rrc.network_problem = lambda new: here["problem"]
 rrc.load_registry = lambda path: here["links"]
+here["in_use"], here["plans"] = "", [{"name": "iot", "cidr": "10.20.0.0/24"}]
+rrc.address_in_use = lambda ip: here["in_use"]
+rrc.kept_plan_subnets = lambda: here["plans"]
 answer = {"v": "yes"}
 tmp = tempfile.mkdtemp()
 os.makedirs(os.path.join(tmp, "fabric", "config"))
@@ -95,6 +98,19 @@ rc, out = run(["--key-stdin", "--set", "host_ip=10.0.5.2", "--set", "lan_cidr=10
 here["problem"] = ""
 check("negative: a new address this host does not have yet: refused before anything, pointing to the move (4.2.4.8)",
       rc == 1 and calls == [] and "4.2.4.8" in out, (rc, calls, out))
+here["in_use"] = "aa:bb:cc:dd:ee:ff"
+rc, out = run(["--key-stdin", "--set", "host_ip=10.0.0.9", "--yes"])
+here["in_use"] = ""
+check("negative: another machine answers at the new address: refused before anything, naming its MAC (2.1.1.107)",
+      rc == 1 and calls == [] and "aa:bb:cc:dd:ee:ff" in out, (rc, calls, out))
+rc, out = run(["--key-stdin", "--set", "host_ip=10.20.0.5", "--set", "lan_cidr=10.20.0.0/24", "--set",
+               "lan_gateway=10.20.0.1", "--yes"])
+check("negative: a new subnet that is another subnet of the plan: refused before anything, naming it",
+      rc == 1 and calls == [] and "10.20.0.0/24 (iot)" in out, (rc, calls, out))
+rc, out = run(["--key-stdin", "--set", "host_ip=10.255.0.9", "--set", "lan_cidr=10.255.0.0/24", "--set",
+               "lan_gateway=10.255.0.1", "--yes"])
+check("negative: fabric's container network: refused before anything", rc == 1 and calls == []
+      and "fabric_subnet" in out, (rc, calls, out))
 here["links"] = {"sites": {"branch": {}}}
 rc, out = run(["--key-stdin", "--set", "host_ip=10.0.0.9", "--yes"])
 here["links"] = {}

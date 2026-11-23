@@ -22,7 +22,7 @@
 <form method="post" action="/settings/backups/reinstall" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <input type="hidden" name="file" value="{{ picked.file }}">
-<label class="wide">{{ 'The schedule\'s private key (AGE-SECRET-KEY-1…)' if picked.opened_by and picked.opened_by != 'passphrase' else 'The bundle\'s passphrase' }}<input type="password" name="key" autocomplete="off" required></label>
+<label class="wide">{{ 'The schedule\'s private key (AGE-SECRET-KEY-1…)' if picked.opened_by and picked.opened_by != 'passphrase' else 'The bundle\'s passphrase' }}<input type="password" name="key" autocomplete="current-password" required></label>
 <label class="wide">Type the site's name ({{ ov.site }}) to restore the whole bundle<input name="confirm" autocomplete="off" required placeholder="{{ ov.site }}"></label>
 <div><button class="danger">Restore the whole bundle</button> <a href="/settings/backups?{{ {'restore': picked.file} | urlencode }}">Back</a></div></form>
 {% endif %}
@@ -44,7 +44,7 @@
 <form method="post" action="/settings/backups/restore" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <input type="hidden" name="file" value="{{ picked.file }}"><input type="hidden" name="section" value="{{ chosen.name }}">
-<label class="wide">{{ 'The schedule\'s private key (AGE-SECRET-KEY-1…)' if picked.opened_by and picked.opened_by != 'passphrase' else 'The bundle\'s passphrase' }}<input type="password" name="key" autocomplete="off" required></label>
+<label class="wide">{{ 'The schedule\'s private key (AGE-SECRET-KEY-1…)' if picked.opened_by and picked.opened_by != 'passphrase' else 'The bundle\'s passphrase' }}<input type="password" name="key" autocomplete="current-password" required></label>
 <label class="wide">Type the site's name ({{ ov.site }}) to restore {{ chosen.name }}<input name="confirm" autocomplete="off" required placeholder="{{ ov.site }}"></label>
 <div><button class="danger">Restore {{ chosen.name }}</button> <a href="/settings/backups?{{ {'restore': picked.file} | urlencode }}">Another section</a></div></form>
 {% endif %}

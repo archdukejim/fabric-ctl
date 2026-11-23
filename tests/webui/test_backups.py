@@ -143,6 +143,8 @@ with serve():
     check("a section picked: its warning in full (what is replaced, lost, cannot be undone, what depends on it)",
           "Restoring directory replaces it" in page and "cannot be undone" in page and "Depends on it: dns, dhcp" in page
           and 'name="confirm"' in page, page[-400:])
+    check("the bundle's key field lets a password manager fill a saved passphrase (current-password, 2.1.1.107)",
+          'name="key" autocomplete="current-password"' in page, page[-1500:])
     page = req("GET", "/settings/backups?" + urllib.parse.urlencode(
         {"restore": "fabric-fabric-20261120T030000Z-scheduled.fabric.tar"}))[3]
     check("negative: a bundle of another fabric version offers no section", "only into the same version" in page
