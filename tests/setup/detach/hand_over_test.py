@@ -118,7 +118,8 @@ with tempfile.TemporaryDirectory() as d:     # Restore from a backup (manual 1.3
                      detach=lambda: True, handoff_dir=run_dir)
     run_id, base, log, rec, secrets = launched[-1]
     check("a restore: the bundle's key handed over as a secret, the bundle and changes in the record",
-          secrets == {"restore_key": KEY} and rec["options"]["restore"] == RESTORE, (secrets, rec))
+          secrets == {"restore_passphrase": "a bundle passphrase"} and rec["options"]["restore"] == RESTORE,
+          (secrets, rec))
     check("negative: a restore: no fabric.yaml of empty answers (its settings are the bundle's), the key in no record",
           not os.path.exists(os.path.join(ctx.config_dir, "fabric.yaml"))
           and "a bundle passphrase" not in open(os.path.join(ctx.config_dir, "setup-run.yaml")).read())

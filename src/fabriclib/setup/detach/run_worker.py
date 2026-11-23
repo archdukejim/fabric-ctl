@@ -54,7 +54,8 @@ def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
     selected = [name for name, _, _ in steps if name not in done]
     try:
         if opts.get("restore"):               # Restore from a backup: the bundle first, then setup on it (1.3.7.10)
-            return run_restore(ctx, record, save, secrets.get("restore_key"), steps)
+            key = {"passphrase": secrets.get("restore_passphrase"), "private_key": secrets.get("restore_private_key")}
+            return run_restore(ctx, record, save, key if any(key.values()) else None, steps)
         if "deploy" in selected:              # the settings the questions saved (and the steps before deploy)
             with open(os.path.join(ctx.config_dir, "fabric.yaml")) as f:
                 ctx.vars = yaml.safe_load(f) or {}

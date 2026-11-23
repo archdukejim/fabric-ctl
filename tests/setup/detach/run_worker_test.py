@@ -139,7 +139,7 @@ with tempfile.TemporaryDirectory() as d:     # Restore from a backup (manual 1.3
     RESTORE = {"bundle": "/var/backups/fabric/b.fabric.tar", "changes": {}, "allow_again": False}
     KEY = {"passphrase": "a bundle passphrase", "private_key": None}
     config = setup(d, {"id": "r2", "state": "running", "done": [], "options": {"restore": RESTORE}},
-                   {"restore_key": KEY})
+                   {"restore_passphrase": "a bundle passphrase"})
     handoff, got = read_run(config)["handoff"], []
     seen.clear()
     rw.run_restore = lambda ctx, record, save, key, steps: got.append((record["options"]["restore"], key)) or 0

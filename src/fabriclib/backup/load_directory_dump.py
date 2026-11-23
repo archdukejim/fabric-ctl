@@ -6,7 +6,7 @@ import tarfile
 from fabriclib.backup.restore_pending import read_restore_pending, write_restore_pending
 from fabriclib.common.errors import ValidationError
 
-PARTS = ("private/", "state/", "etc/")      # the offline copy's own folders, as Samba names them (/data/<part>)
+PARTS = ("private/", "state/", "etc/", "bind-dns/")   # the offline copy's folders, as Samba names them (/data/<part>)
 
 
 def load_directory_dump(base, config_dir):

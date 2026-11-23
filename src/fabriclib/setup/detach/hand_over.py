@@ -73,8 +73,10 @@ def hand_over(ctx, steps, record, launch=launch_worker, follow=follow_run, detac
             return run_restore(ctx, record, save, ctx.restore_key, steps)
         return run_steps(ctx, steps, selected, guided=bool(record["options"].get("guided")), record=record,
                          save=save)
+    key = ctx.restore_key or {}               # the hand-off holds text: the bundle's key as its two parts
     handed = {k: v for k, v in (("admin_password", ctx.admin_password), ("join_invitation", ctx.join_invitation),
-                                ("restore_key", ctx.restore_key)) if v}
+                                ("restore_passphrase", key.get("passphrase")),
+                                ("restore_private_key", key.get("private_key"))) if v}
     log = _fresh_log(config_dir)
     record["handoff"] = write_handoff(record["id"], handed, handoff_dir) if handed else None
     save(record)
