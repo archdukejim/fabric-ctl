@@ -71,12 +71,27 @@ try:
     got = address_in_use("10.231.0.7")
     check("negative: the second machine holds it too: in use, naming its MAC address", got == peer_mac,
           (got, peer_mac))
+    # the agent's own sandbox has no packet socket (fabric-agent.service): the probe, run from inside one, still works
+    agent = sh("systemd-run", "--quiet", "--wait", "--pipe", "--collect",
+               "-p", "RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK", "-p", "NoNewPrivileges=yes",
+               "--", sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); "
+               "from fabriclib.setup.common.address_in_use import address_in_use as a; print(a('10.231.0.7'))",
+               os.path.join(ROOT, "src"))
+    check("negative: ...probed from the agent's sandbox (no packet sockets there): still found, naming its MAC",
+          agent.stdout.strip() == peer_mac, (agent.returncode, agent.stdout, agent.stderr))
 finally:
     sh("ip", "link", "del", HOST)
     sh("ip", "netns", "del", NS)
 
 err = refused(stand_in(missing))
 check("negative: no arping: refused, never skipped, saying what to install", err and "iputils-arping" in err, err)
+try:
+    address_in_use("10.231.0.1", run=stand_in(lambda cmd: None), which=lambda name: None)
+    err = None
+except ValidationError as exc:
+    err = str(exc)
+check("negative: ...found missing before the probe's unit starts (inside it, it would be only exit 203)",
+      err and "iputils-arping" in err, err)
 err = refused(stand_in(lambda cmd: subprocess.CompletedProcess(cmd, 2, "", "arping: socket: Operation not permitted")))
 check("negative: arping failing (not a reply): refused with its words", err and "Operation not permitted" in err, err)
 
