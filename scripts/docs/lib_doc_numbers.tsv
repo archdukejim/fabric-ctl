@@ -153,6 +153,7 @@ file	fabricctl-jinja|src/containers/samba/local_admin_store.py	138
 file	fabricctl-jinja|src/containers/samba/local_admin_tool.py	139	
 file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	0.7.2 / 2026-10-19
+file	fabricctl-jinja|src/containers/samba/make_bind_dns.py	173	
 file	fabricctl-jinja|src/containers/samba/managed_groups.py	129	
 file	fabricctl-jinja|src/containers/samba/may_hold.py	163	
 file	fabricctl-jinja|src/containers/samba/member_dns.py	166	
@@ -2069,6 +2070,8 @@ function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|_is_dc	1
 function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|run	2	
 function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/make_bind_dns.py|dnsadmins_sid	1	
+function	fabricctl-jinja|src/containers/samba/make_bind_dns.py|main	2	
 function	fabricctl-jinja|src/containers/samba/managed_groups.py|managed_groups	1	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|_refused	1	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|kinds_held	3	

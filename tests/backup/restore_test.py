@@ -220,7 +220,7 @@ check("positive: the domain's copy put in place before the DC starts, its marks 
       and any(c[:2] == ["docker", "compose"] and "/fabric/finish_restore.py" in c for c in calls)
       and read_restore_pending(pend) == {}, calls)
 check("positive: BIND's copy of the DNS partitions, which the copy does not bring, made again in the DC's image",
-      any("samba_upgradedns" in c and "--dns-backend=BIND9_DLZ" in c for c in calls), calls)
+      any("/fabric/make_bind_dns.py" in c for c in calls), calls)
 os.makedirs(os.path.join(base, "samba", "data", "bind-dns", "dns"), exist_ok=True)
 open(os.path.join(base, "samba", "data", "bind-dns", "dns", "sam.ldb"), "w").close()
 with tarfile.open(copy, "w:bz2") as t:
@@ -230,7 +230,7 @@ with tarfile.open(copy, "w:bz2") as t:
 write_restore_pending(pend, {"directory": copy})
 calls.clear()
 check("negative: BIND's copy already there (a cold bundle's): left as it is",
-      ldd.load_directory_dump(base, pend) and not any("samba_upgradedns" in c for c in calls), calls)
+      ldd.load_directory_dump(base, pend) and not any("/fabric/make_bind_dns.py" in c for c in calls), calls)
 check("negative: files outside private/, state/ and etc/ are not taken",
       not os.path.exists(os.path.join(base, "samba", "data", "SHA256SUM")))
 evil = os.path.join(tmp, "samba-backup-evil.tar.bz2")

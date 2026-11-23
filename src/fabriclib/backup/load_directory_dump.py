@@ -14,9 +14,9 @@ def load_directory_dump(base, config_dir):
              databases put over the folders that were packed live, then its backup marks removed in the DC's own
              image (src/containers/samba/finish_restore.py), so Samba starts on the domain as it was. BIND's copy of
              the DNS partitions (bind-dns/dns: links into private/sam.ldb.d, and its keytab), which the copy does not
-             bring, is made again there by `samba_upgradedns --dns-backend=BIND9_DLZ` (found 2026-11-23 by the
-             sandbox: the AD zone went unanswered); start_services then turns BIND's include on, as on a first
-             install.
+             bring, is made again there by Samba's `samba_upgradedns --dns-backend=BIND9_DLZ`, through
+             src/containers/samba/make_bind_dns.py (found 2026-11-23 by the sandbox: the AD zone went unanswered);
+             start_services then turns BIND's include on, as on a first install.
     Inputs:  base — install root (the DC's /data is base/samba/data); config_dir — fabric's config folder.
     Returns: True when a dump was loaded, False when none was pending.
     Fails:   ValidationError when the copy names a path outside its parts, the marks cannot be removed or BIND's copy
@@ -50,8 +50,7 @@ def load_directory_dump(base, config_dir):
         raise ValidationError(f"the restored domain's backup marks could not be removed: {why}")
     if not os.path.exists(os.path.join(data, "bind-dns", "dns", "sam.ldb")):
         res = subprocess.run(["docker", "compose", "-f", compose, "run", "--rm", "--no-deps", "--entrypoint",
-                              "samba_upgradedns", "samba", "--dns-backend=BIND9_DLZ",
-                              "--configfile=/data/etc/smb.conf"],
+                              "python3", "samba", "/fabric/make_bind_dns.py"],
                              capture_output=True, text=True, timeout=300)
         if res.returncode != 0:
             why = (res.stderr or res.stdout)[-300:]
