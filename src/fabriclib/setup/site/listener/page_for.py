@@ -5,6 +5,10 @@ from fabriclib.setup.site.listener.notes_html import notes_html
 from fabriclib.setup.site.listener.render_page import escape, render_page
 
 LOG_SHOWN = 400
+# What a restore moved, named as its questions name it: a copy of ask_restore.LABELS, which the listener cannot
+# import (it runs from its own folder, 1.3.6); tests/setup/site/ask_restore_test.py keeps the two the same.
+LABELS = {"host_ip": "The host's address", "lan_cidr": "Its subnet", "lan_gateway": "The subnet's gateway",
+          "dns_server": "The upstream DNS server"}
 
 
 def _log_text(state):
@@ -71,7 +75,7 @@ def _restored(restored):
     Feeds:   _finish."""
     if not restored:
         return ""
-    moved = "".join(f"<li><code>{escape(k)}</code>: {escape(str(old))} → {escape(str(new))}</li>"
+    moved = "".join(f"<li>{escape(LABELS.get(k, k))}: {escape(str(old))} → {escape(str(new))}</li>"
                     for k, (old, new) in restored.get("changed", {}).items())
     left = "".join(f"<li><code>{escape(str(s))}</code> = {escape(str(v))}</li>"
                    for s, v in restored.get("leftover", []))

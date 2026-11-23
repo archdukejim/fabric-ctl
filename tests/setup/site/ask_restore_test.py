@@ -8,6 +8,8 @@ tests/backup/restore_test.py's), the run after Proceed is tests/setup/detach/run
 
     python3 tests/setup/site/ask_restore_test.py
 """
+import contextlib
+import io
 import os
 import sys
 import tempfile
@@ -123,6 +125,12 @@ out, err, ctx, _, calls = run(dict(GOOD, **{"restore.host_ip": ["10.20.0.5"], "r
 check("another VLAN and subnet: only what changed is a change, and Proceed allows the host changes again",
       out and out["changes"] == {"host_ip": "10.20.0.5", "lan_cidr": "10.20.0.0/24", "lan_gateway": "10.20.0.1"}
       and out["allow_again"] is True and calls[0][2] == out["changes"], (out, calls))
+said = io.StringIO()
+with contextlib.redirect_stdout(said):
+    run(dict(GOOD, **{"restore.host_ip": ["10.20.0.5"]}))
+check("the plan names each change as its question does, not by its setting (found in a browser 2026-11-23)",
+      "The host's address: 10.0.0.5 -> 10.20.0.5" in said.getvalue() and "host_ip:" not in said.getvalue(),
+      said.getvalue()[-600:])
 out, err, ctx, _, _ = run(dict(GOOD, **{"restore.bundle": [OTHER],
                                         "restore.key": ["AGE-SECRET-KEY-1QQQ"]}))
 check("a path typed, and a scheduled bundle's private key line", out and out["bundle"] == OTHER
@@ -265,6 +273,9 @@ html = _restored({"changed": {"host_ip": ["10.0.0.5", "10.20.0.5"]}, "leftover":
 check("each change old -> new, and the admin's settings still naming the old address, escaped",
       "10.0.0.5 → 10.20.0.5" in html and "still name the old address" in html and "&lt;far&gt;" in html
       and "<far>" not in html, html)
+from fabriclib.setup.site.listener.page_for import LABELS as FINISH_LABELS  # noqa: E402
+check("the finish names what moved as the questions do: its labels are ask_restore's",
+      FINISH_LABELS == ar.LABELS and "The host&#x27;s address: 10.0.0.5" in html and "<code>host_ip" not in html, html)
 check("a restore that moved nothing says so", "back at the bundle's addresses" in _restored({"changed": {}}))
 check("a new install: nothing added to its finish", _restored(None) == "")
 

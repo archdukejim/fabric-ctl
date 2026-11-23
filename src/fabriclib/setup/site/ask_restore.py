@@ -135,7 +135,7 @@ def ask_restore(ctx, package_version, folder=FOLDER, bundles=list_bundles, check
     print(f"\n  The plan: restore {os.path.basename(path)} whole, then set fabric up on it.")
     print("    Comes back as it was: the domain and its members, the CA, DNS, the vault, sign-in, DHCP, the settings.")
     for k, v in changes.items():
-        print(f"    {k}: {manifest.get(k)} -> {v}")
+        print(f"    {LABELS.get(k, k)}: {manifest.get(k)} -> {v}")
     if moving:
         print("    Proceed also allows again, for the new network, the host changes allowed when the bundle was made "
               "(the firewall's and the ports' networks, the domain member's address); ones declined stay declined.")
