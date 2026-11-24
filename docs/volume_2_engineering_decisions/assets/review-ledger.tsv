@@ -42,7 +42,7 @@ docs/volume_1_description_and_architecture/1.14.3-published-images-on-hosts.md	0
 docs/volume_1_description_and_architecture/1.15.1-fluent-bit.md	b1106fe50c3441e51cbd48d61d7fed3746468413	2026-10-21	
 docs/volume_1_description_and_architecture/1.16.1-luks.md	f4b4c1a4dd1ecd389fd2fde6ec3bc00e7f92a738	2026-10-08	
 docs/volume_1_description_and_architecture/1.17.1-about-the-reference.md	6b0b315f02c1a197b2ae64db31a6f0e932b12404	2026-11-19	
-docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	1f274083764daa3844d74e6494d32b5ec841157f	2026-11-24	
+docs/volume_1_description_and_architecture/1.17.10-fabriclib-dns.md	1f2eb917f15cfc6120b4164979231cd64f3854a8	2026-11-24	
 docs/volume_1_description_and_architecture/1.17.11-fabriclib-dns_filter.md	a4ea6f882c8a1aa1a626664afc5ae31eb3f9f1a5	2026-11-24	
 docs/volume_1_description_and_architecture/1.17.12-fabriclib-federation.md	fc1b7d78458644d32efbb405e4ee72f44615e946	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.13-fabriclib-images.md	55edab326e928fc63e002e58781fc0bc6984535b	2026-11-19	
@@ -105,7 +105,7 @@ docs/volume_1_description_and_architecture/1.3.2-setup-design.md	561a2a82fd1256e
 docs/volume_1_description_and_architecture/1.3.3-agent-api.md	20e70fd12f741fdc61e7ab58f8d72e756bca937a	2026-11-23	
 docs/volume_1_description_and_architecture/1.3.6-web-guided-setup.md	2f1a5dabfcccdfb9bbaca3392102c65b36f02517	2026-11-23	
 docs/volume_1_description_and_architecture/1.3.7-backups.md	3183f6fb1c6d611fa55fa2c222b879a74b400993	2026-11-23	
-docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	4dfdd7edca679921ac8f9c5429006c186eb5e9e8	2026-11-24	
+docs/volume_1_description_and_architecture/1.4.1-dns-architecture.md	ac09d29b2f3900effdd1f7f286a3243a3ca7313c	2026-11-24	
 docs/volume_1_description_and_architecture/1.4.2-landing-links.md	e58503ad946804b11abe0754bfde04d936bc992e	2026-11-10	
 docs/volume_1_description_and_architecture/1.5.1-pki-chain.md	c23530a82de2f755d4a0bcf489bd2277902e5736	2026-11-11	
 docs/volume_1_description_and_architecture/1.5.2-pki.md	f9871fd3d52c1ab0cef250409db06f0d1c74d2c9	2026-10-08	
@@ -154,7 +154,7 @@ docs/volume_2_engineering_decisions/2.1.16-disk-encryption.md	2c5f6832b676ea44d7
 docs/volume_2_engineering_decisions/2.1.18-stig.md	1c83b035548437109b09db17fa962aaa8649aa2a	2026-10-25	
 docs/volume_2_engineering_decisions/2.1.2-architecture.md	03e90d20e2ddfdbab1ce4875485c58b6d463beb1	2026-11-17	
 docs/volume_2_engineering_decisions/2.1.3-fabricctl.md	af48c08b1a03ebc1ed42cc96cd67d5af3a58276d	2026-11-19	
-docs/volume_2_engineering_decisions/2.1.4-dns.md	1fbbaec629702ce6c3598f1a31ebe8bd4cc4a915	2026-11-24	
+docs/volume_2_engineering_decisions/2.1.4-dns.md	609cff3c3bc64720fca35f3304a2631b0732e473	2026-11-24	
 docs/volume_2_engineering_decisions/2.1.5-certificates.md	7e0829b303df6f0f0ec3c9cc0d5bf70d96794605	2026-11-11	
 docs/volume_2_engineering_decisions/2.1.6-identity.md	f8bd232a2f3a983435eb2cf0f86bae9c49a84401	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.7-openbao.md	218e51876744ca23501bdd9127c21e6f72f09576	2026-10-23	
@@ -223,7 +223,7 @@ docs/volume_4_operations/4.2.4-move-rename.md	c72b56458216139348694420bbe381e13c
 docs/volume_4_operations/4.3.1-fabricctl.md	e52fb351243d8bfe097b2a070c444c07498bce91	2026-10-11	
 docs/volume_4_operations/4.3.6-web-guided-setup.md	9a3b39da2b07f9495a00a2229aae14a3272a785b	2026-11-08	
 docs/volume_4_operations/4.3.7-backups.md	4c7ae1f8312f097d87188add862800f5c6087aed	2026-11-23	
-docs/volume_4_operations/4.4.1-records.md	fe4cfefba95e6b7667400aebc05292b88cae8615	2026-11-24	
+docs/volume_4_operations/4.4.1-records.md	10fc5840693a5b0ab33fb4b8b04e7080dedb7a1b	2026-11-24	
 docs/volume_4_operations/4.4.2-tsig.md	095545b42dfff11e543017a6d48d20539a95054b	2026-11-14	
 docs/volume_4_operations/4.4.3-acls.md	f812bb1ee6b155bd5122912124740bc1894168e7	2026-11-24	
 docs/volume_4_operations/4.4.4-landing-links.md	0fda0d403a2a28e405dc64dbd725487326b7922c	2026-10-23	
@@ -940,13 +940,13 @@ src/fabriclib/dns/set_acl_policy.py	4a89fcbfa43d79bd27564d64288e15a10ed7e13b	202
 src/fabriclib/dns/set_key_acls.py	c34f34101a80a885701f2557e0f76752c40adbdb	2026-09-30	
 src/fabriclib/dns/set_negative_ttl.py	7935fe8eda53840550da569a36c7ac484025ce60	2026-10-29	
 src/fabriclib/dns/set_record_link.py	87508f56dcb5b9504132c3ca939e02b84058aab9	2026-10-12	
-src/fabriclib/dns/split/README.md	190f81b0919b3d12dec1d3ac66d6ad9793f29ba3	2026-11-24	
+src/fabriclib/dns/split/README.md	14876b9e61f88aa512dcc4f73e5358c5ed4ab3af	2026-11-24	
 src/fabriclib/dns/split/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-11-14	
 src/fabriclib/dns/split/default_records.py	491a2c8ec58b2b40d5585a94ac2881fffeb9071c	2026-11-24	
 src/fabriclib/dns/split/norm_subnet.py	33bf1086f4424776360c95cd85b8302279ae2cfb	2026-11-24	
 src/fabriclib/dns/split/offered_subnets.py	011c86501b0934921eb30abdfdc449750b405867	2026-11-24	
 src/fabriclib/dns/split/reach.py	7fa357564ee584b371b1566ce7641c610542500b	2026-11-24	
-src/fabriclib/dns/split/record_subnets.py	7789726f9e674ebf4ec2ad36de7c7a2b5d79321e	2026-11-24	
+src/fabriclib/dns/split/record_subnets.py	8635d946c166d41eb32037a5f68a5529b41c7086	2026-11-24	
 src/fabriclib/dns/split/record_vlan.py	d9512a3947697b4ddec05105a299fb3b560af3ea	2026-11-15	
 src/fabriclib/dns/split/split_answers.py	44edbd79ea01a1172f34d8c409325d9384fad4df	2026-11-24	
 src/fabriclib/dns/split/split_needs_filter.py	066b60d03db7cf93af2387f7a5aebf75473ec244	2026-11-24	
@@ -2381,8 +2381,8 @@ tests/dns/edit_tsig_names_test.py	fb35062725a5bbfdde51c966b72369bf0709d429	2026-
 tests/dns/freeze_and_install_test.py	f1b60b4dbb9a6ee84348c4356b0f6ea201eef16a	2026-10-17	
 tests/dns/record_aliases_test.py	31703595077723f4b4f2c5f0036a649ea53a0eb0	2026-11-14	
 tests/dns/set_negative_ttl_test.py	bc007ebf9bbb9d26e4a313058a87041e22d66b79	2026-10-29	
-tests/dns/split/README.md	63117d98200d4b531672d2c07d5786012baa8cb1	2026-11-24	
-tests/dns/split/record_subnets_test.py	3c0a94eb6373370f3100de24b5bd94e8146a9b37	2026-11-24	
+tests/dns/split/README.md	ad12d0efbc1d52a66ee2d1476430475ff464b9b7	2026-11-24	
+tests/dns/split/record_subnets_test.py	49dd0c1fa9084774fa541a7fd74aba65526f5d24	2026-11-24	
 tests/dns/split/record_vlan_test.py	da059e3760702e2c9f0cbb9a34f059a68c8c9577	2026-11-15	
 tests/dns/split/split_answers_test.py	7210d86cb273dfd0c425476db2777b62eddd5fd7	2026-11-24	
 tests/dns/split/split_needs_filter_test.py	22d65e70d385c1ddb7a6c2263c22f3c1f7e1b7cc	2026-11-24	
@@ -2472,8 +2472,8 @@ tests/lint/README.md	9757442e4a4f93e6dfa2de8daee0508f38dff835	2026-10-12
 tests/lint/no_bare_prompts.py	f7bb9072256161fd72f5693e3a84d210269c8faa	2026-10-12	
 tests/lint/parse_py.py	2274821472d00fc05121d488e8d124c1a87d28b8	2026-10-10	
 tests/lint/run.sh	65cb637fbb502f8a1acb006605509c0cec72be2c	2026-10-12	
-tests/menu/README.md	2de35bf564223912441080c4a81d22612cfe524b	2026-11-24	
-tests/menu/edit_dns_zone_test.py	f5df67c84a94787cfabafc98a03d1b3334896af4	2026-11-24	
+tests/menu/README.md	14d5d07525c72b4315df74924acd3e23dc39ddd1	2026-11-24	
+tests/menu/edit_dns_zone_test.py	d25f2f46072ed2a1f0a8fc121fcb87124313f40b	2026-11-24	
 tests/move/README.md	6704e6c1d65acfbc973ecac9000555137a21daf3	2026-11-22	
 tests/move/check_new_address_test.py	7d7c2f20e7eb35ba1d0a0152c5d908919bc2afcb	2026-11-22	
 tests/move/run_move_command_test.py	3480bd85bebd6ba0a31f634ef8715beb599fbcfb	2026-11-22	

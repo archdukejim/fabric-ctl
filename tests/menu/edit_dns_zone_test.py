@@ -77,9 +77,9 @@ check("negative: a subnet not offered: refused, saying why", isinstance(why, str
 why = checked(prompt(**{"menu.dns.record.subnets": "all 10.1.20.0/24"}))
 check("negative: all beside a subnet: refused", isinstance(why, str) and "pick it alone" in why, why)
 V["dns_filter"] = "none"
-form = prompt()
-check("the DNS filter off: Enter gives every subnet (open point 2.1.4.17.3)", form.get("subnets") == "all"
-      and checked(form) == {"name": "web", "ip": "10.1.20.5"}, form)
+why = checked(prompt())
+check("negative: the DNS filter off: the new record refused, saying to turn the filter on (2.1.4.17.3)",
+      isinstance(why, str) and "a new record needs the DNS filter on" in why, why)
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

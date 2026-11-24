@@ -4,7 +4,7 @@ Split DNS by subnet (decisions 2.1.4.16, 2.1.4.17; manual [1.4.1.12](../../../..
 
 | File | What |
 |---|---|
-| `record_subnets.py` | A record's subnets as typed, checked: the host's LAN by default (every subnet with the DNS filter off), each offered, a forward zone, the filter on, no CNAME clash for a subnet in common |
+| `record_subnets.py` | A record's subnets as typed, checked: the host's LAN by default, a new record refused with the DNS filter off, each offered, a forward zone, the filter on, no CNAME clash for a subnet in common |
 | `offered_subnets.py` | The subnets a record may name: the host's LAN first, then the site's plan's |
 | `reach.py` | Whom a record answers: its subnets, or every subnet (no `subnets`) |
 | `norm_subnet.py` | A subnet written as its network, or "" |

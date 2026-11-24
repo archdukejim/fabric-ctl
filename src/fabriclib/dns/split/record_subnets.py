@@ -5,16 +5,18 @@ from fabriclib.dns.split.offered_subnets import offered_subnets
 from fabriclib.dns.split.reach import ALL, reach
 from fabriclib.dns.split.split_needs_filter import WHY
 
+NEW_NEEDS_FILTER = ("a new record needs the DNS filter on: a new record answers the host's LAN alone, and a record for "
+                    "some subnets is answered only through the DNS filter (2.1.4.17); turn the filter on in the setup "
+                    "wizard first")
+
 def default_reach(v, offered):
-    """Purpose: the subnets a new record starts with (decision 2.1.4.17): the host's LAN alone; every subnet when the
-             DNS filter is off, since split answers need it (2.1.4.16, open point 2.1.4.17.3).
-    Inputs:  v — settings (dns_filter); offered — offered_subnets().
-    Returns: "all" or [the host's LAN].
+    """Purpose: the subnets a new record starts with (decision 2.1.4.17): the host's LAN alone (with the DNS filter
+             off a new record is refused instead, 2.1.4.17.3: record_subnets).
+    Inputs:  v — settings; offered — offered_subnets().
+    Returns: [the host's LAN], or "all" when nothing is offered (no lan_cidr).
     Fails:   never.
     Feeds:   record_subnets (a form that names none), dns/zone_detail (the add row), menu/edit_dns_zone."""
-    if str(v.get("dns_filter") or "bind").strip().lower() != "bind" or not offered:
-        return ALL
-    return [offered[0]["cidr"]]
+    return [offered[0]["cidr"]] if offered else ALL
 
 
 def record_subnets(key, rtype, record, form, zone, v, index=None, plan=None, old=None):
@@ -29,14 +31,20 @@ def record_subnets(key, rtype, record, form, zone, v, index=None, plan=None, old
              replaced (left out of the checks), else None; plan — the site's plan (default: the copy last read);
              old — the record being replaced, or None.
     Returns: record with "subnets" (a sorted list of CIDRs), or without it for every subnet.
-    Fails:   ValidationError: no subnet picked; "all" beside a subnet; a subnet that is not one, or neither the host's
-             LAN nor in the plan; subnets in a reverse zone; the DNS filter off; a CNAME clash.
+    Fails:   ValidationError: a new record in a forward zone while the DNS filter is off (2.1.4.17.3: the owner chose
+             refusing it over a new record reaching every subnet; an existing record may still be changed, for every
+             subnet); no subnet picked; "all" beside a subnet; a subnet that is not one, or neither the host's LAN nor
+             in the plan; subnets in a reverse zone; the DNS filter off; a CNAME clash.
     Feeds:   add_record, update_record."""
     record = {k: val for k, val in record.items() if k not in ("subnets", "vlan")}
+    filter_on = str(v.get("dns_filter") or "bind").strip().lower() == "bind"
+    if old is None and not filter_on and not str(key).endswith(".arpa"):
+        raise ValidationError(NEW_NEEDS_FILTER)
     offered = offered_subnets(v, plan)
     text = form.get("subnets")
     if text is None:
-        picked = reach(old) if old is not None else default_reach(v, offered)
+        picked = (reach(old) if old is not None
+                  else ALL if str(key).endswith(".arpa") else default_reach(v, offered))  # reverse: every subnet
     else:
         words = [w for w in str(text).replace(",", " ").split() if w]
         if not words:
@@ -61,7 +69,7 @@ def record_subnets(key, rtype, record, form, zone, v, index=None, plan=None, old
         return record
     if str(key).endswith(".arpa"):
         raise ValidationError("a reverse zone answers every subnet: a record for some subnets goes in a forward zone")
-    if str(v.get("dns_filter") or "bind").strip().lower() != "bind":
+    if not filter_on:
         raise ValidationError(WHY)
     for t in RECORD_TYPES:
         for i, r in enumerate(zone.get(t) or []):

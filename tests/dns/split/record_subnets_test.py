@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""A record's subnets, as typed (decision 2.1.4.17, manual 1.4.1.12): a new record starts on the host's LAN alone (every
-subnet with the DNS filter off: open point 2.1.4.17.3); every subnet is a choice, never the default; several subnets
+"""A record's subnets, as typed (decision 2.1.4.17, manual 1.4.1.12): a new record starts on the host's LAN alone; with
+the DNS filter off a new record in a forward zone is refused (2.1.4.17.3), an existing one may still be changed for
+every subnet; every subnet is a choice, never the default; several subnets
 of the host's LAN and the plan are kept sorted; an edit that leaves them out keeps the record's own; refused, saying
 why: none picked, every subnet beside a subnet, not a subnet, one neither the host's LAN nor in the plan, a reverse
 zone, the DNS filter off, a CNAME beside another record of the same name for a subnet in common (both ways); a record
@@ -61,10 +62,23 @@ check("reach: a record with no subnets (every record before 0.10.2) answers ever
 print("--- the default")
 check("positive: a new record with no subnets given starts on the host's LAN alone", rs({}) == {**A, "subnets": [LAN]})
 check("positive: ...the default the console's add row shows", default_reach(V, offered_subnets(V, PLAN)) == [LAN])
-check("positive: the DNS filter off: a new record starts on every subnet (split answers need the filter, 2.1.4.16)",
-      rs({}, v=OFF) == A and default_reach(OFF, offered_subnets(OFF, PLAN)) == "all")
 check("positive: every subnet, picked: the record answers every subnet (no `subnets` kept)", rs({"subnets": "all"}) == A)
-check("positive: every subnet with the filter off", rs({"subnets": "ALL"}, v=OFF) == A)
+# the DNS filter off (2.1.4.17.3, the owner 2026-11-24: "Refuse new records")
+for form in ({}, {"subnets": "all"}, {"subnets": LAN}):
+    check(f"negative: the DNS filter off: a new record ({form or 'the default'}) refused, saying to turn it on",
+          refused(lambda: rs(form, v=OFF), "a new record needs the DNS filter on") is True,
+          refused(lambda: rs(form, v=OFF), ""))
+check("positive: the DNS filter off: an existing record changed, every subnet kept",
+      rs({}, rec={"name": "nas", "ip": "192.168.1.11"}, v=OFF, index=0, old=ZONE["A"][0]) == {"name": "nas",
+                                                                                              "ip": "192.168.1.11"}
+      and rs({"subnets": "all"}, rec={"name": "nas", "ip": "10.1.20.12"}, v=OFF, index=1, old=ZONE["A"][1])
+      == {"name": "nas", "ip": "10.1.20.12"})
+check("negative: the DNS filter off: an existing record given some subnets: refused",
+      refused(lambda: rs({"subnets": LAN}, v=OFF, index=0, old=ZONE["A"][0]), "needs the DNS filter on") is True)
+check("positive: the DNS filter off: a new record in a reverse zone (it answers every subnet) is not refused",
+      rs({}, key="20.1.10.in-addr.arpa", v=OFF) == A)
+check("positive: a new record in a reverse zone with no subnets given answers every subnet (never the host's LAN)",
+      rs({}, key="20.1.10.in-addr.arpa") == A)
 
 print("--- picked subnets")
 check("positive: several, comma or space separated, written loosely: kept as networks, sorted, once",
@@ -89,7 +103,6 @@ for name, fn, words in (
         ("a subnet neither the host's LAN nor in the plan", lambda: rs({"subnets": "10.9.0.0/24"}),
          "10.9.0.0/24 is neither the host's LAN nor a subnet of the site's plan"),
         ("a reverse zone", lambda: rs({"subnets": IOT}, key="20.1.10.in-addr.arpa"), "reverse zone answers every"),
-        ("the DNS filter off", lambda: rs({"subnets": IOT}, v=OFF), "needs the DNS filter on"),
         ("a CNAME beside a subnet's own A of that name, for a subnet in common",
          lambda: rs({"subnets": f"{IOT},{LAN}"}, rtype="CNAME", rec={"name": "nas", "canonical": "x"}),
          "a CNAME cannot sit beside"),
