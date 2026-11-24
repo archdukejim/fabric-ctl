@@ -12,6 +12,8 @@ only. It holds no power: it serves pages and passes what people type to root, wh
 | `site_server.py` | The HTTPS server |
 | `request_base.py` | `RequestBase`: headers, refusals, the Origin check, the session and CSRF token |
 | `request_handler.py` | `RequestHandler`: the routes (the `ROUTES` table is what the entry-point inventory reads) |
+| `save_upload.py` | Restore from a backup's upload: the token first, then the file streamed to a hidden `.part`, renamed once whole |
+| `multipart_reader.py` | A multipart body read part by part as it arrives (the listener's own copy of the console's reader) |
 | `page_for.py` | Which page this phase shows |
 | `render_page.py` | One page from its template |
 | `notes_html.py` | What setup printed, as the page's notes |

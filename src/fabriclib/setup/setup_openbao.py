@@ -1,5 +1,6 @@
 import os
 
+from fabriclib.backup.load_vault_snapshot import load_vault_snapshot
 from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.common.sudo_owner import sudo_owner
@@ -90,6 +91,12 @@ def run(ctx):
         # leave OpenBao initialised but unreachable for setup.
         bootstrap = os.path.join(v["openbao_key_dir"], BOOTSTRAP_TOKEN)
         first = init_openbao(v)
+        if first and load_vault_snapshot(v, ctx.config_dir, first["root_token"]):
+            # an online bundle's restore (1.3.7.6): OpenBao now holds the bundle's data, where this cluster's
+            # one-time token and recovery keys mean nothing; the bundle's own AppRoles carry on
+            wait_active(v)
+            ok("OpenBao: the data from the backup bundle, opened with its vault key (1.3.7.6)")
+            first = None
         if first:
             write_private_file(bootstrap, first["root_token"])
             ok(f"OpenBao initialised; recovery key(s) written once to {_save_recovery(v, first['recovery_keys'])}")

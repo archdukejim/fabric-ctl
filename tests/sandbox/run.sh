@@ -6,7 +6,7 @@
 #   -> doctor, DHCP (Kea), 802.1X (FreeRADIUS), the certificate page,
 #   systemd control (fabric.target), secrets and unlock in OpenBao, real
 #   sign-in incl. refusals, image update/rollback/prune, RFC2136/TSIG/ACLs,
-#   re-runs, package upgrade and remove, reinstall, uninstall with export,
+#   re-runs, package upgrade and remove, reinstall, uninstall with a backup bundle,
 #   restore from the export
 #
 #   sudo tests/sandbox/run.sh            (KEEP=1 leaves the sandbox running)
@@ -31,7 +31,7 @@ in_box() { docker exec "$NAME" bash -lc "$*"; }
 # a failed doctor's own lines (✗) in this log, so the cause outlives the run's files (/tmp is lost when WSL stops)
 doctor_why() { grep '✗' "$1" 2>/dev/null | sed 's/^/    doctor: /'; true; }
 
-docker rm -f "$NAME" >/dev/null 2>&1; docker network rm "$NET" >/dev/null 2>&1
+docker rm -f "$NAME" >/dev/null 2>&1; docker network rm "$NET" fabric-sbx-net2 >/dev/null 2>&1
 docker volume rm fabric-sbx-docker >/dev/null 2>&1
 rm -rf "$OUT"; mkdir -p "$OUT"
 
@@ -1109,10 +1109,13 @@ check "apt remove removes the command but not the running install" \
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > /dev/null 2>&1
 check "reinstalling the package gives the command back" "in_box 'fabricctl status' | grep -qE '^fabric.target +active'"
 
-echo "--- reinstall keeps fabric's secrets (backup exports them, setup re-imports and shreds) and the domain"
+echo "--- reinstall: a cold bundle, uninstall, the bundle restored (1.3.7.7): secrets re-imported and shredded, the domain kept"
 in_box 'python3 /root/make_person.py keeper' > "$OUT/keeper.log" 2>&1
 SID_BEFORE=$(in_box "docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=keeper)' objectSid" | sed -n 's/^objectSid: //p')
-in_box 'fabricctl reinstall --yes --non-interactive' > "$OUT/reinstall.log" 2>&1
+# the bundle's passphrase, a test value, in root-only files: never on a command line (global Rule 10)
+( umask 077; printf '%s\n' "Bk7-$(openssl rand -hex 12)" > "$OUT/bundle-pw"; printf 'short\n' > "$OUT/bundle-pw-short" )
+docker cp "$OUT/bundle-pw" "$NAME:/root/bundle-pw"; docker cp "$OUT/bundle-pw-short" "$NAME:/root/bundle-pw-short"
+in_box 'fabricctl reinstall --yes --non-interactive --key-stdin < /root/bundle-pw' > "$OUT/reinstall.log" 2>&1
 # covers: cli:reinstall +
 check "reinstall completes" "grep -q 'fabric is ready' '$OUT/reinstall.log'"
 check "reinstall re-imported the exported secrets into OpenBao and left no plaintext file" \
@@ -1140,26 +1143,24 @@ PY
 docker cp "$OUT/argv_check.py" "$NAME:/root/argv_check.py"
 check "no secret appears in any process's argv" "in_box 'python3 /root/argv_check.py' | grep -q 'LEAKS: none'"
 
-echo "--- fabricctl uninstall: export to a folder of your choice, remove fabric and the package"
+echo "--- fabricctl uninstall: an encrypted backup bundle first, then fabric and the package removed (1.3.7.13)"
 CA_FP=$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')
-# a person made after the reinstall (which starts the domain fresh): only the export has her
+# a person made after the reinstall: only the bundle has her
 in_box 'python3 /root/make_person.py erin' > "$OUT/erin.log" 2>&1
 in_box 'fabricctl uninstall --yes' > "$OUT/uninstall-refused.log" 2>&1
 # covers: cli:uninstall -
-check "unattended uninstall without an export choice is refused, nothing changed"     "grep -q 'choose --export DIR or --no-export' '$OUT/uninstall-refused.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
-in_box 'fabricctl uninstall --yes --export /opt/fabric/exported' > "$OUT/uninstall-refused2.log" 2>&1
+check "unattended uninstall without a backup choice is refused, nothing changed"     "grep -q 'choose --backup or --no-backup' '$OUT/uninstall-refused.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
+in_box 'fabricctl uninstall --yes --backup --key-stdin < /root/bundle-pw-short' > "$OUT/uninstall-refused2.log" 2>&1
 # covers: cli:uninstall -
-check "an export folder the uninstall would delete is refused"     "grep -q 'would be deleted by the uninstall' '$OUT/uninstall-refused2.log' && in_box 'systemctl is-active fabric.target' | grep -qx active"
-in_box 'fabricctl uninstall --yes --export /root/fabric-export --purge-package' > "$OUT/uninstall.log" 2>&1
-EX=/root/fabric-export
+check "a passphrase shorter than 12 characters is refused before anything is touched"     "grep -q 'shorter than 12' '$OUT/uninstall-refused2.log' && in_box 'systemctl is-active fabric.target' | grep -qx active && ! in_box 'ls /var/backups/fabric/*-uninstall.fabric.tar' >/dev/null 2>&1"
+in_box 'fabricctl uninstall --yes --backup --key-stdin --purge-package < /root/bundle-pw' > "$OUT/uninstall.log" 2>&1
+B=$(in_box 'ls /var/backups/fabric/*-uninstall.fabric.tar' 2>/dev/null | tail -1)
 # covers: cli:uninstall +
-check "export: config, secrets, CA, directory, Keycloak, the vault and its key, README (root 0700)"     "in_box 'test -s $EX/fabric/config/fabric-secrets.yml && test -d $EX/stepca/data && test -d $EX/samba/data && test -d $EX/postgres && test -d $EX/openbao/data && test -f $EX/@root/etc/fabric/openbao/slots.json && test -f $EX/README.txt && [ \"\$(stat -c %a $EX)\" = 700 ]'"
-check "the package was purged too, and nothing was written to /var/backups"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && ! in_box 'test -e /var/backups/fabric'"
+check "the bundle: one root-only file with its manifest, its sealed key and the seven sections"     "[ -n '$B' ] && [ \"\$(in_box \"stat -c '%a %U' $B\")\" = '600 root' ] && [ \"\$(in_box \"tar tf $B\" | grep -cE '^(settings|pki|secrets|directory|dns|signin|dhcp)\.tar\.zst\.age\$')\" = 7 ] && in_box \"tar xOf $B manifest.json\" | grep -q '\"method\": \"cold\"' && in_box \"tar tf $B\" | grep -qx key.age"
+check "nothing in the bundle is plain: no private key or the admin's password in it"     "! in_box \"grep -caE 'PRIVATE KEY|$ADMIN_PW' $B\" | grep -qv '^0\$'"
+check "the package was purged too; the bundle is kept"     "! in_box 'dpkg -s fabricctl' >/dev/null 2>&1 && in_box \"test -s $B\""
 # the container names asked of Docker first, so a failing `docker ps` cannot pass for "none left"
 LEFT_NAMES=$(in_box "docker ps -a --format '{{.Names}}'"); LEFT_RC=$?
-# a clean shutdown removes it: Postgres was really stopped when it was copied (2.3.1.53: 0.9.0's export copied it running)
-check "the export copied Postgres stopped: no postmaster.pid in the copy" \
-    "in_box 'test -d $EX/postgres/data/pgdata && ! test -e $EX/postgres/data/pgdata/postmaster.pid'"
 check "no fabric container, network or unit is left"     "[ $LEFT_RC -eq 0 ] && ! grep -qxE 'bind9|bind9-resolver|step-ca|samba|keycloak|postgres|nginx|openbao|fabric-web|kea-dhcp4|kea-ddns|freeradius|fluentbit' <<<\"\$LEFT_NAMES\"      && ! in_box 'docker network inspect fabric_net' >/dev/null 2>&1      && ! in_box 'ls /etc/systemd/system/fabric.target /etc/systemd/system/{bind9,bind9-resolver,stepca,samba,keycloak,postgres,nginx,openbao,fabric-web,kea,freeradius,fabric-agent}.service' >/dev/null 2>&1"
 check "no data, key, kill-switch rule, CA trust, command or service account is left"     "! in_box 'ls -d /opt/fabric /opt/bind9 /opt/stepca /opt/openbao /opt/dirsrv /opt/kea /opt/freeradius /etc/fabric/openbao /run/fabric/openbao /run/fabric/openbao-admin /etc/udev/rules.d/90-fabric-unlock.rules /usr/local/bin/fabricctl /usr/bin/fabricctl /etc/fabric /usr/lib/fabricctl' >/dev/null 2>&1      && ! in_box 'ls /usr/local/share/ca-certificates/fabric-*' >/dev/null 2>&1 && ! in_box 'id fabric-vault' >/dev/null 2>&1"
 check "DNS is gone" "! in_box 'dig +time=2 +tries=1 +short @$IP ns.lan.test' | grep -qx $IP"
@@ -1173,14 +1174,19 @@ check "uninstall removed the host's local-admin (the account, its home, its SSH 
     "grep -qE \"This host's local-admin +undone\" '$OUT/uninstall.log' && ! in_box 'id local-admin' >/dev/null 2>&1 \
      && ! in_box 'test -e /home/local-admin || test -e /etc/ssh/sshd_config.d/05-fabric-local-admin.conf'"
 
-echo "--- fabricctl restore: the same fabric back from the export"
+echo "--- fabricctl restore: the same fabric back from the bundle (1.3.7.6)"
 in_box 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /root/fabricctl-new.deb' > "$OUT/apt-restore.log" 2>&1
 in_box 'fabricctl restore /root/nope --yes' > "$OUT/restore-refused.log" 2>&1
 # covers: cli:restore -
 check "restore refuses a folder that is not a fabric export" "grep -q 'is not a fabric export' '$OUT/restore-refused.log'"
-in_box 'fabricctl restore /root/fabric-export --yes' > "$OUT/restore.log" 2>&1
+in_box "fabricctl restore $B --key-stdin --yes < /root/bundle-pw-short" > "$OUT/restore-refused2.log" 2>&1
+# covers: cli:restore -
+check "restore refuses a wrong passphrase, nothing unpacked" "[ -s '$OUT/restore-refused2.log' ] && ! in_box 'test -e /opt/fabric/config/vars.yaml'"
+in_box "fabricctl restore $B --key-stdin --yes < /root/bundle-pw" > "$OUT/restore.log" 2>&1
 # covers: cli:restore +
-check "restore: setup completes on the exported data" "grep -q 'fabric is ready' '$OUT/restore.log'"
+check "restore: setup completes on the bundle's data" "grep -q 'fabric is ready' '$OUT/restore.log'"
+check "restore: the bundle copied Postgres stopped (2.3.1.53): it started without recovery" \
+    "! in_box 'docker logs postgres 2>&1' | grep -q 'not properly shut down'"
 check "restore: the same CA (clients keep trusting it)" \
     "[ \"\$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')\" = '$CA_FP' ]"
 check "restore: OpenBao unlocked with its own key, not re-initialised; fabric's secrets back in it" \
@@ -1192,8 +1198,192 @@ in_box 'fabricctl doctor' > "$OUT/doctor-restore.log" 2>&1
 check "restore: doctor passes" "! grep -q '✗' '$OUT/doctor-restore.log' && grep -q '✓' '$OUT/doctor-restore.log'"
 doctor_why "$OUT/doctor-restore.log"
 
+echo "--- fabricctl restore --section: one section of the bundle on the running install (1.3.7.8)"
+in_box "fabricctl restore $B --section secrets --key-stdin --yes < /root/bundle-pw" > "$OUT/section-refused.log" 2>&1
+# covers: cli:restore -
+check "secrets alone is refused, nothing changed" "grep -q 'not restored alone' '$OUT/section-refused.log'"
+in_box "fabricctl restore $B --section dns --key-stdin --yes < /root/bundle-pw" > "$OUT/section.log" 2>&1
+# covers: cli:restore +
+check "dns restored alone: a safety bundle made first, DNS answering after" \
+    "grep -q 'dns restored from' '$OUT/section.log' && in_box 'ls /var/backups/fabric/*-manual.fabric.tar' >/dev/null 2>&1 \
+     && [ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
+
+echo "--- the console's Backups routes in fabric-agent (1.3.7.9), as a root peer (Domain Admins: tests/samba/grants.py)"
+AGENT="curl -s --unix-socket /opt/webui/agent/agent.sock"
+agent_json() {   # POST a body built in the box from files, so no passphrase is on a command line (global Rule 10)
+    in_box "umask 077; python3 -c 'import json,sys; b=json.loads(sys.argv[1]); [b.__setitem__(k, open(v).read().strip()) for k, v in b.pop(\"from_files\", {}).items()]; json.dump(b, open(\"/root/agent-body.json\", \"w\"))' '$2' && $AGENT -X POST -H 'Content-Type: application/json' --data @/root/agent-body.json http://agent$1; rm -f /root/agent-body.json"
+}
+agent_job() {    # wait for a job: its final JSON
+    for _ in $(seq 1 120); do
+        J=$(in_box "$AGENT http://agent/v1/jobs/$1")
+        echo "$J" | grep -q '"state": "running"' || { echo "$J"; return; }
+        sleep 3
+    done; echo "$J"
+}
+in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"; sleep 20      # the first read starts the checks
+in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"
+SITE=$(sed -n 's/.*"site": "\([^"]*\)".*/\1/p' "$OUT/agent-backup.json")
+# covers: agent:get.backup +
+check "GET /v1/backup: the bundles with their checks (whole), the schedule and the seven sections, no host paths" \
+    "grep -q '\"check\": \"whole\"' '$OUT/agent-backup.json' && grep -q '\"secrets\"' '$OUT/agent-backup.json' \
+     && grep -q '\"schedule\"' '$OUT/agent-backup.json' && ! grep -q '\"path\"' '$OUT/agent-backup.json' && [ -n '$SITE' ]"
+# covers: agent:get.backup.allowed +
+check "GET /v1/backup/allowed: root on the host is allowed" \
+    "in_box '$AGENT http://agent/v1/backup/allowed' | grep -q '\"allowed\": true'"
+BF=$(basename "$(in_box 'ls -t /var/backups/fabric/*.fabric.tar' | head -1)")
+in_box "$AGENT -o /root/download.tar http://agent/v1/backup/bundles/$BF"
+# covers: agent:get.backup.bundles.* +
+check "a bundle's download is the file itself, byte for byte, and audited" \
+    "[ \"\$(in_box 'sha256sum < /root/download.tar')\" = \"\$(in_box \"sha256sum < /var/backups/fabric/$BF\")\" ] \
+     && in_box 'grep BACKUP_DOWNLOAD /opt/fabric/archive/audit.log' | grep -q '$BF'"
+in_box 'rm -f /root/download.tar'
+# covers: agent:get.backup.bundles.* -
+check "negative: a path instead of a bundle's name is refused, nothing read" \
+    "in_box \"$AGENT http://agent/v1/backup/bundles/..%2F..%2Fetc%2Fshadow\" | grep -q 'the name of a bundle' \
+     && in_box \"$AGENT http://agent/v1/backup/bundles/fabric-x-20990101T000000Z-manual.fabric.tar\" | grep -q 'no bundle'"
+# covers: agent:post.backup.restore -
+check "negative: secrets restored alone through the agent is refused, as by the CLI" \
+    "agent_json /v1/backup/restore '{\"actor\": \"sandbox\", \"file\": \"$BF\", \"section\": \"secrets\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}' | grep -q 'only with the whole bundle'"
+check "negative: a restore without the site's name typed is refused" \
+    "agent_json /v1/backup/restore '{\"actor\": \"sandbox\", \"file\": \"$BF\", \"section\": \"dhcp\", \"confirm\": \"nope\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}' | grep -q \"type the site's name\""
+# covers: agent:post.backup.now -
+check "negative: Back up now with a passphrase under 12 characters is refused, nothing made" \
+    "agent_json /v1/backup/now '{\"actor\": \"sandbox\", \"from_files\": {\"passphrase\": \"/root/bundle-pw-short\"}}' | grep -q '12 characters'"
+N0=$(in_box 'ls /var/backups/fabric/*-manual.fabric.tar | wc -l')
+JOB=$(agent_json /v1/backup/now '{"actor": "sandbox", "from_files": {"passphrase": "/root/bundle-pw"}}' | sed -n 's/.*"id": "\([^"]*\)".*/\1/p')
+agent_job "$JOB" > "$OUT/agent-backup-job.json"
+# covers: agent:post.backup.now +
+check "Back up now through the agent: a job, a new bundle, the passphrase nowhere in its result" \
+    "grep -q '\"state\": \"done\"' '$OUT/agent-backup-job.json' && grep -q 'Bundle made' '$OUT/agent-backup-job.json' \
+     && [ \"\$(in_box 'ls /var/backups/fabric/*-manual.fabric.tar | wc -l')\" -gt '$N0' ] \
+     && ! grep -qF \"\$(cat '$OUT/bundle-pw')\" '$OUT/agent-backup-job.json'"
+{   # what the check saw, the passphrase hidden
+    echo "  the job, as the agent gave it (passphrase hidden), started as id '$JOB', manual bundles before: $N0, now: $(in_box 'ls /var/backups/fabric/*-manual.fabric.tar 2>/dev/null | wc -l')"
+    sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-backup-job.json" | head -c 2000; echo; }
+# Back up now's own bundle, by the name its job gave: the newest manual one may be a section restore's safety bundle,
+# which holds that section only and is refused whole (1.3.7.6)
+BN=$(sed -n 's/.*Bundle made: \(fabric-[^ ]*\.fabric\.tar\)\..*/\1/p' "$OUT/agent-backup-job.json")
+JOB=$(agent_json /v1/backup/restore "{\"actor\": \"sandbox\", \"file\": \"$BN\", \"section\": \"dhcp\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}" | sed -n 's/.*"id": "\([^"]*\)".*/\1/p')
+agent_job "$JOB" > "$OUT/agent-restore-job.json"
+# covers: agent:post.backup.restore +
+check "Restore one section through the agent: dhcp restored as a job, a safety bundle named, Kea running" \
+    "grep -q '\"state\": \"done\"' '$OUT/agent-restore-job.json' && grep -q 'dhcp restored from $BN' '$OUT/agent-restore-job.json' \
+     && in_box 'systemctl is-active kea' | grep -qx active"
+{   # what the check saw, the passphrase hidden
+    echo "  the restore job for $BN, as the agent gave it; kea: $(in_box 'systemctl is-active kea')"
+    sed "s/$(cat "$OUT/bundle-pw")/<the passphrase>/g" "$OUT/agent-restore-job.json" | head -c 2000; echo
+    in_box 'systemctl is-active --quiet kea' || in_box 'journalctl -u kea -n 30 --no-pager; docker logs --tail 20 kea-dhcp4 2>&1' 2>&1 | tail -40; }
+# covers: agent:post.backup.schedule -
+check "negative: a schedule with a key that is not age1… is refused, the schedule unchanged" \
+    "agent_json /v1/backup/schedule '{\"actor\": \"sandbox\", \"time\": \"04:15\", \"public_key\": \"ssh-ed25519 AAAA\"}' | grep -q 'age1' \
+     && ! in_box 'grep -q \"backup_schedule_time: .04:15\" /opt/fabric/config/vars.yaml'"
+PUB=$(in_box 'age-keygen -o /root/schedule.key 2>&1' | sed -n 's/^Public key: //p')
+agent_json /v1/backup/schedule "{\"actor\": \"sandbox\", \"time\": \"04:15\", \"keep\": \"3\", \"public_key\": \"$PUB\"}" > "$OUT/agent-schedule.json"
+# covers: agent:post.backup.schedule +
+check "the schedule set through the agent: its timer on at 04:15, keeping 3, shown with its next run" \
+    "grep -q '\"schedule\": \"on 04:15\"' '$OUT/agent-schedule.json' && in_box 'systemctl is-active fabric-backup.timer' | grep -qx active \
+     && in_box '$AGENT http://agent/v1/backup' | grep -q '\"next\": \"[A-Z]'"
+agent_json /v1/backup/schedule '{"actor": "sandbox", "off": true}' > /dev/null
+check "the schedule turned off through the agent: its timer gone" \
+    "! in_box 'systemctl is-active fabric-backup.timer' | grep -qx active"
+
+echo "--- an upload and a whole restore through the agent (1.3.7.9)"
+UP="fabric-uploaded-20261101T010000Z-manual.fabric.tar"
+in_box "cp /var/backups/fabric/$BN /root/$UP && $AGENT -X POST -H 'Transfer-Encoding: chunked' -H 'X-Fabric-Bundle: $UP' -T /root/$UP http://agent/v1/backup/upload" > "$OUT/agent-upload.json"
+# covers: agent:post.backup.upload +
+check "an upload, chunked: listed under its name, byte for byte, no .part file left, audited" \
+    "grep -q '\"file\": \"$UP\"' '$OUT/agent-upload.json' \
+     && [ \"\$(in_box \"sha256sum < /var/backups/fabric/$UP\")\" = \"\$(in_box \"sha256sum < /var/backups/fabric/$BN\")\" ] \
+     && ! in_box 'ls -A /var/backups/fabric' | grep -q '\.part\$' && in_box 'grep BACKUP_UPLOAD /opt/fabric/archive/audit.log' | grep -q '$UP'"
+in_box "head -c 300000 /root/$UP > /root/cut.tar && $AGENT -X POST -H 'Transfer-Encoding: chunked' -H 'X-Fabric-Bundle: fabric-cut-20261101T010000Z-manual.fabric.tar' -T /root/cut.tar http://agent/v1/backup/upload" > "$OUT/agent-upload-cut.json"
+# covers: agent:post.backup.upload -
+check "negative: a bundle cut short is refused once whole-checked: not listed, no .part file left" \
+    "grep -q '\"error\"' '$OUT/agent-upload-cut.json' && ! in_box 'ls /var/backups/fabric/fabric-cut-*' >/dev/null 2>&1 \
+     && ! in_box 'ls -A /var/backups/fabric' | grep -q '\.part\$'"
+in_box "rm -f /root/$UP /root/cut.tar /var/backups/fabric/$UP"
+# a person made after the bundle: the whole restore takes her away again
+in_box 'python3 /root/make_person.py frank' > "$OUT/frank.log" 2>&1
+# covers: agent:post.backup.reinstall -
+check "negative: a whole restore with a wrong key is refused before anything is stopped" \
+    "agent_json /v1/backup/reinstall '{\"actor\": \"sandbox\", \"file\": \"$BN\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw-short\"}}' | grep -q '\"error\"' \
+     && in_box 'systemctl is-active fabric.target' | grep -qx active && ! in_box 'systemctl is-active fabric-console-restore' | grep -qx active"
+agent_json /v1/backup/reinstall "{\"actor\": \"sandbox\", \"file\": \"$BN\", \"confirm\": \"$SITE\", \"from_files\": {\"key\": \"/root/bundle-pw\"}}" > "$OUT/agent-reinstall.json"
+for _ in $(seq 1 240); do
+    in_box 'systemctl is-active fabric-console-restore' 2>/dev/null | grep -qE '^(active|activating)$' || break
+    sleep 5
+done
+in_box 'cat /var/backups/fabric/console-restore.log' > "$OUT/console-restore.log" 2>&1
+grep -q 'fabric is ready' "$OUT/console-restore.log" || {   # why, when it did not finish: the units that stopped it
+    in_box 'echo "== bind9, its own lines"; journalctl -u bind9 --no-pager | grep "bind9  |" | tail -40
+            echo "== samba"; journalctl -u samba -n 15 --no-pager
+            echo "== the DC folder and BIND'"'"'s includes"; ls -la /opt/samba/data /opt/samba/data/bind-dns 2>&1 | head -30
+            cat /opt/samba/bind/dlz.conf /opt/samba/bind/options.conf 2>&1' > "$OUT/console-restore-units.log" 2>&1
+    cat "$OUT/console-restore-units.log"; }
+# covers: agent:post.backup.reinstall +
+check "the whole restore through the agent: started as its own unit, set up again from the bundle, the key file gone" \
+    "grep -q '\"started\": true' '$OUT/agent-reinstall.json' && grep -q 'fabric is ready' '$OUT/console-restore.log' \
+     && ! in_box 'test -e /run/fabric/console-restore.key' && in_box 'systemctl is-active fabric.target' | grep -qx active"
+check "…the install is the bundle's: a person made after it is gone, one made before is there, the safety bundle kept" \
+    "! in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=frank)' sAMAccountName\" | grep -q frank \
+     && in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=erin)' sAMAccountName\" | grep -q erin \
+     && grep -q 'safety bundle: /var/backups/fabric/.*-reinstall.fabric.tar' '$OUT/console-restore.log'"
+check "…audited in the restored log by the person who asked" \
+    "in_box 'grep RESTORE_WHOLE /opt/fabric/archive/audit.log' | grep -q sandbox"
+in_box 'fabricctl doctor' > "$OUT/doctor-console-restore.log" 2>&1
+check "…and doctor passes" "! grep -q '✗' '$OUT/doctor-console-restore.log' && grep -q '✓' '$OUT/doctor-console-restore.log'"
+doctor_why "$OUT/doctor-console-restore.log"
+
+echo "--- a move to another VLAN and subnet, by the operator's procedure (4.2.4.8)"
+# the box's network is the VLAN: a second Docker network on another subnet stands for the new one
+NET2=fabric-sbx-net2; SUBNET2=10.79.0.0/24; IP2=10.79.0.10; GW2=10.79.0.1
+docker network rm "$NET2" >/dev/null 2>&1; docker network create --subnet "$SUBNET2" --gateway "$GW2" "$NET2" >/dev/null
+in_box "fabricctl move prepare $IP2" > "$OUT/move-prepare-refused.log" 2>&1
+# covers: cli:move.prepare -
+check "step 1a: an address off the LAN without its network is refused, pointing to --network"     "grep -q -- '--network' '$OUT/move-prepare-refused.log' && in_box 'fabricctl move status' | grep -qx 'no move announced'"
+in_box "fabricctl move prepare $IP2 --network $SUBNET2" > "$OUT/move-prepare.log" 2>&1
+# covers: cli:move.prepare +
+check "step 1a: the new address on the new subnet announced in the domain, for the members"     "grep -q 'announced' '$OUT/move-prepare.log' && in_box 'fabricctl move status' | grep -q 'to $IP2'"
+in_box 'fabricctl uninstall --yes --backup --key-stdin < /root/bundle-pw' > "$OUT/move-uninstall.log" 2>&1
+B2=$(in_box 'ls -t /var/backups/fabric/*-uninstall.fabric.tar' 2>/dev/null | head -1)
+check "step 2: fabric removed, its bundle kept, the package kept" \
+    "[ -n '$B2' ] && ! in_box 'test -e /opt/fabric/config/vars.yaml' && in_box 'dpkg -s fabricctl' >/dev/null 2>&1"
+MOVE="--set host_ip=$IP2 --set lan_cidr=$SUBNET2 --set lan_gateway=$GW2 --set dns_server=$GW2"
+in_box "fabricctl restore $B2 $MOVE --key-stdin --yes < /root/bundle-pw" > "$OUT/move-early.log" 2>&1
+# covers: cli:restore -
+check "step 4 before step 3: refused before anything is unpacked (the host does not have the new address yet)" \
+    "grep -q 'not an address of this machine' '$OUT/move-early.log' && grep -q '4.2.4.8' '$OUT/move-early.log' \
+     && ! in_box 'test -e /opt/fabric/config/vars.yaml'"
+# step 3: the host moves to the new VLAN (Docker gives it the new address and default route)
+docker network disconnect "$NET" "$NAME" && docker network connect --ip "$IP2" "$NET2" "$NAME"
+check "step 3: the host has its new address and reaches its new gateway" \
+    "in_box 'ip -4 -o addr' | grep -q ' $IP2/' && in_box 'ip route show default' | grep -q 'via $GW2'"
+# unattended, the host changes the new network brings are approved by name (global Rule 12: never by default)
+in_box "fabricctl restore $B2 $MOVE --approve ports,firewall,member --key-stdin --yes < /root/bundle-pw"     > "$OUT/move.log" 2>&1
+# covers: cli:restore +
+check "step 4: setup completes at the new address" "grep -q 'fabric is ready' '$OUT/move.log'"
+check "the announce came along in the bundle and was taken out once the host is at the new address (1.4.1.8.7)"     "in_box 'fabricctl move status' | grep -qx 'no move announced'"
+IP_OLD=$IP; IP=$IP2
+check "the zone answers with the new address only" \
+    "[ \"\$(in_box 'dig +short +time=2 +tries=1 @$IP2 ns.lan.test')\" = '$IP2' ]"
+check "the DC's own name is at the new address, not the old one" \
+    "[ \"\$(in_box 'dig +short @$IP2 $DC_NAME A' | sort -u)\" = '$IP2' ]"
+check "the DC's certificate names the new address (re-issued from the same CA)" \
+    "in_box 'echo | openssl s_client -connect $IP2:636 2>/dev/null | openssl x509 -noout -ext subjectAltName' | grep -q '$IP2' \
+     && [ \"\$(in_box 'openssl x509 -noout -fingerprint -sha256 -in /opt/stepca/data/certs/root_ca.crt')\" = '$CA_FP' ]"
+check "the domain came along (erin still exists)" \
+    "in_box \"docker exec samba ldbsearch -H /data/private/sam.ldb '(sAMAccountName=erin)' sAMAccountName\" | grep -qx 'sAMAccountName: erin'"
+check "the TSIG key still updates DNS at the new address" "[ \"\$(t2136 npm '$TSIG_SECRET' npm)\" = '4 passed, 0 failed' ]"
+check "DHCP serves the new subnet: the plan's LAN subnet moved with its pool's host numbers (1.3.7.7)"     "in_box 'docker exec kea-dhcp4 cat /config/kea-dhcp4.conf' | grep -q '10.79.0.0/24'      && in_box 'docker exec kea-dhcp4 cat /config/kea-dhcp4.conf' | grep -q '10.79.0.200'      && ! in_box 'docker exec kea-dhcp4 cat /config/kea-dhcp4.conf' | grep -q '10.77.0.0/24'"
+check "settings still at the old address are listed, not changed (step 5)" \
+    "! grep -q 'still at the old address' '$OUT/move.log' || grep -q '$IP_OLD\|10\.77\.0\.' '$OUT/move.log'"
+grep 'still at the old address' "$OUT/move.log" | sed 's/^/    listed: /'
+in_box 'fabricctl doctor' > "$OUT/doctor-move.log" 2>&1
+check "after the move doctor passes" "! grep -q '✗' '$OUT/doctor-move.log' && grep -q '✓' '$OUT/doctor-move.log'"
+doctor_why "$OUT/doctor-move.log"
+
 echo; echo "$PASS passed, $FAIL failed"
 if [ "${KEEP:-0}" != 1 ]; then
-    docker rm -f "$NAME" >/dev/null; docker network rm "$NET" >/dev/null; docker volume rm fabric-sbx-docker >/dev/null
+    docker rm -f "$NAME" >/dev/null; docker network rm "$NET" "${NET2:-fabric-sbx-net2}" >/dev/null 2>&1
+    docker volume rm fabric-sbx-docker >/dev/null
 fi
 exit $FAIL

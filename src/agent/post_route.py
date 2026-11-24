@@ -1,6 +1,7 @@
 from agent.job_store import JOBS
 from fabriclib.common.apply_intent import apply_intent
 from agent.post_account import post_account
+from agent.post_backup import post_backup
 from agent.post_directory import post_directory
 from agent.post_dhcp import post_dhcp
 from agent.post_domain import post_domain
@@ -53,6 +54,7 @@ def post_route(route, actor, data, perms, session=None):
              netboot: post_options' (1.10.4.24.6); settings/plan,
              settings/apply, settings/dismiss: post_settings' result (the setup wizard, 1.8.5). sizing/dismiss:
              post_sizing's. kept/refresh: post_kept's (1.8.9.4).
+             backup/now, schedule, restore: post_backup's (1.3.7.9).
     Fails:   ValidationError (-> 400) for an unsupported event or what fabriclib refuses; RouteNotFound (-> 404).
     Feeds:   agent/handler.py (dispatch).
     Notes:   POST apply only needs dns:write (rbac/required_permission), though it runs the whole deployment."""
@@ -102,6 +104,8 @@ def post_route(route, actor, data, perms, session=None):
         return post_account(route, caller, data, session)
     if area == ["pending"]:                         # Apply per page (1.8.6.5): held, reviewed, applied as a job
         return post_pending(route, actor, data, perms, session)
+    if area == ["backup"]:                          # Backups (1.3.7.9): Domain Admins, checked there
+        return post_backup(route, actor, data, caller)
     if area == ["local-admin"]:                     # the DC host's break glass: the Enterprise Admin's alone
         return post_local_admin(route, actor, data, caller)
     owner = actor if perms is not None else None    # a job is read by whoever started it (root: any)

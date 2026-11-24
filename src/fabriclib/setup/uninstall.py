@@ -26,7 +26,7 @@ UNITS = ["fabric-web", "webui", "fluentbit", "kea", "freeradius", "samba", "adgu
          "ldap", "stepca", "bind9", "fabric-firewall", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists",
          "fabric-sizing", "fabric-dns-log", "fabric-machines", "fabric-host-managed", "fabric-grants",
          "fabric-local-admin",
-         "fabric-dhcp-names", "fabric-plan-watch"]
+         "fabric-dhcp-names", "fabric-plan-watch", "fabric-backup"]
 TARGET = "/etc/systemd/system/fabric.target"
 CONTAINERS = ["fabric-web", "webui", "fluentbit", "kea-dhcp4", "kea-ddns", "freeradius", "samba", "adguardhome",
               "oauth2-proxy-adguard", "bind9-resolver", "adguard-filter", "nginx", "openbao", "keycloak", "postgres",
@@ -36,7 +36,7 @@ DIRS = ["fabric", "nginx", "bind9", "stepca", "dirsrv", "keycloak", "postgres", 
 TIMERS = ("fabric-sizing", "fabric-directory-sync", "fabric-certs", "fabric-db-rotate", "fabric-dns-lists",
           "fabric-dns-log",
           "fabric-machines", "fabric-host-managed", "fabric-grants", "fabric-local-admin", "fabric-dhcp-names",
-          "fabric-plan-watch")
+          "fabric-plan-watch", "fabric-backup")
 STAMPS = "/var/lib/systemd/timers"     # systemd's record of a Persistent= timer's last run
 LOCAL_IMAGES = ["fabric/bind9:local", "fabric/stepca:local", "fabric/dirsrv:local", "fabric/keycloak:local",
                 "fabric/web:local", "fabric/webui:local", "fabric/kea:local", "fabric/freeradius:local",

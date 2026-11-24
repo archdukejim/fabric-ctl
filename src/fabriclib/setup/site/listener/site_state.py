@@ -10,7 +10,8 @@ class SiteState:
 
     def __init__(self, hello):
         """Purpose: start from setup's first message.
-        Inputs:  hello — dict: files {name: text}, port, fingerprint, temporary, phase, token, csrf, log, finish.
+        Inputs:  hello — dict: files {name: text}, port, fingerprint, temporary, phase, token, csrf, log, finish,
+                 upload_dir.
         Returns: None.
         Fails:   KeyError for a hello missing files or port (setup's own message).
         Feeds:   listener/site_main."""
@@ -22,6 +23,7 @@ class SiteState:
         self.token, self.csrf = hello.get("token", ""), hello.get("csrf", "")
         self.ended = dict(hello.get("ended") or {})    # {an ended session's token: "taken" or "idle"}, to tell it
         self.finish = hello.get("finish") or {}
+        self.upload_dir = hello.get("upload_dir", "")   # where Restore from a backup's upload lands (1.3.7.10)
         self.question, self.why = None, ""
         self.log = []
         self.logged = 0                 # lines ever logged: an event's id, so a reconnect misses none it can replay

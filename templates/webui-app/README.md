@@ -38,8 +38,9 @@ The page templates (Jinja2, rendered by `views/render_page.py` with autoescape; 
 | `tsig_result.html` | The tsig result page |
 | `federation.html` | The Federation tab |
 | `security.html` | The Security page (sign-in layers, raises, Kerberos on/off; lowering shown as the host command) |
-| `job.html` | A background job (doctor, an image update, the setup wizard's apply), with a meta refresh while it runs |
+| `job.html` | A background job (doctor, an image update, the setup wizard's apply, Back up now, a section restored), with a meta refresh while it runs |
 | `settings.html` | The setup wizard: one step at a time with the others carried hidden, the console-only settings read only, Export, Import, Dismiss |
+| `backups.html` | Settings · Backups (1.3.7.9): the bundles with their checks and Download, Upload, Back up now, the schedule, Restore one section or the whole bundle with its warning in full, the last whole restore's log |
 | `settings_plan.html` | A plan of the setup wizard: the changes old to new, the parts and the memory plan, what was ignored; Apply |
 | `networks.html` | Networks · Segments (1.10.4.40.1): the list, a VLAN's, subnet's and address's page, Add VLAN, the site's number, a search |
 | `ipam_scan.html` | The scan page, a page of Networks |

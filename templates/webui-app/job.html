@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% import "pattern.html" as p %}{% block head %}{% if job.state == 'running' %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}{% block body %}
-{% set title = {'doctor': 'Doctor', 'images': 'Image ' ~ ((job.result or {}).get('action') or 'change'), 'settings': 'Settings · apply'}.get(job.kind, job.kind) %}
+{% set title = {'doctor': 'Doctor', 'images': 'Image ' ~ ((job.result or {}).get('action') or 'change'), 'settings': 'Settings · apply', 'backup': 'Back up now', 'restore': 'Restore a section'}.get(job.kind, job.kind) %}
 <h1>{{ title }}</h1>
-<p>{% if job.kind == 'settings' %}<a href="/settings">← Settings</a> · {% endif %}<a href="/">← Overview</a></p>
+<p>{% if job.kind == 'settings' %}<a href="/settings">← Settings</a> · {% endif %}{% if job.kind in ('backup', 'restore') %}<a href="/settings/backups">← Backups</a> · {% endif %}<a href="/">← Overview</a></p>
 {% if job.state == 'running' %}
 <section class="card"><p>{{ p.light('warn', 'running') }} Running… this page refreshes itself.</p></section>
 {% elif job.state == 'failed' %}

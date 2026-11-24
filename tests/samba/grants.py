@@ -34,7 +34,9 @@ import fabriclib.grants.remove_grant as m_remove  # noqa: E402
 import fabriclib.grants.run_grant_command as m_cmd  # noqa: E402
 import fabriclib.grants.set_grant as m_set  # noqa: E402
 import fabriclib.grants.sync_grants as m_sync  # noqa: E402
+from agent.get_backup import get_backup  # noqa: E402
 from agent.pending_thing import version_of  # noqa: E402
+from fabriclib.backup.is_domain_admin import is_domain_admin  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 from fabriclib.directory.run_op import run_op  # noqa: E402
 from fabriclib.grants.grant_request import grant_request  # noqa: E402
@@ -701,6 +703,30 @@ for args, words in ((["add", "bad-net", "--who", "ops", "--networks", "plan"], "
 code, out = grant("remove", "lan-net")
 check("grant remove lan-net: alice no longer holds plan at lan", code == 0
       and authorized("alice", "plan", "lan").startswith("refused"), out)
+
+print("--- Domain Admins, for the console's Backups page (1.3.7.12)")
+samba_tool("group", "add", "backup-ops", "--groupou=OU=groups")
+samba_tool("group", "addmembers", "backup-ops", "bob")
+samba_tool("group", "addmembers", "Domain Admins", "backup-ops")
+check("a Domain Admin by nesting (bob, through backup-ops) is one; the Directory Administrator (adam) and a person "
+      "(alice) are not", is_domain_admin(V, "bob", DC) and not is_domain_admin(V, "adam", DC)
+      and not is_domain_admin(V, "alice", DC))
+check("root on the host is one without asking the DC", is_domain_admin(V, None, "no-such-container"))
+# covers: agent:get.backup.allowed -
+check("GET /v1/backup/allowed answers false for alice",
+      get_backup(["backup", "allowed"], "alice", load=lambda: V, allowed=lambda v, c: is_domain_admin(v, c, DC))
+      == {"allowed": False})
+try:
+    get_backup(["backup"], "alice", load=lambda: V, allowed=lambda v, c: is_domain_admin(v, c, DC))
+    refused = ""
+except ValidationError as exc:
+    refused = str(exc)
+# covers: agent:get.backup -
+check("GET /v1/backup refuses someone who is not a Domain Admin, reading nothing", "Domain Admins" in refused, refused)
+samba_tool("group", "removemembers", "Domain Admins", "backup-ops")
+check("taken out of Domain Admins, bob is refused at once (asked at each request, nothing cached)",
+      not is_domain_admin(V, "bob", DC))
+samba_tool("group", "delete", "backup-ops")
 
 print("--- idempotent")
 again = converge_domain(V, os.path.join(W, "dc", "federation.yaml"), SECRETS, container=DC)

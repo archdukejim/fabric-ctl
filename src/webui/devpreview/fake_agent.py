@@ -2,6 +2,7 @@ import re
 
 from webui.devpreview.fabric_rules import ValidationError, required_permission
 from webui.devpreview.fake_account import fake_account
+from webui.devpreview.fake_backup import fake_backup
 from webui.devpreview.fake_directory import fake_directory
 from webui.devpreview.fake_dns import fake_dns
 from webui.devpreview.fake_groups import fake_groups
@@ -111,10 +112,11 @@ def fake_agent(state, who, method, route, body):
         held = fake_pending(state, who, method, route, body, run)
         if held is not None:
             return 200, held
-        for area in ((ipam_get, fake_account, fake_reads, _read_groups, _read_machines, _read_ous, _read_tree,
-                      _read_grants)
-                     if method == "GET" else (ipam_post, fake_account, fake_dns, fake_machines, fake_ous, fake_tree,
-                                              fake_grants, fake_directory, fake_groups, fake_network, fake_misc)):
+        for area in ((fake_backup, ipam_get, fake_account, fake_reads, _read_groups, _read_machines, _read_ous,
+                      _read_tree, _read_grants)
+                     if method == "GET" else (fake_backup, ipam_post, fake_account, fake_dns, fake_machines, fake_ous,
+                                              fake_tree, fake_grants, fake_directory, fake_groups, fake_network,
+                                              fake_misc)):
             answer = area(state, who, route, body)
             if answer is not None:
                 return 200, answer

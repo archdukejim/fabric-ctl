@@ -56,3 +56,11 @@ arbitrary commands.
 | `post_settings.py` | POST /v1/settings/plan, /apply and /dismiss: the setup wizard's plan, its apply as a job (a stale plan made again), the wizard dismissed |
 | `post_sizing.py` | POST /v1/sizing/dismiss: a person's own dismissal of a sizing alert, audited (1.8.8.8) |
 | `plan_store.py` | The setup wizard's plans waiting for their Apply: by id, only for who made them, 15 minutes; kept in memory |
+| `get_backup.py` | GET /v1/backup, /allowed and /bundles/<file>: the Backups page's reads, Domain Admins only (1.3.7.9) |
+| `post_backup.py` | POST /v1/backup/now, /schedule, /restore: Back up now and one section restored as jobs, the schedule (1.3.7.9) |
+| `require_domain_admin.py` | The Domain Admins check every backup route makes first (1.3.7.12) |
+| `backup_file.py` | A bundle the console names, as a path in the backups folder: a bundle's name only, never a path |
+| `bundle_checks.py` | Each bundle's SHA-256 check for the list, made once per file in a thread of its own |
+| `file_answer.py` | A GET answer that is a file: the handler streams it instead of JSON (a bundle's download) |
+| `post_upload.py` | POST /v1/backup/upload: a bundle's bytes as they arrive (chunked or sized), Domain Admins only, audited (1.3.7.9) |
+| `read_chunked.py` | A chunked request body read in pieces (an upload) |

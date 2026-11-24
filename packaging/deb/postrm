@@ -2,10 +2,12 @@
 # fabricctl postrm.
 #   apt remove: only the package goes; the running fabric install (services,
 #               CA, vault, directory, data) is left exactly as it is.
-#   apt purge:  fabric is uninstalled completely, after an export of all its
-#               data (config, secrets, CA, directory, vault with its key) to
-#               /var/backups/fabric/ (root only): apt cannot ask where. To choose
-#               the folder, or skip it, run `sudo fabricctl uninstall` first.
+#   apt purge:  apt cannot ask for a passphrase (manual 1.3.7.13, 2.1.1.106
+#               point 3). With a backup schedule's public key set, fabric is
+#               uninstalled after a cold backup bundle sealed to that key, in
+#               /var/backups/fabric/ (root only). Without one, only the package
+#               goes and fabric is left running: `sudo fabricctl uninstall`
+#               removes it, asking for a passphrase for its bundle.
 set -e
 BASE=/opt
 CLI="$BASE/fabric/lib/fabriclib/cli.py"
@@ -18,10 +20,14 @@ case "$1" in
         ;;
     purge)
         if [ -f "$CLI" ] && [ -f "$BASE/fabric/config/vars.yaml" ]; then
-            DEST="/var/backups/fabric/fabric-export-$(date +%Y%m%d-%H%M%S)"
-            echo "fabricctl: purging — exporting fabric's data to $DEST, then uninstalling fabric"
-            if ! python3 "$CLI" uninstall --yes --export "$DEST"; then
-                echo "fabricctl: uninstall did not finish. To keep an export: sudo python3 $CLI start, then sudo python3 $CLI uninstall --yes --export <folder>. To throw fabric's data away: sudo python3 $CLI uninstall --yes --no-export" >&2
+            if grep -q '^backup_public_key: *["'"'"']\{0,1\}age1' "$BASE/fabric/config/vars.yaml"; then
+                echo "fabricctl: purging — a backup bundle sealed to the schedule's public key, then fabric is uninstalled"
+                if ! python3 "$CLI" uninstall --yes --backup --scheduled-key; then
+                    echo "fabricctl: uninstall did not finish; fabric is not removed. Start it again: sudo python3 $CLI start; remove it: sudo python3 $CLI uninstall" >&2
+                fi
+            else
+                echo "fabricctl: package purged; fabric keeps running from $BASE/fabric (nothing deleted): apt cannot ask for a"
+                echo "           backup's passphrase. Remove fabric with a backup bundle: sudo python3 $CLI uninstall"
             fi
         fi
         ;;

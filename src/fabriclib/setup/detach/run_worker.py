@@ -7,6 +7,7 @@ from fabriclib.common.console import err
 from fabriclib.setup.context import SetupContext
 from fabriclib.setup.detach.read_handoff import read_handoff
 from fabriclib.setup.detach.read_run import read_run
+from fabriclib.setup.detach.run_restore import run_restore
 from fabriclib.setup.detach.write_run import write_run
 from fabriclib.setup.errors import SetupError
 from fabriclib.setup.run_steps import run_steps
@@ -15,9 +16,10 @@ from fabriclib.setup.run_steps import run_steps
 def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
     """Purpose: `fabricctl setup --worker <run>` — setup's work inside fabric-setup.service (decision 2.1.2.26,
              manual 1.3.2.3): the recorded run's remaining steps, with the answers its questions saved and the
-             secrets they handed over, its progress kept in the run record. A unit restarted mid-run (needrestart,
-             decision 2.1.2.28) runs this again: it carries on from the first step not done, reading the hand-off
-             again; the hand-off is removed when the run ends (done, failed or interrupted).
+             secrets they handed over, its progress kept in the run record; for Restore from a backup (1.3.7.10),
+             the bundle restored with its handed-over key, then setup on it (run_restore). A unit restarted mid-run
+             (needrestart, decision 2.1.2.28) runs this again: it carries on from the first step not done, reading
+             the hand-off again; the hand-off is removed when the run ends (done, failed or interrupted).
     Inputs:  run_id — the run to do (the unit's argument); deploy_base — the install root; steps — STEPS;
              read_secrets — read_handoff (tests give their own). Reads <config>/setup-run.yaml and, before deploy,
              <config>/fabric.yaml (the settings), after it vars.yaml.
@@ -50,12 +52,15 @@ def run_worker(run_id, deploy_base, steps, read_secrets=read_handoff):
     ctx.restart_services = set(record.get("restart_services") or [])
     done = set(record.get("done") or [])
     selected = [name for name, _, _ in steps if name not in done]
-    if "deploy" in selected:                  # the settings the questions saved (and the steps before deploy)
-        with open(os.path.join(ctx.config_dir, "fabric.yaml")) as f:
-            ctx.vars = yaml.safe_load(f) or {}
-    else:
-        ctx.load_state()
     try:
+        if opts.get("restore"):               # Restore from a backup: the bundle first, then setup on it (1.3.7.10)
+            key = {"passphrase": secrets.get("restore_passphrase"), "private_key": secrets.get("restore_private_key")}
+            return run_restore(ctx, record, save, key if any(key.values()) else None, steps)
+        if "deploy" in selected:              # the settings the questions saved (and the steps before deploy)
+            with open(os.path.join(ctx.config_dir, "fabric.yaml")) as f:
+                ctx.vars = yaml.safe_load(f) or {}
+        else:
+            ctx.load_state()
         return run_steps(ctx, steps, selected, guided=bool(opts.get("guided")), record=record, save=save)
     finally:                                   # the run ended (done, failed or interrupted): its secrets go with it
         if record.get("handoff"):

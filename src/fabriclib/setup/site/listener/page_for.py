@@ -5,6 +5,10 @@ from fabriclib.setup.site.listener.notes_html import notes_html
 from fabriclib.setup.site.listener.render_page import escape, render_page
 
 LOG_SHOWN = 400
+# What a restore moved, named as its questions name it: a copy of ask_restore.LABELS, which the listener cannot
+# import (it runs from its own folder, 1.3.6); tests/setup/site/ask_restore_test.py keeps the two the same.
+LABELS = {"host_ip": "The host's address", "lan_cidr": "Its subnet", "lan_gateway": "The subnet's gateway",
+          "dns_server": "The upstream DNS server"}
 
 
 def _log_text(state):
@@ -31,6 +35,22 @@ def _field(q):
             'autocapitalize="off"><button>Continue</button>')
 
 
+def _upload_form(state, q):
+    """Purpose: Restore from a backup's other way to give the bundle: upload it from this computer (manual 1.3.7.10).
+             The hidden fields come first, so the browser sends the token before the file.
+    Inputs:  state — SiteState (csrf); q — the bundle's question (seq).
+    Returns: str, HTML.
+    Fails:   never.
+    Feeds:   _question."""
+    return (f'<form method="post" action="/upload" enctype="multipart/form-data" class="question upload">'
+            f'<input type="hidden" name="csrf" value="{escape(state.csrf)}">'
+            f'<input type="hidden" name="seq" value="{escape(str(q["seq"]))}">'
+            '<label for="bundle">Or upload one from this computer: up to 8 GiB, with the name it was downloaded '
+            'with. Keep this page open while it is sent.</label>'
+            '<div class="row"><input id="bundle" name="bundle" type="file" accept=".tar" required>'
+            '<button class="secondary">Upload</button></div></form>')
+
+
 def _question(state):
     """Purpose: the page of the question setup is asking now.
     Inputs:  state — SiteState.
@@ -38,16 +58,36 @@ def _question(state):
     Fails:   never.
     Feeds:   page_for."""
     q = state.question
-    plan = q["qid"] == "setup.plan"
+    plan = q["qid"] in ("setup.plan", "restore.plan")
     return render_page(state, "plan" if plan else "question", "The plan" if plan else "A question",
                        step=2 if plan else 1,
                        label=q.get("label", ""), csrf=state.csrf, seq=q["seq"],
                        raw_permanent='<span class="permanent">⚠ Permanent</span>' if q.get("permanent") else "",
-                       raw_notes=notes_html(q.get("notes") or []), raw_field=_field(q))
+                       raw_notes=notes_html(q.get("notes") or []), raw_field=_field(q),
+                       raw_upload=_upload_form(state, q) if q["qid"] == "restore.bundle" else "")
+
+
+def _restored(restored):
+    """Purpose: what a Restore from a backup moved, for its finish (manual 1.3.7.10 step 5).
+    Inputs:  restored — {"changed": {key: [old, new]}, "leftover": [[setting, value]]}, or None for a new install.
+    Returns: str, HTML ("" for a new install).
+    Fails:   never.
+    Feeds:   _finish."""
+    if not restored:
+        return ""
+    moved = "".join(f"<li>{escape(LABELS.get(k, k))}: {escape(str(old))} → {escape(str(new))}</li>"
+                    for k, (old, new) in restored.get("changed", {}).items())
+    left = "".join(f"<li><code>{escape(str(s))}</code> = {escape(str(v))}</li>"
+                   for s, v in restored.get("leftover", []))
+    return ("<h2>Restored from the bundle</h2>"
+            + (f"<p>What moved:</p><ul>{moved}</ul>" if moved else "<p>Everything is back at the bundle's addresses."
+                                                                    "</p>")
+            + (f"<p class=warning>Your own settings still name the old address or subnet: change them in the "
+               f"console.</p><ul>{left}</ul>" if left else ""))
 
 
 def _finish(state):
-    """Purpose: the finish page (manual 1.3.6.6).
+    """Purpose: the finish page (manual 1.3.6.6), with what a restore moved (1.3.7.10).
     Inputs:  state — SiteState: finish, fingerprint, csrf.
     Returns: str, the page.
     Fails:   KeyError for finish data missing a key (setup's own).
@@ -59,7 +99,7 @@ def _finish(state):
     return render_page(state, "finish", "fabric is installed", step=4, csrf=state.csrf, port=state.port,
                        root_fingerprint=f["root_fingerprint"], certs_url=f["certs_url"], console_url=f["console_url"],
                        console_name=f["console_name"], kit=f["kit"], nonce=secrets.token_hex(8),
-                       raw_new_cert=new_cert + kept, **finish_html(f))
+                       raw_new_cert=new_cert + kept + _restored(f.get("restored")), **finish_html(f))
 
 
 def page_for(state):

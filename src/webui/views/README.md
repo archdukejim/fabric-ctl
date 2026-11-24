@@ -50,3 +50,4 @@ Every page (Jinja2 templates in ../templates, autoescaped, no inline script or s
 | `ipam_scan.py` | The scan page: whether the person may scan, Scan now, what answered, Record a find. |
 | `dhcp_options.py` | Networks · DHCP options: the sets, the subnets and reservations, a target's effective options and own forms. |
 | `option_owner.py` | The subnet or reservation a DHCP options target names (404 when it is not there). |
+| `backups.py` | Settings · Backups: the bundles and their checks, Back up now, the schedule, Restore one section with its warning. |

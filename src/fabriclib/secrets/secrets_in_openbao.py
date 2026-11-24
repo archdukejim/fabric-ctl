@@ -10,7 +10,6 @@ def secrets_in_openbao(secrets_file):
              directory.
     Returns: True if the marker exists, else False.
     Fails:   never — a plain existence check.
-    Feeds:   load_secrets, save_secrets, setup/backup_install.py, setup/deploy_config.py run,
-             setup/export_install.py.
+    Feeds:   load_secrets, save_secrets, setup/deploy_config.py run, backup/make_backup (a cold bundle).
     """
     return os.path.exists(os.path.join(os.path.dirname(secrets_file), MARKER))

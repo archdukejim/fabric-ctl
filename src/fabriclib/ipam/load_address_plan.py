@@ -1,8 +1,11 @@
+import os
 import subprocess
 
+from fabriclib.backup.restore_pending import read_restore_pending
 from fabriclib.common.errors import ValidationError
 from fabriclib.ipam.common.plan_cache import load_plan_cache, save_plan_cache
 from fabriclib.ipam.common.site_plan import site_plan
+from fabriclib.ipam.moved_plan import moved_plan
 from fabriclib.ipam.options.merge_option_sets import merge_option_sets
 from fabriclib.ipam.options.plan_digest import plan_digest
 from fabriclib.ipam.plan_to_dhcp import plan_to_dhcp
@@ -76,6 +79,8 @@ def load_address_plan(final_vars, secrets, container="samba", digest=None):
              filled with what DNS is rendered from ({"dns": plan_digest's}) when DNS is rendered from this too (an
              apply, a zone change), for the caller to keep for the plan poll (<config>/plan-dns.json, manual
              1.10.4.26) once BIND took it (2.3.10.5.6); None (the poll) leaves it.
+             While a restore to another subnet is pending (restore-pending.json's plan_move, 1.3.7.7) the plan is
+             rendered moved (moved_plan) until setup writes it to the domain (move_lan_subnet).
     Returns: list of str to show (where the plan came from, names left out).
     Fails:   ValidationError when DHCP is on, the subnets live in the plan and no plan can be had (the DC not
              answering and none kept): Kea is then left as it was rendered. OSError writing the kept copy.
@@ -109,6 +114,11 @@ def load_address_plan(final_vars, secrets, container="samba", digest=None):
         plan = site_plan(read, final_vars["site_name"])
         save_plan_cache(plan)
         lines += seed_site_access(final_vars, plan, secrets, container)
+    config = os.path.join(final_vars.get("deploy_base_dir") or "/opt", "fabric", "config")
+    move = read_restore_pending(config).get("plan_move")
+    if move:                              # a restore to another subnet, not yet written to the domain (1.3.7.7)
+        plan, warnings = moved_plan(plan, move["from"], move["to"])
+        lines += warnings
     rendered = plan_to_dhcp(plan)
     final_vars["dhcp"] = {**d, "subnets": dhcp_allowed(rendered["subnets"], final_vars, plan)}
     final_vars["access_sources"] = service_sources(final_vars, plan)

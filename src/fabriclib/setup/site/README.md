@@ -6,6 +6,8 @@ and the certificate; the unprivileged listener in [listener/](listener/README.md
 | File | What |
 |---|---|
 | `guided_site.py` | `GuidedSite`: the site from open to close, as `common/ask`'s front end and `hand_over`'s follower |
+| `ask_start.py` | The site's first choice: New install or Restore from a backup (manual 1.3.7.10) |
+| `ask_restore.py` | Restore from a backup's questions: the bundle, its manifest, its key, the address changes, all checked before the plan's Proceed |
 | `session_keeper.py` | `SessionKeeper`: the one-time code, its wrong tries, the one session it opens, its idle end and its takeover |
 | `listener_link.py` | `ListenerLink`: the listener process and the socket pair to it |
 | `attach_server.py` | `AttachServer`: the root-only socket another terminal attaches at, and what it is shown |
@@ -26,6 +28,8 @@ and the certificate; the unprivileged listener in [listener/](listener/README.md
 | `open_site_port.py` | Ask about the firewall, on the terminal, and open the port |
 | `keep_site_port.py` | Keep the port open through setup's own firewall step |
 | `close_site_port.py` | Remove what the site opened, by the rule's comment |
+| `open_upload_dir.py` | Restore from a backup's upload folder, made fresh as the listener's for the bundle's question |
+| `close_upload_dir.py` | The upload folder removed with whatever is in it |
 | `write_port_record.py` | Record the port for the firewall step |
 | `read_port_record.py` | Read that record |
 | `take_snapshot.py` | The install folder before the questions |

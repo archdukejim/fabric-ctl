@@ -29,6 +29,7 @@ Installing, upgrading, building and releasing fabric, and maintaining its host. 
   - 3.3.6.2 Run Guided in the terminal instead
   - 3.3.6.3 Clear what a killed setup left
   - 3.3.6.4 Build and test the setup site
+- 3.3.7 Backups — nothing to install: the schedule installs its own timer (4.3.7.2); see 1.3.7
 
 ## 3.4 DNS: BIND
 

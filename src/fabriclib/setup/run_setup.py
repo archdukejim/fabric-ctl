@@ -15,6 +15,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from fabriclib.backup.read_build import read_build  # noqa: E402
 from fabriclib.common.console import err, heading, info  # noqa: E402
 from fabriclib.consent.ask_consent import ask_consent  # noqa: E402
 from fabriclib.consent.initial_host_choices import initial_host_choices  # noqa: E402
@@ -41,6 +42,8 @@ from fabriclib.setup.require_terminal import require_terminal  # noqa: E402
 from fabriclib.setup.run_steps import run_steps  # noqa: E402
 from fabriclib.setup.site.close_site_port import close_site_port  # noqa: E402
 from fabriclib.setup.site.attach_site import attach_site  # noqa: E402
+from fabriclib.setup.site.ask_restore import ask_restore  # noqa: E402
+from fabriclib.setup.site.ask_start import ask_start  # noqa: E402
 from fabriclib.setup.site.guided_site import GuidedSite  # noqa: E402
 from fabriclib.setup.site.read_port_record import read_port_record  # noqa: E402
 from fabriclib.setup.site.site_wanted import site_wanted  # noqa: E402
@@ -180,6 +183,11 @@ def main(argv=None):
             mode = choose_mode(ctx) if args.step is None else "guided"
             if args.step is None and site_wanted(ctx, mode, args.terminal):     # the same questions, in the browser
                 site = GuidedSite(ctx).open()
+                if ask_start() == "restore":   # Restore from a backup: its own questions, then its run (1.3.7.10)
+                    restore = ask_restore(ctx, read_build(ctx.source_dir)["version"], upload_dir=site.upload_dir)
+                    site.proceeding()
+                    return hand_over(ctx, STEPS, {"options": {"restore": restore, "assume_yes": True, "guided": True,
+                                                              "offline": ctx.offline}}, follow=site.follow)
             collect_vars(ctx, ask=mode != "advanced")
             apply_plan_defaults(ctx)
             ctx.host_choices = initial_host_choices(ctx.config_dir, args.approve, args.decline)

@@ -134,6 +134,12 @@ image_rolled_back: {{ image_rolled_back | default([], true) | to_json }}
 # After `fabricctl images update`: remove old images of fabric's repositories (never the rollback one).
 image_prune: {{ image_prune | default(true) | bool }}
 
+# Backups (manual 1.3.7.5): the schedule runs while backup_public_key is set (an age public key: it cannot open a
+# bundle; its private key stays off this host). backup_keep scheduled bundles are kept in /var/backups/fabric.
+backup_public_key: {{ backup_public_key | default(none) | to_json }}
+backup_schedule_time: {{ backup_schedule_time | default('03:00') | to_json }}
+backup_keep: {{ backup_keep | default(7) | int }}
+
 # OpenBao (secrets) is core. Its unlock methods (slots.json) and their key files / token PINs, root-only.
 openbao_key_dir: {{ openbao_key_dir | default('/etc/fabric/openbao') }}
 # RAM-only: fabric-unlock puts the vault key here just before OpenBao starts, then wipes it.

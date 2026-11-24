@@ -6,6 +6,7 @@ and import as `fabriclib.<domain>.<file>`.
 
 | Folder | What |
 |---|---|
+| [backup/](backup/) | Backups: one encrypted bundle of seven sections, made by hand or on a schedule, restored whole or by section (1.3.7) |
 | [common/](common/) | Shared helpers: paths, vars file, locking, audit log, errors |
 | [dns/](dns/) | DNS zones and records in `vars.yaml` (validated), zone sync status |
 | [system/](system/) | Version, service status, apply |

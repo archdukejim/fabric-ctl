@@ -1,6 +1,10 @@
 # fabric: numbers of the function reference (manual 1.17.1.2). Written by gen_lib_doc.py; never edit.
 file	fabricctl-agent|src/agent/apply_filter_now.py	48	
+file	fabricctl-agent|src/agent/backup_file.py	53	
+file	fabricctl-agent|src/agent/bundle_checks.py	54	
 file	fabricctl-agent|src/agent/change_dns_filter.py	49	
+file	fabricctl-agent|src/agent/file_answer.py	55	
+file	fabricctl-agent|src/agent/get_backup.py	56	
 file	fabricctl-agent|src/agent/get_route.py	1	
 file	fabricctl-agent|src/agent/handler.py	2	
 file	fabricctl-agent|src/agent/job_store.py	16	
@@ -15,6 +19,7 @@ file	fabricctl-agent|src/agent/pending_thing.py	33
 file	fabricctl-agent|src/agent/pending_tsig.py	51	
 file	fabricctl-agent|src/agent/plan_store.py	25	
 file	fabricctl-agent|src/agent/post_account.py	28	
+file	fabricctl-agent|src/agent/post_backup.py	57	
 file	fabricctl-agent|src/agent/post_dhcp.py	3	
 file	fabricctl-agent|src/agent/post_directory.py	4	
 file	fabricctl-agent|src/agent/post_dns.py	5	
@@ -38,12 +43,15 @@ file	fabricctl-agent|src/agent/post_route.py	8
 file	fabricctl-agent|src/agent/post_security.py	15	
 file	fabricctl-agent|src/agent/post_settings.py	26	
 file	fabricctl-agent|src/agent/post_sizing.py	45	
+file	fabricctl-agent|src/agent/post_upload.py	59	
 file	fabricctl-agent|src/agent/post_vault.py	9	
+file	fabricctl-agent|src/agent/read_chunked.py	60	
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
 file	fabricctl-agent|src/agent/read_text.py	12	
 file	fabricctl-agent|src/agent/read_tree.py	44	
 file	fabricctl-agent|src/agent/read_tsig_edit.py	52	
+file	fabricctl-agent|src/agent/require_domain_admin.py	58	
 file	fabricctl-agent|src/agent/server.py	13	
 file	fabricctl-jinja|packaging/images/bake_env.py	9	
 file	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py	1	0.5.0 / 2026-10-04
@@ -86,6 +94,7 @@ file	fabricctl-jinja|src/containers/samba/delete_ou.py	120
 file	fabricctl-jinja|src/containers/samba/directory_op.py	25	
 file	fabricctl-jinja|src/containers/samba/directory_scope.py	164	
 file	fabricctl-jinja|src/containers/samba/directory_size.py	165	
+file	fabricctl-jinja|src/containers/samba/domain_admin.py	172	
 file	fabricctl-jinja|src/containers/samba/domain_facts.py	140	
 file	fabricctl-jinja|src/containers/samba/edit_person.py	121	
 file	fabricctl-jinja|src/containers/samba/ensure_ad_site.py	14	
@@ -117,6 +126,7 @@ file	fabricctl-jinja|src/containers/samba/explain_grants.py	107
 file	fabricctl-jinja|src/containers/samba/find_gpo.py	79	
 file	fabricctl-jinja|src/containers/samba/find_machine.py	53	
 file	fabricctl-jinja|src/containers/samba/find_person.py	68	
+file	fabricctl-jinja|src/containers/samba/finish_restore.py	171	
 file	fabricctl-jinja|src/containers/samba/get_person.py	31	
 file	fabricctl-jinja|src/containers/samba/gpo_tool.py	51	
 file	fabricctl-jinja|src/containers/samba/grant_members.py	108	
@@ -143,6 +153,7 @@ file	fabricctl-jinja|src/containers/samba/local_admin_store.py	138
 file	fabricctl-jinja|src/containers/samba/local_admin_tool.py	139	
 file	fabricctl-jinja|src/containers/samba/logon_groups.py	84	0.7.2 / 2026-10-19
 file	fabricctl-jinja|src/containers/samba/logon_rights_policy.py	20	0.7.2 / 2026-10-19
+file	fabricctl-jinja|src/containers/samba/make_bind_dns.py	173	
 file	fabricctl-jinja|src/containers/samba/managed_groups.py	129	
 file	fabricctl-jinja|src/containers/samba/may_hold.py	163	
 file	fabricctl-jinja|src/containers/samba/member_dns.py	166	
@@ -217,6 +228,57 @@ file	fabricctl-jinja|src/containers/samba/write_scan_request.py	155
 file	fabricctl-lib|src/federation/server.py	1	
 file	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py	2	
 file	fabriclib-access|src/fabriclib/access/check_access.py	1	
+file	fabriclib-backup|src/fabriclib/backup/backup_lock.py	14	
+file	fabriclib-backup|src/fabriclib/backup/backup_plan.py	15	
+file	fabriclib-backup|src/fabriclib/backup/backup_running.py	16	
+file	fabriclib-backup|src/fabriclib/backup/build_version.py	35	0.10.0 / 2026-11-19
+file	fabriclib-backup|src/fabriclib/backup/bundle_key_from.py	1	
+file	fabriclib-backup|src/fabriclib/backup/bundle_name.py	2	
+file	fabriclib-backup|src/fabriclib/backup/check_backup_space.py	17	
+file	fabriclib-backup|src/fabriclib/backup/check_bundle.py	3	
+file	fabriclib-backup|src/fabriclib/backup/check_changes.py	39	
+file	fabriclib-backup|src/fabriclib/backup/check_whole_restore.py	44	
+file	fabriclib-backup|src/fabriclib/backup/console_restore_running.py	45	
+file	fabriclib-backup|src/fabriclib/backup/dump_directory.py	18	
+file	fabriclib-backup|src/fabriclib/backup/dump_signin.py	19	
+file	fabriclib-backup|src/fabriclib/backup/fabric_version.py	46	
+file	fabriclib-backup|src/fabriclib/backup/freeze_zones.py	20	
+file	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py	21	
+file	fabriclib-backup|src/fabriclib/backup/is_domain_admin.py	42	
+file	fabriclib-backup|src/fabriclib/backup/list_bundles.py	22	
+file	fabriclib-backup|src/fabriclib/backup/live_paths.py	36	
+file	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py	30	
+file	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py	31	
+file	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py	32	
+file	fabriclib-backup|src/fabriclib/backup/make_backup.py	23	
+file	fabriclib-backup|src/fabriclib/backup/make_bundle.py	4	
+file	fabriclib-backup|src/fabriclib/backup/make_bundle_key.py	5	
+file	fabriclib-backup|src/fabriclib/backup/old_address_uses.py	41	
+file	fabriclib-backup|src/fabriclib/backup/open_bundle_key.py	6	
+file	fabriclib-backup|src/fabriclib/backup/open_section.py	7	
+file	fabriclib-backup|src/fabriclib/backup/pack_section.py	8	
+file	fabriclib-backup|src/fabriclib/backup/pause_unit.py	24	
+file	fabriclib-backup|src/fabriclib/backup/postgres_login.py	50	
+file	fabriclib-backup|src/fabriclib/backup/prune_bundles.py	25	
+file	fabriclib-backup|src/fabriclib/backup/read_backup_key.py	26	
+file	fabriclib-backup|src/fabriclib/backup/read_build.py	38	
+file	fabriclib-backup|src/fabriclib/backup/read_changes.py	40	
+file	fabriclib-backup|src/fabriclib/backup/read_manifest.py	9	
+file	fabriclib-backup|src/fabriclib/backup/receive_upload.py	47	
+file	fabriclib-backup|src/fabriclib/backup/require_all_sections.py	49	
+file	fabriclib-backup|src/fabriclib/backup/restore_bundle.py	33	
+file	fabriclib-backup|src/fabriclib/backup/restore_pending.py	34	
+file	fabriclib-backup|src/fabriclib/backup/restore_section.py	37	
+file	fabriclib-backup|src/fabriclib/backup/run_age.py	10	
+file	fabriclib-backup|src/fabriclib/backup/run_backup_command.py	27	
+file	fabriclib-backup|src/fabriclib/backup/running_dependents.py	51	
+file	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py	28	
+file	fabriclib-backup|src/fabriclib/backup/schedule_status.py	43	
+file	fabriclib-backup|src/fabriclib/backup/seal_bundle_key.py	11	
+file	fabriclib-backup|src/fabriclib/backup/section_of_key.py	12	
+file	fabriclib-backup|src/fabriclib/backup/section_paths.py	13	
+file	fabriclib-backup|src/fabriclib/backup/set_backup_schedule.py	29	
+file	fabriclib-backup|src/fabriclib/backup/start_console_restore.py	48	
 file	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_password.py	1	
 file	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_reminder.py	2	
 file	fabriclib-breakglass|src/fabriclib/breakglass/ensure_enterprise_admin.py	3	
@@ -678,7 +740,9 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py	97
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	19	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	63	
+file	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py	129	
 file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	58	
+file	fabriclib-ipam|src/fabriclib/ipam/moved_plan.py	130	
 file	fabriclib-ipam|src/fabriclib/ipam/networks_csv.py	90	
 file	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py	91	
 file	fabriclib-ipam|src/fabriclib/ipam/networks_view.py	92	
@@ -1072,8 +1136,8 @@ file	fabriclib-setup|src/fabriclib/setup/ask_kerberos.py	46	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_ram.py	40	0.6.4 / 2026-10-09
 file	fabriclib-setup|src/fabriclib/setup/ask_site_number.py	108	
 file	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py	38	0.5.0 / 2026-10-04
-file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	
-file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	
+file	fabriclib-setup|src/fabriclib/setup/backup_install.py	1	0.10.0 / 2026-11-19
+file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	0.10.0 / 2026-11-19
 file	fabriclib-setup|src/fabriclib/setup/choose_mode.py	67	
 file	fabriclib-setup|src/fabriclib/setup/choose_plan.py	3	
 file	fabriclib-setup|src/fabriclib/setup/collect_vars.py	4	
@@ -1116,6 +1180,7 @@ file	fabriclib-setup|src/fabriclib/setup/detach/launch_worker.py	90
 file	fabriclib-setup|src/fabriclib/setup/detach/read_handoff.py	91	
 file	fabriclib-setup|src/fabriclib/setup/detach/read_run.py	92	
 file	fabriclib-setup|src/fabriclib/setup/detach/resume_run.py	93	
+file	fabriclib-setup|src/fabriclib/setup/detach/run_restore.py	157	
 file	fabriclib-setup|src/fabriclib/setup/detach/run_worker.py	94	
 file	fabriclib-setup|src/fabriclib/setup/detach/unit_running.py	95	
 file	fabriclib-setup|src/fabriclib/setup/detach/write_handoff.py	96	
@@ -1125,7 +1190,7 @@ file	fabriclib-setup|src/fabriclib/setup/doctor_report.py	41
 file	fabriclib-setup|src/fabriclib/setup/drop_old_authority_max.py	154	
 file	fabriclib-setup|src/fabriclib/setup/drop_retired_settings.py	103	
 file	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py	42	
-file	fabriclib-setup|src/fabriclib/setup/export_install.py	16	
+file	fabriclib-setup|src/fabriclib/setup/export_install.py	16	0.10.0 / 2026-11-19
 file	fabriclib-setup|src/fabriclib/setup/finish_vars.py	74	
 file	fabriclib-setup|src/fabriclib/setup/harden_docker.py	17	
 file	fabriclib-setup|src/fabriclib/setup/init_pki.py	18	
@@ -1145,6 +1210,7 @@ file	fabriclib-setup|src/fabriclib/setup/require_terminal.py	106
 file	fabriclib-setup|src/fabriclib/setup/restore_install.py	25	
 file	fabriclib-setup|src/fabriclib/setup/retire_adguard.py	83	0.7.2 / 2026-10-20
 file	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py	26	0.7.2 / 2026-10-20
+file	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py	156	
 file	fabriclib-setup|src/fabriclib/setup/run_restore_command.py	27	
 file	fabriclib-setup|src/fabriclib/setup/run_setup.py	28	
 file	fabriclib-setup|src/fabriclib/setup/run_steps.py	98	
@@ -1153,11 +1219,14 @@ file	fabriclib-setup|src/fabriclib/setup/service_cert_targets.py	153
 file	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py	47	
 file	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py	105	
 file	fabriclib-setup|src/fabriclib/setup/setup_openbao.py	30	
+file	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py	158	
+file	fabriclib-setup|src/fabriclib/setup/site/ask_start.py	159	
 file	fabriclib-setup|src/fabriclib/setup/site/attach_server.py	149	
 file	fabriclib-setup|src/fabriclib/setup/site/attach_site.py	150	
 file	fabriclib-setup|src/fabriclib/setup/site/certificate_fingerprint.py	110	
 file	fabriclib-setup|src/fabriclib/setup/site/check_console.py	111	
 file	fabriclib-setup|src/fabriclib/setup/site/close_site_port.py	112	
+file	fabriclib-setup|src/fabriclib/setup/site/close_upload_dir.py	160	
 file	fabriclib-setup|src/fabriclib/setup/site/finish_data.py	113	
 file	fabriclib-setup|src/fabriclib/setup/site/finish_guides.py	114	
 file	fabriclib-setup|src/fabriclib/setup/site/guided_site.py	115	
@@ -1167,11 +1236,13 @@ file	fabriclib-setup|src/fabriclib/setup/site/listener/build_tls.py	118
 file	fabriclib-setup|src/fabriclib/setup/site/listener/check_verdict.py	119	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py	120	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/finish_html.py	121	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/multipart_reader.py	161	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/notes_html.py	122	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py	123	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py	124	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/request_base.py	125	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py	126	
+file	fabriclib-setup|src/fabriclib/setup/site/listener/save_upload.py	162	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/site_main.py	127	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py	128	
 file	fabriclib-setup|src/fabriclib/setup/site/listener/site_state.py	129	
@@ -1180,6 +1251,7 @@ file	fabriclib-setup|src/fabriclib/setup/site/make_certificate.py	131
 file	fabriclib-setup|src/fabriclib/setup/site/mint_site_cert.py	132	
 file	fabriclib-setup|src/fabriclib/setup/site/new_code.py	133	
 file	fabriclib-setup|src/fabriclib/setup/site/open_site_port.py	134	
+file	fabriclib-setup|src/fabriclib/setup/site/open_upload_dir.py	163	
 file	fabriclib-setup|src/fabriclib/setup/site/pick_port.py	135	
 file	fabriclib-setup|src/fabriclib/setup/site/port_holder.py	136	
 file	fabriclib-setup|src/fabriclib/setup/site/print_site_start.py	137	
@@ -1199,6 +1271,7 @@ file	fabriclib-setup|src/fabriclib/setup/stage_source.py	31
 file	fabriclib-setup|src/fabriclib/setup/start_bootstrap.py	32	
 file	fabriclib-setup|src/fabriclib/setup/start_services.py	33	
 file	fabriclib-setup|src/fabriclib/setup/start_unit.py	34	
+file	fabriclib-setup|src/fabriclib/setup/stop_for_copy.py	155	
 file	fabriclib-setup|src/fabriclib/setup/uninstall.py	35	
 file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36	
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
@@ -1288,6 +1361,14 @@ file	webui|src/webui/agentclient/add_subnet.py	5
 file	webui|src/webui/agentclient/add_zone.py	153	
 file	webui|src/webui/agentclient/apply_changes.py	6	0.8.0 / 2026-10-23
 file	webui|src/webui/agentclient/audit.py	7	
+file	webui|src/webui/agentclient/backup_allowed.py	314	
+file	webui|src/webui/agentclient/backup_download.py	315	
+file	webui|src/webui/agentclient/backup_now.py	316	
+file	webui|src/webui/agentclient/backup_overview.py	317	
+file	webui|src/webui/agentclient/backup_reinstall.py	325	
+file	webui|src/webui/agentclient/backup_restore.py	318	
+file	webui|src/webui/agentclient/backup_schedule.py	319	
+file	webui|src/webui/agentclient/backup_upload.py	326	
 file	webui|src/webui/agentclient/browse_ou.py	294	
 file	webui|src/webui/agentclient/ca_summary.py	8	
 file	webui|src/webui/agentclient/cert_warnings.py	136	
@@ -1426,6 +1507,7 @@ file	webui|src/webui/devpreview/dev_settings.py	195	0.8.0 / 2026-10-22
 file	webui|src/webui/devpreview/dev_state.py	67	
 file	webui|src/webui/devpreview/fake_account.py	221	
 file	webui|src/webui/devpreview/fake_agent.py	202	
+file	webui|src/webui/devpreview/fake_backup.py	320	
 file	webui|src/webui/devpreview/fake_certs.py	310	
 file	webui|src/webui/devpreview/fake_connection.py	203	
 file	webui|src/webui/devpreview/fake_directory.py	204	
@@ -1433,6 +1515,7 @@ file	webui|src/webui/devpreview/fake_dns.py	205
 file	webui|src/webui/devpreview/fake_grants.py	251	
 file	webui|src/webui/devpreview/fake_groups.py	232	
 file	webui|src/webui/devpreview/fake_ipam.py	281	
+file	webui|src/webui/devpreview/fake_job.py	321	
 file	webui|src/webui/devpreview/fake_machines.py	241	
 file	webui|src/webui/devpreview/fake_misc.py	206	
 file	webui|src/webui/devpreview/fake_network.py	207	
@@ -1445,6 +1528,7 @@ file	webui|src/webui/devpreview/sample_radius_guides.py	68
 file	webui|src/webui/devpreview/sample_result.py	69	
 file	webui|src/webui/handler.py	71	
 file	webui|src/webui/httpio/cookie_header.py	72	
+file	webui|src/webui/httpio/multipart_stream.py	327	
 file	webui|src/webui/httpio/read_cookie.py	73	
 file	webui|src/webui/httpio/read_form.py	74	
 file	webui|src/webui/httpio/upload_value.py	75	
@@ -1452,6 +1536,9 @@ file	webui|src/webui/oidc.py	76
 file	webui|src/webui/routes/access_page.py	252	
 file	webui|src/webui/routes/account_page.py	222	
 file	webui|src/webui/routes/account_post.py	223	
+file	webui|src/webui/routes/backups_page.py	322	
+file	webui|src/webui/routes/backups_post.py	323	
+file	webui|src/webui/routes/backups_upload.py	328	
 file	webui|src/webui/routes/bind9_page.py	77	
 file	webui|src/webui/routes/changes_post.py	216	
 file	webui|src/webui/routes/computers_page.py	242	
@@ -1522,6 +1609,7 @@ file	webui|src/webui/views/account.py	225
 file	webui|src/webui/views/apply_result.py	102	0.8.0 / 2026-10-23
 file	webui|src/webui/views/audit.py	103	
 file	webui|src/webui/views/b64.py	104	
+file	webui|src/webui/views/backups.py	324	
 file	webui|src/webui/views/bind9.py	105	
 file	webui|src/webui/views/changes.py	217	
 file	webui|src/webui/views/computers.py	243	
@@ -1566,8 +1654,16 @@ file	webui|src/webui/views/stepca.py	118
 file	webui|src/webui/views/tree.py	298	
 file	webui|src/webui/views/tsig_result.py	119	
 function	fabricctl-agent|src/agent/apply_filter_now.py|apply_filter_now	1	
+function	fabricctl-agent|src/agent/backup_file.py|backup_file	1	
+function	fabricctl-agent|src/agent/bundle_checks.py|BundleChecks.__init__	1	
+function	fabricctl-agent|src/agent/bundle_checks.py|BundleChecks._run	2	
+function	fabricctl-agent|src/agent/bundle_checks.py|BundleChecks.of	3	
 function	fabricctl-agent|src/agent/change_dns_filter.py|_on	1	
 function	fabricctl-agent|src/agent/change_dns_filter.py|change_dns_filter	2	
+function	fabricctl-agent|src/agent/file_answer.py|FileAnswer.__init__	1	
+function	fabricctl-agent|src/agent/get_backup.py|_console_restore	3	
+function	fabricctl-agent|src/agent/get_backup.py|get_backup	2	
+function	fabricctl-agent|src/agent/get_backup.py|site_name	1	
 function	fabricctl-agent|src/agent/get_route.py|_kept	5	
 function	fabricctl-agent|src/agent/get_route.py|_overview	3	
 function	fabricctl-agent|src/agent/get_route.py|_pending	2	
@@ -1585,7 +1681,9 @@ function	fabricctl-agent|src/agent/handler.py|Handler.drain	11
 function	fabricctl-agent|src/agent/handler.py|Handler.log_message	2	
 function	fabricctl-agent|src/agent/handler.py|Handler.peer_uid	4	
 function	fabricctl-agent|src/agent/handler.py|Handler.reply	3	
+function	fabricctl-agent|src/agent/handler.py|Handler.send_file	13	
 function	fabricctl-agent|src/agent/handler.py|Handler.unsupported	12	
+function	fabricctl-agent|src/agent/handler.py|Handler.upload	14	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.__init__	1	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.read	3	
 function	fabricctl-agent|src/agent/job_store.py|JobStore.start	2	
@@ -1645,6 +1743,10 @@ function	fabricctl-agent|src/agent/plan_store.py|PlanStore.__init__	1
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.put	2	
 function	fabricctl-agent|src/agent/plan_store.py|PlanStore.take	3	
 function	fabricctl-agent|src/agent/post_account.py|post_account	1	
+function	fabricctl-agent|src/agent/post_backup.py|_make_key	2	
+function	fabricctl-agent|src/agent/post_backup.py|_open_key	3	
+function	fabricctl-agent|src/agent/post_backup.py|_running	1	
+function	fabricctl-agent|src/agent/post_backup.py|post_backup	4	
 function	fabricctl-agent|src/agent/post_dhcp.py|_vlan	1	
 function	fabricctl-agent|src/agent/post_dhcp.py|_where	2	
 function	fabricctl-agent|src/agent/post_dhcp.py|post_dhcp	3	
@@ -1687,12 +1789,16 @@ function	fabricctl-agent|src/agent/post_security.py|post_security	1
 function	fabricctl-agent|src/agent/post_settings.py|_applied	1	
 function	fabricctl-agent|src/agent/post_settings.py|post_settings	2	
 function	fabricctl-agent|src/agent/post_sizing.py|post_sizing	1	
+function	fabricctl-agent|src/agent/post_upload.py|_sized	1	
+function	fabricctl-agent|src/agent/post_upload.py|post_upload	2	
 function	fabricctl-agent|src/agent/post_vault.py|post_vault	1	
+function	fabricctl-agent|src/agent/read_chunked.py|read_chunked	1	
 function	fabricctl-agent|src/agent/read_fields.py|read_fields	1	
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
 function	fabricctl-agent|src/agent/read_text.py|read_text	1	
 function	fabricctl-agent|src/agent/read_tree.py|read_tree	1	
 function	fabricctl-agent|src/agent/read_tsig_edit.py|read_tsig_edit	1	
+function	fabricctl-agent|src/agent/require_domain_admin.py|require_domain_admin	1	
 function	fabricctl-agent|src/agent/server.py|main	1	
 function	fabricctl-jinja|packaging/images/bake_env.py|bake_env	1	
 function	fabricctl-jinja|packaging/images/dirsrv/dscontainer-launch.py|_signal	1	0.5.0 / 2026-10-04
@@ -1818,6 +1924,7 @@ function	fabricctl-jinja|src/containers/samba/directory_scope.py|in_an_ou	1
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|is_fabric_host_dn	3	
 function	fabricctl-jinja|src/containers/samba/directory_scope.py|is_person_dn	2	
 function	fabricctl-jinja|src/containers/samba/directory_size.py|directory_size	1	
+function	fabricctl-jinja|src/containers/samba/domain_admin.py|domain_admin	1	
 function	fabricctl-jinja|src/containers/samba/domain_facts.py|domain_facts	1	
 function	fabricctl-jinja|src/containers/samba/edit_person.py|_record	2	0.8.0 / 2026-10-22
 function	fabricctl-jinja|src/containers/samba/edit_person.py|edit_person	1	
@@ -1887,6 +1994,8 @@ function	fabricctl-jinja|src/containers/samba/explain_grants.py|explain_grants	2
 function	fabricctl-jinja|src/containers/samba/find_gpo.py|find_gpo	1	
 function	fabricctl-jinja|src/containers/samba/find_machine.py|find_machine	1	
 function	fabricctl-jinja|src/containers/samba/find_person.py|find_person	1	
+function	fabricctl-jinja|src/containers/samba/finish_restore.py|finish_restore	1	
+function	fabricctl-jinja|src/containers/samba/finish_restore.py|main	2	
 function	fabricctl-jinja|src/containers/samba/get_person.py|get_person	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_policy	1	
 function	fabricctl-jinja|src/containers/samba/gpo_tool.py|_without	2	
@@ -1961,6 +2070,8 @@ function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|_is_dc	1
 function	fabricctl-jinja|src/containers/samba/local_admin_tool.py|run	2	
 function	fabricctl-jinja|src/containers/samba/logon_groups.py|logon_groups	1	0.7.2 / 2026-10-19
 function	fabricctl-jinja|src/containers/samba/logon_rights_policy.py|logon_rights_policy	1	0.7.2 / 2026-10-19
+function	fabricctl-jinja|src/containers/samba/make_bind_dns.py|dnsadmins_sid	1	
+function	fabricctl-jinja|src/containers/samba/make_bind_dns.py|main	2	
 function	fabricctl-jinja|src/containers/samba/managed_groups.py|managed_groups	1	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|_refused	1	
 function	fabricctl-jinja|src/containers/samba/may_hold.py|kinds_held	3	
@@ -2116,6 +2227,74 @@ function	fabricctl-lib|src/federation/server.py|UnixServer.verify_request	7
 function	fabricctl-lib|src/federation/server.py|main	8	
 function	fabricctl-lib|src/ux/cli/keycloak_bootstrap.py|main	1	
 function	fabriclib-access|src/fabriclib/access/check_access.py|check_access	1	
+function	fabriclib-backup|src/fabriclib/backup/backup_lock.py|backup_lock	1	
+function	fabriclib-backup|src/fabriclib/backup/backup_plan.py|_live	1	0.10.0 / 2026-11-19
+function	fabriclib-backup|src/fabriclib/backup/backup_plan.py|backup_plan	2	
+function	fabriclib-backup|src/fabriclib/backup/backup_running.py|backup_running	1	
+function	fabriclib-backup|src/fabriclib/backup/build_version.py|build_version	1	0.10.0 / 2026-11-19
+function	fabriclib-backup|src/fabriclib/backup/bundle_key_from.py|bundle_key_from	1	
+function	fabriclib-backup|src/fabriclib/backup/bundle_name.py|bundle_name	1	
+function	fabriclib-backup|src/fabriclib/backup/check_backup_space.py|_used	1	
+function	fabriclib-backup|src/fabriclib/backup/check_backup_space.py|check_backup_space	2	
+function	fabriclib-backup|src/fabriclib/backup/check_bundle.py|check_bundle	1	
+function	fabriclib-backup|src/fabriclib/backup/check_changes.py|check_changes	1	
+function	fabriclib-backup|src/fabriclib/backup/check_whole_restore.py|check_whole_restore	1	
+function	fabriclib-backup|src/fabriclib/backup/console_restore_running.py|console_restore_running	1	
+function	fabriclib-backup|src/fabriclib/backup/dump_directory.py|dump_directory	1	
+function	fabriclib-backup|src/fabriclib/backup/dump_signin.py|dump_signin	1	
+function	fabriclib-backup|src/fabriclib/backup/fabric_version.py|fabric_version	1	
+function	fabriclib-backup|src/fabriclib/backup/freeze_zones.py|freeze_zones	1	
+function	fabriclib-backup|src/fabriclib/backup/install_backup_timer.py|install_backup_timer	1	
+function	fabriclib-backup|src/fabriclib/backup/is_domain_admin.py|is_domain_admin	1	
+function	fabriclib-backup|src/fabriclib/backup/list_bundles.py|list_bundles	1	
+function	fabriclib-backup|src/fabriclib/backup/live_paths.py|live_paths	1	
+function	fabriclib-backup|src/fabriclib/backup/load_directory_dump.py|load_directory_dump	1	
+function	fabriclib-backup|src/fabriclib/backup/load_signin_dump.py|load_signin_dump	1	
+function	fabriclib-backup|src/fabriclib/backup/load_vault_snapshot.py|load_vault_snapshot	1	
+function	fabriclib-backup|src/fabriclib/backup/make_backup.py|_linked	3	
+function	fabriclib-backup|src/fabriclib/backup/make_backup.py|_meta	1	
+function	fabriclib-backup|src/fabriclib/backup/make_backup.py|make_backup	2	
+function	fabriclib-backup|src/fabriclib/backup/make_bundle.py|make_bundle	1	
+function	fabriclib-backup|src/fabriclib/backup/make_bundle_key.py|make_bundle_key	1	
+function	fabriclib-backup|src/fabriclib/backup/old_address_uses.py|_hits	1	
+function	fabriclib-backup|src/fabriclib/backup/old_address_uses.py|old_address_uses	2	
+function	fabriclib-backup|src/fabriclib/backup/open_bundle_key.py|open_bundle_key	1	
+function	fabriclib-backup|src/fabriclib/backup/open_section.py|open_section	1	
+function	fabriclib-backup|src/fabriclib/backup/pack_section.py|pack_section	1	
+function	fabriclib-backup|src/fabriclib/backup/pause_unit.py|pause_unit	1	
+function	fabriclib-backup|src/fabriclib/backup/postgres_login.py|postgres_login	1	
+function	fabriclib-backup|src/fabriclib/backup/prune_bundles.py|prune_bundles	1	
+function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_key_file	2	
+function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|_value	1	
+function	fabriclib-backup|src/fabriclib/backup/read_backup_key.py|read_backup_key	3	
+function	fabriclib-backup|src/fabriclib/backup/read_build.py|read_build	1	
+function	fabriclib-backup|src/fabriclib/backup/read_changes.py|read_changes	1	
+function	fabriclib-backup|src/fabriclib/backup/read_manifest.py|read_manifest	1	
+function	fabriclib-backup|src/fabriclib/backup/receive_upload.py|receive_upload	1	
+function	fabriclib-backup|src/fabriclib/backup/require_all_sections.py|require_all_sections	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_check_changes	2	0.10.0 / 2026-11-19
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|_version	1	0.10.0 / 2026-11-22
+function	fabriclib-backup|src/fabriclib/backup/restore_bundle.py|restore_bundle	3	
+function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|read_restore_pending	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_pending.py|write_restore_pending	2	
+function	fabriclib-backup|src/fabriclib/backup/restore_section.py|_bundle_vars	2	
+function	fabriclib-backup|src/fabriclib/backup/restore_section.py|_clear	1	
+function	fabriclib-backup|src/fabriclib/backup/restore_section.py|restore_section	3	
+function	fabriclib-backup|src/fabriclib/backup/run_age.py|_pump	1	
+function	fabriclib-backup|src/fabriclib/backup/run_age.py|run_age	2	
+function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|_flag	1	
+function	fabriclib-backup|src/fabriclib/backup/run_backup_command.py|run_backup_command	2	
+function	fabriclib-backup|src/fabriclib/backup/running_dependents.py|running_dependents	1	
+function	fabriclib-backup|src/fabriclib/backup/save_vault_snapshot.py|save_vault_snapshot	1	
+function	fabriclib-backup|src/fabriclib/backup/schedule_status.py|_show	1	
+function	fabriclib-backup|src/fabriclib/backup/schedule_status.py|schedule_status	2	
+function	fabriclib-backup|src/fabriclib/backup/seal_bundle_key.py|seal_bundle_key	1	
+function	fabriclib-backup|src/fabriclib/backup/section_of_key.py|_owns	1	
+function	fabriclib-backup|src/fabriclib/backup/section_of_key.py|section_of_key	2	
+function	fabriclib-backup|src/fabriclib/backup/section_paths.py|_claims	1	
+function	fabriclib-backup|src/fabriclib/backup/section_paths.py|section_paths	2	
+function	fabriclib-backup|src/fabriclib/backup/set_backup_schedule.py|set_backup_schedule	1	
+function	fabriclib-backup|src/fabriclib/backup/start_console_restore.py|start_console_restore	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_password.py|break_glass_password	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/break_glass_reminder.py|break_glass_reminder	1	
 function	fabriclib-breakglass|src/fabriclib/breakglass/ensure_enterprise_admin.py|ensure_enterprise_admin	1	
@@ -2215,7 +2394,7 @@ function	fabriclib-consent|src/fabriclib/consent/planned_vars.py|planned_vars	1
 function	fabriclib-consent|src/fabriclib/consent/save_consent.py|save_consent	1	
 function	fabriclib-consent|src/fabriclib/consent/show_consent_status.py|show_consent_status	1	
 function	fabriclib-core|src/fabriclib/cli.py|_base	1	
-function	fabriclib-core|src/fabriclib/cli.py|_confirm	2	
+function	fabriclib-core|src/fabriclib/cli.py|_confirm	2	0.10.0 / 2026-11-19
 function	fabriclib-core|src/fabriclib/cli.py|_flags	4	
 function	fabriclib-core|src/fabriclib/cli.py|_version	3	
 function	fabriclib-core|src/fabriclib/cli.py|_without_base	6	
@@ -2810,7 +2989,11 @@ function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_globals	2	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|load_address_plan	3	
+function	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py|_vid	1	
+function	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py|move_lan_subnet	2	
 function	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py|move_subnets_to_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/moved_plan.py|_remap	1	
+function	fabriclib-ipam|src/fabriclib/ipam/moved_plan.py|moved_plan	2	
 function	fabriclib-ipam|src/fabriclib/ipam/networks_csv.py|networks_csv	1	
 function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|_cached	1	
 function	fabriclib-ipam|src/fabriclib/ipam/networks_overview.py|networks_overview	2	
@@ -3415,8 +3598,8 @@ function	fabriclib-setup|src/fabriclib/setup/ask_ram.py|ask_ram	2	0.6.4 / 2026-1
 function	fabriclib-setup|src/fabriclib/setup/ask_site_number.py|ask_site_number	1	
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|_number	1	0.5.0 / 2026-10-04
 function	fabriclib-setup|src/fabriclib/setup/ask_windows_domain.py|ask_windows_domain	2	0.5.0 / 2026-10-04
-function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	
-function	fabriclib-setup|src/fabriclib/setup/check_export_dir.py|check_export_dir	1	
+function	fabriclib-setup|src/fabriclib/setup/backup_install.py|backup_install	1	0.10.0 / 2026-11-19
+function	fabriclib-setup|src/fabriclib/setup/check_export_dir.py|check_export_dir	1	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/choose_mode.py|choose_mode	1	
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_ca_lifetime	10	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/choose_plan.py|_ask_dhcp	2	0.6.4 / 2026-10-09
@@ -3517,6 +3700,8 @@ function	fabriclib-setup|src/fabriclib/setup/detach/launch_worker.py|launch_work
 function	fabriclib-setup|src/fabriclib/setup/detach/read_handoff.py|read_handoff	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/read_run.py|read_run	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/resume_run.py|resume_run	1	
+function	fabriclib-setup|src/fabriclib/setup/detach/run_restore.py|_now	1	
+function	fabriclib-setup|src/fabriclib/setup/detach/run_restore.py|run_restore	2	
 function	fabriclib-setup|src/fabriclib/setup/detach/run_worker.py|run_worker	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/unit_running.py|unit_running	1	
 function	fabriclib-setup|src/fabriclib/setup/detach/write_handoff.py|write_handoff	1	
@@ -3535,10 +3720,10 @@ function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|_restore_reco
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|align_postgres_roles	8	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|configure_db_engine	5	
 function	fabriclib-setup|src/fabriclib/setup/ensure_db_rotation.py|run	7	
-function	fabriclib-setup|src/fabriclib/setup/export_install.py|_copy	1	
-function	fabriclib-setup|src/fabriclib/setup/export_install.py|_still_running	3	
-function	fabriclib-setup|src/fabriclib/setup/export_install.py|_stop_stack	4	
-function	fabriclib-setup|src/fabriclib/setup/export_install.py|export_install	2	
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|_copy	1	0.10.0 / 2026-11-19
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|_still_running	3	0.10.0 / 2026-11-19
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|_stop_stack	4	0.10.0 / 2026-11-19
+function	fabriclib-setup|src/fabriclib/setup/export_install.py|export_install	2	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/finish_vars.py|finish_vars	1	
 function	fabriclib-setup|src/fabriclib/setup/harden_docker.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/init_pki.py|_check_root_lifetime	9	
@@ -3592,12 +3777,19 @@ function	fabriclib-setup|src/fabriclib/setup/require_terminal.py|require_termina
 function	fabriclib-setup|src/fabriclib/setup/restore_install.py|restore_install	1	
 function	fabriclib-setup|src/fabriclib/setup/retire_adguard.py|retire_adguard	1	0.7.2 / 2026-10-20
 function	fabriclib-setup|src/fabriclib/setup/retire_renamed_units.py|retire_renamed_units	1	0.7.2 / 2026-10-20
+function	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py|_reinstall_from	3	
+function	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py|_setup_args	1	
+function	fabriclib-setup|src/fabriclib/setup/run_reinstall_command.py|run_reinstall_command	2	
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_package_version	2	0.10.0 / 2026-11-19
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_bundle	3	
+function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|_restore_one_section	4	
 function	fabriclib-setup|src/fabriclib/setup/run_restore_command.py|run_restore_command	1	
 function	fabriclib-setup|src/fabriclib/setup/run_setup.py|main	1	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_now	1	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|_save_settings	2	
 function	fabriclib-setup|src/fabriclib/setup/run_steps.py|run_steps	3	
-function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_opt	1	
+function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_choice	5	
+function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_opt	1	0.10.0 / 2026-11-19
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_package_installed	2	
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|_show_plan	3	
 function	fabriclib-setup|src/fabriclib/setup/run_uninstall_command.py|run_uninstall_command	4	
@@ -3608,6 +3800,11 @@ function	fabriclib-setup|src/fabriclib/setup/set_ram_capacity.py|set_ram_capacit
 function	fabriclib-setup|src/fabriclib/setup/setup_local_admin.py|run	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|_save_recovery	1	
 function	fabriclib-setup|src/fabriclib/setup/setup_openbao.py|run	2	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|_pick_bundle	1	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|_show	2	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|_take_upload	4	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_restore.py|ask_restore	3	
+function	fabriclib-setup|src/fabriclib/setup/site/ask_start.py|ask_start	1	
 function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer.__init__	1	
 function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer._accept	3	
 function	fabriclib-setup|src/fabriclib/setup/site/attach_server.py|AttachServer._send	4	
@@ -3618,6 +3815,7 @@ function	fabriclib-setup|src/fabriclib/setup/site/attach_site.py|attach_site	1
 function	fabriclib-setup|src/fabriclib/setup/site/certificate_fingerprint.py|certificate_fingerprint	1	
 function	fabriclib-setup|src/fabriclib/setup/site/check_console.py|check_console	1	
 function	fabriclib-setup|src/fabriclib/setup/site/close_site_port.py|close_site_port	1	
+function	fabriclib-setup|src/fabriclib/setup/site/close_upload_dir.py|close_upload_dir	1	
 function	fabriclib-setup|src/fabriclib/setup/site/finish_data.py|finish_data	1	
 function	fabriclib-setup|src/fabriclib/setup/site/finish_guides.py|_filled	1	
 function	fabriclib-setup|src/fabriclib/setup/site/finish_guides.py|finish_guides	2	
@@ -3656,11 +3854,18 @@ function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|Contr
 function	fabriclib-setup|src/fabriclib/setup/site/listener/control_link.py|ControlLink.send	3	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/finish_html.py|_guide	1	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/finish_html.py|finish_html	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/multipart_reader.py|MultipartReader.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/multipart_reader.py|MultipartReader._fill	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/multipart_reader.py|MultipartReader.next_part	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/multipart_reader.py|MultipartReader.read_part	4	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/multipart_reader.py|MultipartReader.read_small	5	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/notes_html.py|notes_html	1	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_field	2	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_finish	4	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_log_text	1	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_question	3	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_restored	6	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|_upload_form	7	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/page_for.py|page_for	5	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|_steps	3	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/render_page.py|escape	1	
@@ -3686,13 +3891,18 @@ function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|Re
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._check_result	12	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._code	4	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._code_page	13	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._discard	15	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._events	10	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._finish	7	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._home	3	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._note_activity	2	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._root_ca	9	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._static	8	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|RequestHandler._upload	14	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/request_handler.py|_route	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/save_upload.py|UploadRefused.__init__	1	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/save_upload.py|_free	2	
+function	fabriclib-setup|src/fabriclib/setup/site/listener/save_upload.py|save_upload	3	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/site_main.py|main	1	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.__init__	1	
 function	fabriclib-setup|src/fabriclib/setup/site/listener/site_server.py|SiteServer.get_request	2	
@@ -3714,6 +3924,7 @@ function	fabriclib-setup|src/fabriclib/setup/site/make_certificate.py|make_certi
 function	fabriclib-setup|src/fabriclib/setup/site/mint_site_cert.py|mint_site_cert	1	
 function	fabriclib-setup|src/fabriclib/setup/site/new_code.py|new_code	1	
 function	fabriclib-setup|src/fabriclib/setup/site/open_site_port.py|open_site_port	1	
+function	fabriclib-setup|src/fabriclib/setup/site/open_upload_dir.py|open_upload_dir	1	
 function	fabriclib-setup|src/fabriclib/setup/site/pick_port.py|pick_port	1	
 function	fabriclib-setup|src/fabriclib/setup/site/port_holder.py|port_holder	1	
 function	fabriclib-setup|src/fabriclib/setup/site/print_site_start.py|print_site_start	1	
@@ -3742,6 +3953,8 @@ function	fabriclib-setup|src/fabriclib/setup/start_services.py|run	1
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_settled	3	0.10.0 / 2026-11-16
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|_unit_state	2	0.10.0 / 2026-11-16
 function	fabriclib-setup|src/fabriclib/setup/start_unit.py|start_unit	1	
+function	fabriclib-setup|src/fabriclib/setup/stop_for_copy.py|_still_running	1	
+function	fabriclib-setup|src/fabriclib/setup/stop_for_copy.py|stop_for_copy	2	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_reset_failed	3	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|_stop_timers	2	
 function	fabriclib-setup|src/fabriclib/setup/uninstall.py|uninstall	1	
@@ -3902,6 +4115,14 @@ function	webui|src/webui/agentclient/add_subnet.py|add_subnet	1
 function	webui|src/webui/agentclient/add_zone.py|add_zone	1	
 function	webui|src/webui/agentclient/apply_changes.py|apply_changes	1	0.8.0 / 2026-10-23
 function	webui|src/webui/agentclient/audit.py|audit	1	
+function	webui|src/webui/agentclient/backup_allowed.py|backup_allowed	1	
+function	webui|src/webui/agentclient/backup_download.py|backup_download	1	
+function	webui|src/webui/agentclient/backup_now.py|backup_now	1	
+function	webui|src/webui/agentclient/backup_overview.py|backup_overview	1	
+function	webui|src/webui/agentclient/backup_reinstall.py|backup_reinstall	1	
+function	webui|src/webui/agentclient/backup_restore.py|backup_restore	1	
+function	webui|src/webui/agentclient/backup_schedule.py|backup_schedule	1	
+function	webui|src/webui/agentclient/backup_upload.py|backup_upload	1	
 function	webui|src/webui/agentclient/browse_ou.py|browse_ou	1	
 function	webui|src/webui/agentclient/ca_summary.py|ca_summary	1	
 function	webui|src/webui/agentclient/cert_warnings.py|cert_warnings	1	
@@ -4046,6 +4267,7 @@ function	webui|src/webui/devpreview/dev_handler.py|DevHandler.do_POST	4
 function	webui|src/webui/devpreview/dev_handler.py|DevHandler.log_message	1	
 function	webui|src/webui/devpreview/dev_handler.py|DevHandler.redirect	7	
 function	webui|src/webui/devpreview/dev_handler.py|DevHandler.send	2	
+function	webui|src/webui/devpreview/dev_handler.py|DevHandler.send_stream	13	
 function	webui|src/webui/devpreview/dev_handler.py|_DevApp.__init__	6	
 function	webui|src/webui/devpreview/dev_handler.py|_DevOIDC.logout_url	5	
 function	webui|src/webui/devpreview/dev_post_action.py|dev_post_action	1	0.8.0 / 2026-10-22
@@ -4083,6 +4305,9 @@ function	webui|src/webui/devpreview/fake_agent.py|_read_machines	3
 function	webui|src/webui/devpreview/fake_agent.py|_read_ous	4	
 function	webui|src/webui/devpreview/fake_agent.py|_read_tree	7	
 function	webui|src/webui/devpreview/fake_agent.py|fake_agent	1	
+function	webui|src/webui/devpreview/fake_backup.py|_bundle	1	
+function	webui|src/webui/devpreview/fake_backup.py|_state	2	
+function	webui|src/webui/devpreview/fake_backup.py|fake_backup	3	
 function	webui|src/webui/devpreview/fake_certs.py|fake_certs	1	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.__init__	3	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.close	6	
@@ -4090,6 +4315,7 @@ function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.getrespons
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.install	7	
 function	webui|src/webui/devpreview/fake_connection.py|FakeConnection.request	4	
 function	webui|src/webui/devpreview/fake_connection.py|_Reply.__init__	1	
+function	webui|src/webui/devpreview/fake_connection.py|_Reply.getheader	8	
 function	webui|src/webui/devpreview/fake_connection.py|_Reply.read	2	
 function	webui|src/webui/devpreview/fake_directory.py|_devices	3	
 function	webui|src/webui/devpreview/fake_directory.py|_edit	7	
@@ -4122,12 +4348,13 @@ function	webui|src/webui/devpreview/fake_ipam.py|_site	2
 function	webui|src/webui/devpreview/fake_ipam.py|_vlan_add	6	
 function	webui|src/webui/devpreview/fake_ipam.py|fake_ipam	8	
 function	webui|src/webui/devpreview/fake_ipam.py|network_read	1	
+function	webui|src/webui/devpreview/fake_job.py|fake_job	1	
 function	webui|src/webui/devpreview/fake_machines.py|_keytab	4	
 function	webui|src/webui/devpreview/fake_machines.py|_machine	2	
 function	webui|src/webui/devpreview/fake_machines.py|_overview	3	
 function	webui|src/webui/devpreview/fake_machines.py|_rows	1	
 function	webui|src/webui/devpreview/fake_machines.py|fake_machines	5	
-function	webui|src/webui/devpreview/fake_misc.py|_job	1	
+function	webui|src/webui/devpreview/fake_misc.py|_job	1	0.10.0 / 2026-11-22
 function	webui|src/webui/devpreview/fake_misc.py|_pki	2	
 function	webui|src/webui/devpreview/fake_misc.py|_vault	3	
 function	webui|src/webui/devpreview/fake_misc.py|fake_misc	4	
@@ -4164,6 +4391,7 @@ function	webui|src/webui/devpreview/fake_tree.py|fake_tree	2
 function	webui|src/webui/devpreview/sample_data.py|_list	1	
 function	webui|src/webui/devpreview/sample_radius_guides.py|sample_radius_guides	1	
 function	webui|src/webui/devpreview/sample_result.py|sample_result	1	
+function	webui|src/webui/handler.py|Handler._head	12	
 function	webui|src/webui/handler.py|Handler.address_string	1	
 function	webui|src/webui/handler.py|Handler.back	10	
 function	webui|src/webui/handler.py|Handler.deny	5	
@@ -4174,7 +4402,13 @@ function	webui|src/webui/handler.py|Handler.handle_request	9
 function	webui|src/webui/handler.py|Handler.log_message	2	
 function	webui|src/webui/handler.py|Handler.redirect	4	
 function	webui|src/webui/handler.py|Handler.send	3	
+function	webui|src/webui/handler.py|Handler.send_stream	11	
 function	webui|src/webui/httpio/cookie_header.py|cookie_header	1	
+function	webui|src/webui/httpio/multipart_stream.py|MultipartStream.__init__	1	
+function	webui|src/webui/httpio/multipart_stream.py|MultipartStream._fill	2	
+function	webui|src/webui/httpio/multipart_stream.py|MultipartStream.next_part	3	
+function	webui|src/webui/httpio/multipart_stream.py|MultipartStream.read_part	4	
+function	webui|src/webui/httpio/multipart_stream.py|MultipartStream.read_small	5	
 function	webui|src/webui/httpio/read_cookie.py|read_cookie	1	
 function	webui|src/webui/httpio/read_form.py|read_form	1	
 function	webui|src/webui/httpio/upload_value.py|upload_value	1	
@@ -4192,6 +4426,9 @@ function	webui|src/webui/routes/access_page.py|access_page	1
 function	webui|src/webui/routes/account_page.py|_factors_url	1	
 function	webui|src/webui/routes/account_page.py|account_page	2	
 function	webui|src/webui/routes/account_post.py|account_post	1	
+function	webui|src/webui/routes/backups_page.py|backups_page	1	
+function	webui|src/webui/routes/backups_post.py|backups_post	1	
+function	webui|src/webui/routes/backups_upload.py|backups_upload	1	
 function	webui|src/webui/routes/bind9_page.py|bind9_page	1	
 function	webui|src/webui/routes/changes_post.py|changes_post	1	
 function	webui|src/webui/routes/computers_page.py|computers_page	1	
@@ -4305,6 +4542,7 @@ function	webui|src/webui/views/account.py|account	1
 function	webui|src/webui/views/apply_result.py|apply_result	1	0.8.0 / 2026-10-23
 function	webui|src/webui/views/audit.py|audit	1	
 function	webui|src/webui/views/b64.py|b64	1	
+function	webui|src/webui/views/backups.py|backups	1	
 function	webui|src/webui/views/bind9.py|bind9	1	
 function	webui|src/webui/views/changes.py|changes	1	
 function	webui|src/webui/views/computers.py|_filtered	1	
@@ -4361,6 +4599,7 @@ page	fabricctl-agent	2
 page	fabricctl-jinja	3	
 page	fabricctl-lib	4	
 page	fabriclib-access	37	
+page	fabriclib-backup	44	
 page	fabriclib-breakglass	34	
 page	fabriclib-common	5	
 page	fabriclib-consent	6	

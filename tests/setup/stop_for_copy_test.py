@@ -1,15 +1,14 @@
-"""The export's stop (2.3.1.53): nothing is copied until the stack has really stopped; a container still running, or Docker not
-answering, refuses with no copy; a copy that fails says so instead of a traceback. Pure logic: systemd, Docker and cp stood in
-for. The sandbox runs the real one, and restores from it.
-    python3 tests/setup/export_install_test.py"""
+"""The stop before a cold copy (2.3.1.53; setup/stop_for_copy, used by a cold backup bundle, 1.3.7.4): it returns only
+once the stack has really stopped; a container still running, or Docker not answering, refuses, so there is no copy.
+Pure logic: systemd and Docker stood in for. The sandbox runs the real one, and restores from its bundle.
+    python3 tests/setup/stop_for_copy_test.py"""
 import os
 import subprocess
 import sys
-import tempfile
 from types import SimpleNamespace
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
-import fabriclib.setup.export_install as ei  # noqa: E402
+import fabriclib.setup.stop_for_copy as sfc  # noqa: E402
 from fabriclib.common.errors import ValidationError  # noqa: E402
 
 FAILED = 0
@@ -21,8 +20,9 @@ def check(name, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + name + ("" if ok else f"  -> {str(detail)[:400]}"))
 
 
-def run_export(ps_replies, cp_rc=0, ps_rc=0, stop_error=None):
-    """export_install on a stood-in host: docker ps says each of ps_replies in turn, then the last: (steps, error)."""
+def run_stop(ps_replies, ps_rc=0, stop_error=None):
+    """stop_for_copy on a stood-in host, then "copy" when it returned: docker ps says each of ps_replies in turn, then
+    the last: (steps, error)."""
     steps, replies = [], list(ps_replies)
 
     def fake_run(cmd, **kw):
@@ -30,9 +30,6 @@ def run_export(ps_replies, cp_rc=0, ps_rc=0, stop_error=None):
             steps.append("ps")
             out = replies.pop(0) if len(replies) > 1 else replies[0]
             return subprocess.CompletedProcess(cmd, ps_rc, stdout=out, stderr="no docker" if ps_rc else "")
-        if cmd[0] == "cp":
-            steps.append("cp")
-            return subprocess.CompletedProcess(cmd, cp_rc, stdout="", stderr="cannot stat postmaster.pid" if cp_rc else "")
         if cmd[0] == "systemctl":
             steps.append("timers" if "fabric-grants.timer" in cmd else "systemctl")
         return subprocess.CompletedProcess(cmd, 0, stdout="1K\tx\n", stderr="")
@@ -43,35 +40,28 @@ def run_export(ps_replies, cp_rc=0, ps_rc=0, stop_error=None):
             raise ValidationError(stop_error)
         return []
 
-    ei.subprocess = SimpleNamespace(run=fake_run)
-    ei.control_stack = fake_stop
-    ei.secrets_in_openbao = lambda f: False
-    ei.STOP_WAIT = 2
-    ei.time = SimpleNamespace(time=real_time.time, sleep=lambda s: real_time.sleep(0.01), strftime=real_time.strftime)
-    with tempfile.TemporaryDirectory() as d:
-        base = os.path.join(d, "opt")
-        os.makedirs(os.path.join(base, "postgres"))
-        ei.DIRS = ("postgres",)
-        ctx = SimpleNamespace(vars={}, secrets_file="", deploy_base=base, path=lambda n: os.path.join(base, n))
-        os_chown, os.chown = os.chown, lambda *a: None
-        try:
-            ei.export_install(ctx, os.path.join(d, "export"))
-            error = ""
-        except ValidationError as exc:
-            error = str(exc)
-        finally:
-            os.chown = os_chown
+    sfc.subprocess = SimpleNamespace(run=fake_run)
+    sfc.control_stack = fake_stop
+    sfc.STOP_WAIT = 2
+    sfc.time = SimpleNamespace(time=real_time.time, sleep=lambda s: real_time.sleep(0.01), strftime=real_time.strftime)
+    sfc.DIRS = ("postgres",)
+    try:
+        sfc.stop_for_copy("/opt")
+        steps.append("cp")
+        error = ""
+    except ValidationError as exc:
+        error = str(exc)
     return steps, error
 
 
-real_time = ei.time
-steps, error = run_export([""])
+real_time = sfc.time
+steps, error = run_stop([""])
 check("a stack that has stopped: timers first, every unit, Docker asked, then the copy", not error
       and steps.index("timers") < steps.index("stack stop") < steps.index("ps") < steps.index("cp"), (steps, error))
 
 
 # what the probe measured: the stop returns, Postgres still running; the copy waits for it to be gone
-ei._real_still = ei._still_running
+sfc._real_still = sfc._still_running
 ps = {"n": 0}
 
 
@@ -80,28 +70,25 @@ def stopping(base):
     return ["postgres"] if ps["n"] < 3 else []
 
 
-ei._still_running = stopping
-steps, error = run_export([""])
+sfc._still_running = stopping
+steps, error = run_stop([""])
 check("Postgres still going down when the stop returns: the copy waits until it is gone", not error and ps["n"] == 3 and "cp" in steps, (ps, steps, error))
-ei._still_running = lambda base: ["postgres"]
-steps, error = run_export([""])
+sfc._still_running = lambda base: ["postgres"]
+steps, error = run_stop([""])
 check("negative: a container still running after the wait: refused, naming it, nothing copied",
       "postgres still running" in error and "cp" not in steps, (steps, error))
-ei._still_running = ei._real_still
-steps, error = run_export([""], ps_rc=1)
+sfc._still_running = sfc._real_still
+steps, error = run_stop([""], ps_rc=1)
 check("negative: Docker cannot say what runs: refused, nothing copied", "could not ask Docker" in error and "cp" not in steps, (steps, error))
-steps, error = run_export([""], stop_error="systemctl stop fabric.target failed: x")
+steps, error = run_stop([""], stop_error="systemctl stop fabric.target failed: x")
 check("negative: the stop itself failed: refused, nothing copied", "stop fabric.target failed" in error and "cp" not in steps, (steps, error))
-steps, error = run_export([""], cp_rc=1)
-check("negative: a copy that fails: says what, that nothing was uninstalled, and what to do; no traceback",
-      "could not copy" in error and "cannot stat" in error and "nothing was uninstalled" in error, (steps, error))
 
 # whose containers: this install's alone, by the folder Compose records
 
 
 def listing(out):
-    ei.subprocess = SimpleNamespace(run=lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, stdout=out, stderr=""))
-    return ei._still_running("/opt")
+    sfc.subprocess = SimpleNamespace(run=lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, stdout=out, stderr=""))
+    return sfc._still_running("/opt")
 
 
 check("this install's containers are counted, by Compose's folder", listing("postgres\t/opt/postgres\n") == ["postgres"])
