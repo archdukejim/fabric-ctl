@@ -9,6 +9,8 @@ are pure functions checked before anything is written.
 |---|---|
 | `check_vlan.py` | A VLAN checked: ID 1-4094 and name, each unique in the site; purpose, notes, access |
 | `check_subnet.py` | A subnet checked: an IPv4 network, its gateway, relay, no overlap in the domain without a reason |
+| `subnet_collision.py` | What a new LAN subnet collides with: fabric's container network or another subnet of the plan, the moving LAN's own left out (1.3.7.7) |
+| `kept_plan_subnets.py` | The subnets of the plan this site last read, its own by name and the other sites', for the collision checks |
 | `check_range.py` | A range checked: kind, inside its subnet, no overlap; a dhcp range holds only reservations |
 | `check_address.py` | An address checked: one claim each, only reservations in a dhcp range, MAC and DNS name rules; warnings |
 | `check_block.py` | A site's number checked: 1-255, no other site's |

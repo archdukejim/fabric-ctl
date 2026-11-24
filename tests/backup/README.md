@@ -8,6 +8,7 @@ checked; `age` and `zstd` are needed (the package depends on them).
 |---|---|
 | `bundle_test.py` | A bundle made, checked and opened with the real age, zstd and tar: passphrase and public key, wrong keys, a changed byte, nothing written plain |
 | `old_address_uses_test.py` | What still names the old address or subnet after a move; fabric's own and other networks left out |
+| `check_changes_test.py` | What a restore or reinstall may change: the new subnet's collisions with fabric's container network and the plan, a bundle without them, the refusals before them |
 | `prune_bundles_test.py` | Keeping the newest scheduled bundles; the others never removed |
 | `restore_test.py` | A whole restore of a real bundle with address changes, its refusals, and the dump loaders |
 | `postgres_login_test.py` | The dump and load log in as Postgres's admin once it exists, objects made as Keycloak's role; the bootstrap role before |

@@ -29,7 +29,9 @@ def _field(q):
     if q.get("choices"):
         return "".join(f'<button name="value" value="{escape(v)}"{" class=secondary" if i else ""}>{escape(t)}</button>'
                        for i, (v, t) in enumerate(q["choices"]))
-    kind = 'type="password" autocomplete="new-password"' if q.get("secret") else 'type="text" autocomplete="off"'
+    # a bundle's key is one the person already has: a password manager may fill it (2.1.1.107); a new one is new
+    fill = "current-password" if q.get("qid") == "restore.key" else "new-password"
+    kind = f'type="password" autocomplete="{fill}"' if q.get("secret") else 'type="text" autocomplete="off"'
     value = "" if q.get("secret") else escape(q.get("default") or "")
     return (f'<input id="value" name="value" {kind} value="{value}" autofocus spellcheck="false" '
             'autocapitalize="off"><button>Continue</button>')

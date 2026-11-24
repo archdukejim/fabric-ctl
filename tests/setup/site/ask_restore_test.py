@@ -241,11 +241,16 @@ cwr.check_bundle = lambda path: dict(MANIFEST)
 seen = {}
 
 
-def whole(changes, problem=""):
+probed = []
+
+
+def whole(changes, problem="", in_use=""):
     seen.clear()
+    probed.clear()
     try:
         cwr.check_whole_restore(tmp, OTHER, {"passphrase": "x"}, "0.10.1", changes,
-                                problem=lambda a: seen.update(a) or problem, opens=lambda p, **k: None)
+                                problem=lambda a: seen.update(a) or problem, opens=lambda p, **k: None,
+                                in_use=lambda ip: probed.append(ip) or in_use)
         return None
     except ValidationError as exc:
         return str(exc)
@@ -258,6 +263,12 @@ err = whole({"host_ip": "10.20.0.5", "lan_cidr": "10.20.0.0/24", "lan_gateway": 
             "10.20.0.5 is not an address of this machine")
 check("negative: a new address this host does not have yet: refused, give it first (4.2.4.8)",
       "Give this host its new address first" in (err or "") and "4.2.4.8" in err, err)
+err = whole({"host_ip": "10.20.0.5", "lan_cidr": "10.20.0.0/24", "lan_gateway": "10.20.0.1"},
+            in_use="aa:bb:cc:dd:ee:ff")
+check("negative: another machine answers at the new address: refused, naming its MAC (2.1.1.107)",
+      "aa:bb:cc:dd:ee:ff" in (err or "") and probed == ["10.20.0.5"], (err, probed))
+check("negative: ...and at the bundle's own address, with no changes (the old host still running there)",
+      "aa:bb:cc:dd:ee:ff" in (whole({}, in_use="aa:bb:cc:dd:ee:ff") or "") and probed == ["10.0.0.5"], probed)
 check("negative: a gateway outside the new subnet: check_changes refuses",
       "must both be in" in (whole({"host_ip": "10.20.0.5", "lan_cidr": "10.20.0.0/24"}) or ""))
 check("negative: the host's name: refused, rename after the restore", "4.2.4.3" in (whole({"hostname": "x"}) or ""))

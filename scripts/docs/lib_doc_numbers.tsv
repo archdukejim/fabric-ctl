@@ -739,6 +739,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/common/site_plan.py	10
 file	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py	97	
 file	fabriclib-ipam|src/fabriclib/ipam/export_plan.py	18	
 file	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py	19	
+file	fabriclib-ipam|src/fabriclib/ipam/kept_plan_subnets.py	131	
 file	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py	63	
 file	fabriclib-ipam|src/fabriclib/ipam/move_lan_subnet.py	129	
 file	fabriclib-ipam|src/fabriclib/ipam/move_subnets_to_plan.py	58	
@@ -834,6 +835,7 @@ file	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py	29
 file	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py	30	
 file	fabriclib-ipam|src/fabriclib/ipam/show_plan.py	31	
 file	fabriclib-ipam|src/fabriclib/ipam/show_scan.py	84	
+file	fabriclib-ipam|src/fabriclib/ipam/subnet_collision.py	132	
 file	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py	95	
 file	fabriclib-ipam|src/fabriclib/ipam/subnets_to_plan.py	62	
 file	fabriclib-ipam|src/fabriclib/ipam/suggestions.py	11	
@@ -1141,6 +1143,7 @@ file	fabriclib-setup|src/fabriclib/setup/check_export_dir.py	2	0.10.0 / 2026-11-
 file	fabriclib-setup|src/fabriclib/setup/choose_mode.py	67	
 file	fabriclib-setup|src/fabriclib/setup/choose_plan.py	3	
 file	fabriclib-setup|src/fabriclib/setup/collect_vars.py	4	
+file	fabriclib-setup|src/fabriclib/setup/common/address_in_use.py	164	
 file	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py	78	
 file	fabriclib-setup|src/fabriclib/setup/common/apt_install.py	50	
 file	fabriclib-setup|src/fabriclib/setup/common/ask_admin_fact.py	100	
@@ -2986,6 +2989,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|vlan_label	4
 function	fabriclib-ipam|src/fabriclib/ipam/common/vlan_refs.py|vlan_ref	3	
 function	fabriclib-ipam|src/fabriclib/ipam/export_plan.py|export_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/find_in_plan.py|find_in_plan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/kept_plan_subnets.py|kept_plan_subnets	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_add_records	1	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|_globals	2	
 function	fabriclib-ipam|src/fabriclib/ipam/load_address_plan.py|load_address_plan	3	
@@ -3129,6 +3133,7 @@ function	fabriclib-ipam|src/fabriclib/ipam/set_subnet.py|set_subnet	1
 function	fabriclib-ipam|src/fabriclib/ipam/set_vlan.py|set_vlan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/show_plan.py|show_plan	1	
 function	fabriclib-ipam|src/fabriclib/ipam/show_scan.py|show_scan	1	
+function	fabriclib-ipam|src/fabriclib/ipam/subnet_collision.py|subnet_collision	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_free_rows	3	
 function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_hosts	1	
 function	fabriclib-ipam|src/fabriclib/ipam/subnet_map.py|_range_at	2	
@@ -3622,6 +3627,8 @@ function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_load	2
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_network_problem	6	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|_valid	1	0.7.0 / 2026-10-12
 function	fabriclib-setup|src/fabriclib/setup/collect_vars.py|collect_vars	5	
+function	fabriclib-setup|src/fabriclib/setup/common/address_in_use.py|_interface_of	1	
+function	fabriclib-setup|src/fabriclib/setup/common/address_in_use.py|address_in_use	2	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_pam_with	3	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_pam_without	4	
 function	fabriclib-setup|src/fabriclib/setup/common/apply_host_managed.py|_read	1	

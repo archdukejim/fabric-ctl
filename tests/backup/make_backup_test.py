@@ -57,12 +57,14 @@ def plan(base, v, method, only=None):
 def bundle(plan_, host, meta, kind, passphrase=None, public_key=None, folder=None):
     extra = dict((s, x) for s, _, x, _ in plan_).get("secrets")
     packed["secrets"] = sorted(os.listdir(extra)) if extra else []
+    packed["meta"] = meta
     path = os.path.join(tmp, f"fabric-{host}-20261123T000000Z-{kind}.fabric.tar")
     open(path, "w").close()
     return path
 
 
 mb.backup_plan, mb.make_bundle = plan, bundle
+mb.kept_plan_subnets = lambda: [{"name": "iot", "cidr": "10.20.0.0/24"}]
 for method in ("online", "cold"):
     events.clear()
     mb.make_backup(tmp, {"hostname": "fabric-1"}, "/x/fabric-secrets.yml", "manual", method, passphrase="p" * 12)
@@ -77,6 +79,14 @@ mb.make_backup(tmp, {"hostname": "fabric-1"}, "/x/fabric-secrets.yml", "manual",
                only={"dns"})
 check("negative: a safety bundle of another section (dns): fabric's secrets not read out at all",
       "export" not in events and packed["secrets"] == [], (events, packed))
+
+mb.make_backup(tmp, {"hostname": "fabric-1", "fabric_subnet": "10.254.0.0/24"}, "/x/fabric-secrets.yml", "manual",
+               "online", passphrase="p" * 12)
+check("the manifest carries fabric_subnet and the plan's subnets, for a restore's collision checks (2.1.1.107)",
+      packed["meta"]["fabric_subnet"] == "10.254.0.0/24"
+      and packed["meta"]["plan_subnets"] == [{"name": "iot", "cidr": "10.20.0.0/24"}], packed["meta"])
+mb.make_backup(tmp, {"hostname": "fabric-1"}, "/x/fabric-secrets.yml", "manual", "online", passphrase="p" * 12)
+check("...fabric_subnet's default when the settings leave it out", packed["meta"]["fabric_subnet"] == "10.255.0.0/24")
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)
