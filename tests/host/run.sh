@@ -239,9 +239,11 @@ put "$OUT/argv_check.py"
 check "no secret in any process's argv" "R 'python3 /tmp/argv_check.py' | grep -q 'LEAKS: none'"
 
 if [ "${CLEANUP:-0}" = 1 ]; then
-    # apt purge: apt cannot ask, so fabric's data is exported to /var/backups/fabric/ first
+    # apt purge: apt cannot ask for a passphrase, so it bundles only to a schedule's public key (1.3.7.13); the
+    # private key is the operator's, made here for the test only
+    R 'umask 077; age-keygen -o /root/schedule.key 2>/dev/null; fabricctl backup schedule --time 03:00 --keep 7 --public-key "$(age-keygen -y /root/schedule.key)"' > "$OUT/schedule.log" 2>&1
     R 'DEBIAN_FRONTEND=noninteractive apt-get purge -y -q fabricctl' > "$OUT/uninstall.log" 2>&1
-    check "apt purge: data exported to /var/backups/fabric, fabric removed"         "R 'ls -d /var/backups/fabric/fabric-export-*/stepca/data' >/dev/null 2>&1 && ! R 'test -e /opt/fabric' && ! R 'dpkg -s fabricctl' >/dev/null 2>&1"
+    check "apt purge: a cold bundle sealed to the schedule's key in /var/backups/fabric, fabric removed"         "R 'ls /var/backups/fabric/*-uninstall.fabric.tar' >/dev/null 2>&1 && ! R 'test -e /opt/fabric' && ! R 'dpkg -s fabricctl' >/dev/null 2>&1"
     check "apt purge: no failed sssd or fabric unit left, sssd's sockets unmasked again (2.1.6.95, finding 18)" \
         "[ -z \"\$(failed_ours)\" ] && ! R 'systemctl is-enabled sssd-nss.socket' | grep -qx masked"
 fi

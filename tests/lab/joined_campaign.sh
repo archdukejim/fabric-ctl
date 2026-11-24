@@ -22,7 +22,7 @@
 #            same as before the move; the later steps then run with them there
 #   images   every image updated and rolled back: tests/images/update.sh --ssh (2.1.14.12)
 #   restart  fabricctl stop and start, then the fabric VM rebooted
-#   restore  uninstall --export, then restore from it (3.2.4)
+#   restore  uninstall with a backup bundle, then restore from it (1.3.7.6)
 #   move     the fabric VM moved from 10.88.0.10 to 10.88.0.13 by 4.2.4.2: netplan, host_ip applied, the member
 #            step (no clean-up by hand since 0.9.2: the apply does it, 2.1.1.74), the members' DNS moved, 4.2.4.7
 #   rename   the fabric VM renamed by 4.2.4.3: the old way refused (2.1.6.104), `fabricctl admin rename-host`, the
@@ -265,10 +265,11 @@ if wants restart; then
     client_check "a reboot"
 fi
 if wants restore; then
-    echo "=== restore: an export, then fabric back from it"
-    check "uninstall with an export" "F 'fabricctl uninstall --yes --export /root/fabric-export' >/dev/null"
-    check "restore from it" "F 'fabricctl restore /root/fabric-export --yes' >/dev/null"
-    client_check "a restore from an export"
+    echo "=== restore: a backup bundle at uninstall, then fabric back from it (1.3.7.6)"
+    # the bundle's passphrase, a test value, in a root-only file: never on a command line
+    check "uninstall with a backup bundle" "F 'umask 077; openssl rand -hex 16 > /root/bundle-pw; fabricctl uninstall --yes --backup --key-stdin < /root/bundle-pw' >/dev/null"
+    check "restore from it" "F 'fabricctl restore \$(ls /var/backups/fabric/*-uninstall.fabric.tar | tail -1) --key-stdin --yes < /root/bundle-pw' >/dev/null"
+    client_check "a restore from a bundle"
 fi
 # Steps move and rename follow the operators' procedure, 4.2.4.2 and 4.2.4.3, step for step (2.1.1.73).
 # Purpose: the zone's records the menu lists (`sudo fabricctl --interactive`, 1, 1: 4.4.1), one per line as

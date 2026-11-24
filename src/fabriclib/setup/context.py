@@ -24,6 +24,7 @@ class SetupContext:
     force_certs: bool = False                     # re-issue service certs even if current
     admin_password_file: str = None               # setup --admin-password-file (unattended, 2.1.6.33)
     admin_password: str = None                    # the first admin's chosen password: memory only, never saved
+    restore_key: dict = None                      # Restore from a backup's key (1.3.7.10): memory only, never saved
     fresh_install: bool = False                   # no settings yet and no domain provisioned (collect_vars)
     host_choices: dict = field(default_factory=dict)   # recommended host changes on/off, the menu's (1.2.9.11.3)
     origins: dict = field(default_factory=dict)   # settings the menu shows as "found" or "default", not chosen
@@ -64,7 +65,7 @@ class SetupContext:
         Returns: "<deploy_base>/fabric/config/fabric-secrets.yml" (str).
         Fails:   never — string join only.
         Feeds:   secrets, cli main (`secrets`), collect_vars, deploy_config, setup_openbao, start_services,
-                 backup_install, export_install."""
+                 backup/make_backup (via run_uninstall_command, run_reinstall_command)."""
         return os.path.join(self.config_dir, "fabric-secrets.yml")
 
     def path(self, *parts):
@@ -82,7 +83,7 @@ class SetupContext:
                  secrets cache cleared.
         Fails:   OSError if the file exists but cannot be read; yaml.YAMLError if it does not parse.
         Feeds:   run_setup (after deploy, for --step and doctor), cli main, renew_service_certs,
-                 run_uninstall_command, uninstall, backup_install, deploy_config."""
+                 run_uninstall_command, run_reinstall_command, uninstall, deploy_config."""
         if os.path.exists(self.vars_file):
             with open(self.vars_file) as f:
                 self.vars = yaml.safe_load(f) or {}

@@ -1,4 +1,5 @@
 import hmac
+import shutil
 import sys
 import traceback
 import urllib.parse
@@ -8,7 +9,9 @@ from webui import agentclient as actions
 from webui import views
 from webui.app_state import App
 from webui.constants import NO_CERT
+from webui.httpio.multipart_stream import MultipartStream
 from webui.httpio.read_form import read_form
+from webui.routes.backups_upload import backups_upload
 from webui.routes.get_page import get_page
 from webui.routes.post_action import post_action
 from webui.security.verified_client_cert import verified_client_cert
@@ -55,9 +58,33 @@ class Handler(BaseHTTPRequestHandler):
         """
         if isinstance(body, str):
             body = body.encode()
+        self._head(status, len(body), content_type, headers)
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def send_stream(self, stream, length, content_type, headers=None):
+        """Purpose: Send a 200 whose body is read from a stream a MiB at a time, never held whole (manual 1.3.7.9: a
+                 bundle's download), with the same security headers as send.
+        Inputs:  stream — an object with read(n); length — its length in bytes; content_type — str; headers — extra
+                 (name, value) headers, e.g. Content-Disposition.
+        Returns: None; the response is written (no body for HEAD).
+        Fails:   OSError (BrokenPipeError) when nginx or the browser has gone; the stream's own read errors.
+        Feeds:   routes/backups_page (a bundle's download).
+        """
+        self._head(200, length, content_type, headers)
+        if self.command != "HEAD":
+            shutil.copyfileobj(stream, self.wfile, 1 << 20)
+
+    def _head(self, status, length, content_type, headers):
+        """Purpose: The status line and headers of a response: the fixed security headers and the extra ones.
+        Inputs:  status — int; length — the body's length; content_type — str; headers — list of (name, value) or None.
+        Returns: None; the headers are written and ended.
+        Fails:   OSError when the connection has closed.
+        Feeds:   send, send_stream.
+        """
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Length", str(length))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         # same-origin, not no-referrer: with no-referrer a browser sends "Origin: null" on its own form posts, which the
@@ -71,8 +98,6 @@ class Handler(BaseHTTPRequestHandler):
         for k, v in (headers or []):
             self.send_header(k, v)
         self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
 
     def redirect(self, location, headers=None):
         """Purpose: Send a 303 See Other to a location.
@@ -178,6 +203,16 @@ class Handler(BaseHTTPRequestHandler):
                 with self.app.lock:
                     sess["flash"] = (self.app.sessions.get(sess["sid"]) or {}).pop("flash", None)
 
+            if method == "POST" and path == "/settings/backups/upload":   # a bundle, up to 8 GiB (1.3.7.9)
+                parts = MultipartStream(self.rfile, self.headers.get("Content-Length") or 0,
+                                        self.headers.get("Content-Type", ""))
+                first = parts.next_part()
+                csrf = parts.read_small() if first and first[0] == "csrf" else ""
+                if (self.headers.get("Origin", "") != self.app.public_url
+                        or not hmac.compare_digest(csrf, sess["csrf"])):
+                    self.close_connection = True
+                    return self.deny(403, "Request rejected (CSRF check failed). Reload the page and try again.")
+                return backups_upload(self, sess, parts)
             if method == "POST":
                 origin = self.headers.get("Origin", "")
                 form = read_form(self.headers, self.rfile)

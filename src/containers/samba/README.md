@@ -7,6 +7,8 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | File | What |
 |---|---|
 | `converge.py` | The entry point: the wanted state as JSON on stdin, every part in order, what changed as JSON |
+| `finish_restore.py` | After a restore from an online backup: the backup marks removed from sam.ldb, in the DC's image with the DC stopped (1.3.7.6) |
+| `make_bind_dns.py` | After a restore from an online backup: BIND's copy of the DNS partitions and its keytab made again (Samba's `samba_upgradedns`, DnsAdmins found by name), in the DC's image with the DC stopped (1.3.7.6) |
 | `open_samdb.py` | The DC's database opened locally as the system (optionally allowing schema changes) |
 | `repair_role_owners.py` | The roles this DC holds named by its current DN (a renamed AD site left the old text, 1.6.5.24) |
 | `ensure_schema.py` | fabric's and sudo's attributes and classes in AD's schema, added once (OIDs AD accepts, Q3), numbered after 0.8.0's with the retired and reserved numbers kept apart; a schema that disagrees is refused before anything is added (1.10.4.31) |
@@ -139,3 +141,4 @@ and mounted read-only. `converge.py` runs as root inside the DC on its own datab
 | `list_spns.py` | Every SPN and its account, duplicates flagged |
 | `edit_person.py` / `unlock_person.py` | A person's details, AD's standard attributes (2.1.6.93); a lockout cleared |
 | `change_own_password.py` | A person's own password: bound as them over NTLM, the change theirs (stdin only) |
+| `domain_admin.py` | Whether a person is one of Domain Admins (RID 512, nested), for the console's Backups page (1.3.7.12) |

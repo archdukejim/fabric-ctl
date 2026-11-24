@@ -26,7 +26,7 @@ SKIP_README = {"__init__.py", "README.md"}     # a README need not list itself o
 
 
 # the settings reference: how settings work (1.1.8), then each part's settings
-SETTINGS = ("1.1.8", "1.1.9", "1.2.10", "1.2.11", "1.2.12", "1.4.2", "1.5.2", "1.6.9", "1.6.10", "1.8.4")
+SETTINGS = ("1.1.8", "1.1.9", "1.2.10", "1.3.7", "1.2.11", "1.2.12", "1.4.2", "1.5.2", "1.6.9", "1.6.10", "1.8.4")
 WHERE = "the manual's settings (1.1.8 and each part's)"
 
 

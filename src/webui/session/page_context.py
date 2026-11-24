@@ -1,12 +1,13 @@
 from webui import agentclient as actions
-from webui.views.constants import PENDING_PAGES
+from webui.views.constants import BACKUPS, PENDING_PAGES
 
 
 def page_context(sess):
     """Purpose: The page context every view needs: who is signed in, the CSRF token, their permissions and the
              installed version.
     Inputs:  sess — dict from find_session.
-    Returns: {'user': str, 'csrf': str, 'perms': list, 'version': actions.version_info(), 'reminders': the host's
+    Returns: {'user': str, 'csrf': str, 'perms': list (with BACKUPS for a Domain Admin, 1.3.7.9), 'version':
+             actions.version_info(), 'reminders': the host's
              reminders from the sign-in (finish_login; list of {kind, text}), 'flash': the last action's message
              ({"ok"} or {"err"}, Handler.back; None), 'preview': True only in the dev preview (its banner),
              'pending': {navigation page path: {"id", "pending", "running"}} (Apply per page, 1.8.6.5: the person's
@@ -23,7 +24,8 @@ def page_context(sess):
     except (actions.AgentError, actions.ValidationError, actions.PermissionDenied):
         counts = {}                       # the frame without its pending marks: the page itself still works
     pending = {PENDING_PAGES[k]: {"id": k, **v} for k, v in counts.items() if k in PENDING_PAGES}
-    return {"user": sess["user"], "csrf": sess["csrf"], "perms": sess.get("perms") or [],
+    perms = (sess.get("perms") or []) + ([BACKUPS] if sess.get("domain_admin") else [])   # Backups (1.3.7.9)
+    return {"user": sess["user"], "csrf": sess["csrf"], "perms": perms,
             "version": actions.version_info(), "reminders": sess.get("reminders") or [],
             "flash": sess.get("flash"), "preview": bool(sess.get("preview")), "pending": pending,
             "pending_counts": {path: p["pending"] for path, p in pending.items()},

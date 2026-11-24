@@ -9,6 +9,7 @@ Setup's work as its own systemd unit, `fabric-setup.service`, so a dropped sessi
 | `choose_start.py` | A full setup's first move: follow the running unit, resume the last unfinished run, or ask and start anew |
 | `read_run.py` | The last run's record (`setup-run.yaml`): steps done, the step running, how it ended |
 | `write_run.py` | Save the run record atomically, 0600 |
+| `run_restore.py` | Restore from a backup's run in the unit: the bundle restored with the handed-over key, then setup on it unattended, what moved kept for the finish (manual 1.3.7.10) |
 | `write_handoff.py` | The secrets typed in the questions, to a new root-only 0600 file in `/run/fabric-setup` (0700) for the unit |
 | `read_handoff.py` | Read the handed-over secrets once in the unit, removing the file; refuse one not root's 0600 regular file |
 | `can_detach.py` | Whether the host was booted with systemd and has `systemd-run` |

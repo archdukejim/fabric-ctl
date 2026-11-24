@@ -16,7 +16,10 @@ def deploy_samba(v, secrets, jinja_env):
     Returns: {"converge": True if the converge code changed, "restart": True if the DC's resolv.conf changed}.
              (The password file is read only when the domain is provisioned: a change to it changes nothing in a
              running domain.) BIND's DLZ files are written when missing, so BIND
-             can start; turning DLZ on (and restarting BIND) happens after the domain is converged.
+             can start, and again while the DC's DNS database is not there (a restored bundle brings dlz.conf back
+             before an online bundle's databases load: manual 1.3.7.6; found by the sandbox, 2026-11-23): either way
+             they can only be turned off here; turning DLZ on (and restarting BIND) happens after the domain is
+             converged.
     Fails:   KeyError without ad_admin_password; OSError from creating, owning or writing.
     Feeds:   deploy/deploy_optional_parts (apply); tests/samba.
     Notes:   the folders are root's (the DC runs as root in its container): data/ (0755: the DC serves SYSVOL as each
@@ -38,8 +41,10 @@ def deploy_samba(v, secrets, jinja_env):
     # its time-signing socket (2.1.13.1): root and chrony's group, 0750 (Samba checks the owner and the mode), so the
     # host's chrony signs Windows members' time
     ensure_dir(v["ad_ntp_signd_dir"], 0o750, 0, _chrony_gid())
-    # BIND includes these when it starts: they must exist; turning DLZ on is for after the domain is converged
-    if not os.path.exists(os.path.join(base, "bind", "dlz.conf")):
+    # BIND includes these when it starts: they must exist, and name no database that is not there (a restore's
+    # dlz.conf before its databases load); turning DLZ on is for after the domain is converged
+    if (not os.path.exists(os.path.join(base, "bind", "dlz.conf"))
+            or not os.path.exists(os.path.join(base, "data", "bind-dns", "dns", "sam.ldb"))):
         write_bind_dlz(v)
     write_file_if_changed(os.path.join(base, "secrets", "admin_password"), secrets["ad_admin_password"] + "\n", 0o600)
     # a site joining the root's domain (manual 1.9.8.4): the temporary join account as a credentials file, kept until

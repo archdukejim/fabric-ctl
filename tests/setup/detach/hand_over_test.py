@@ -13,6 +13,7 @@ import yaml  # noqa: E402
 
 import fabriclib.setup.run_steps as rs  # noqa: E402
 from fabriclib.setup.context import SetupContext  # noqa: E402
+import fabriclib.setup.detach.hand_over as ho  # noqa: E402
 from fabriclib.setup.detach.hand_over import hand_over  # noqa: E402
 from fabriclib.setup.detach.read_run import read_run  # noqa: E402
 from fabriclib.setup.errors import SetupError  # noqa: E402
@@ -107,5 +108,29 @@ with tempfile.TemporaryDirectory() as d:
           code == 0 and not launched and ran == ["preflight", "deploy", "certs"]
           and read_run(ctx.config_dir)["state"] == "done", (code, ran))
 
+RESTORE = {"bundle": "/var/backups/fabric/b.fabric.tar", "changes": {}, "allow_again": False}
+KEY = {"passphrase": "a bundle passphrase", "private_key": None}
+with tempfile.TemporaryDirectory() as d:     # Restore from a backup (manual 1.3.7.10)
+    ctx, run_dir = new_ctx(d), os.path.join(d, "run")
+    ctx.admin_password, ctx.vars, ctx.restore_key = None, {}, KEY
+    launched.clear()
+    code = hand_over(ctx, STEPS, {"options": {"restore": RESTORE}}, launch=launch, follow=lambda c: 0,
+                     detach=lambda: True, handoff_dir=run_dir)
+    run_id, base, log, rec, secrets = launched[-1]
+    check("a restore: the bundle's key handed over as a secret, the bundle and changes in the record",
+          secrets == {"restore_passphrase": "a bundle passphrase"} and rec["options"]["restore"] == RESTORE,
+          (secrets, rec))
+    check("negative: a restore: no fabric.yaml of empty answers (its settings are the bundle's), the key in no record",
+          not os.path.exists(os.path.join(ctx.config_dir, "fabric.yaml"))
+          and "a bundle passphrase" not in open(os.path.join(ctx.config_dir, "setup-run.yaml")).read())
+with tempfile.TemporaryDirectory() as d:
+    ctx, run_dir = new_ctx(d), os.path.join(d, "run")
+    ctx.restore_key, got = KEY, []
+    ho.run_restore = lambda c, record, save, key, steps: got.append((record["options"]["restore"], key)) or 0
+    ran.clear()
+    code = hand_over(ctx, STEPS, {"options": {"restore": RESTORE}}, launch=lambda *a: launched.append(a),
+                     follow=lambda c: 9, detach=lambda: False, handoff_dir=run_dir)
+    check("a restore on a host without systemd: restored here with the key in memory, not Guided's steps",
+          code == 0 and got == [(RESTORE, KEY)] and not ran, (got, ran))
 print(f"\n{PASS} passed, {FAIL} failed")
 sys.exit(1 if FAIL else 0)

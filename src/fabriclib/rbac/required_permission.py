@@ -7,6 +7,8 @@ GET = {
     ("cert-warnings",): "status:read", ("sizing",): "status:read", ("reminders",): "status:read", ("images",):
     "status:read",
     ("jobs", "*"): "session",
+    ("backup",): "session", ("backup", "allowed"): "session",   # Backups (1.3.7.9): fabric-agent checks Domain
+    ("backup", "bundles", "*"): "session",                    # Admins itself (1.3.7.12)
     ("zones",): "dns:read", ("zones", "*"): "dns:read", ("reverse-zones",): "dns:read", ("tsig",): "dns:read",
     ("tsig-choices", "*"): "dns:read",            # a zone's records a TSIG key's names are picked from (2.1.4.12)
     ("audit",): "audit:read",
@@ -86,6 +88,9 @@ POST = {
     # does its Apply, change by change
     ("pending", "hold"): "session", ("pending", "*", "drop"): "session", ("pending", "*", "discard"): "session",
     ("pending", "*", "apply"): "session",
+    ("backup", "now"): "session", ("backup", "schedule"): "session",   # Domain Admins, checked by fabric-agent
+    ("backup", "restore"): "session", ("backup", "reinstall"): "session",   # (1.3.7.12)
+    ("backup", "upload"): "session",
     ("local-admin", "checkout"): "session",           # the DC host's local-admin: fabric-agent asks the DC the
     ("local-admin", "ssh"): "session",                # caller's tier, the Enterprise Admin's alone (2.1.7.18)
     ("machines",): "machines:admin", ("machines", "*", "enable"): "machines:admin",

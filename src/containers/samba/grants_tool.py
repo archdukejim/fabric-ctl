@@ -2,7 +2,7 @@
 no network) by fabriclib/grants/grant_request:
     docker exec -i samba python3 /fabric/grants_tool.py < request.json
 The request on stdin: {"op": "list"|"show"|"add"|"set"|"remove"|"compile"|"explain"|"reaching"|"authorize"|
-"managed", "dc" (the DC
+"managed"|"domain_admin", "dc" (the DC
 asking, dc-NNNN),
 "writable_root" (bool: this is the root's writable DC, where grants are changed and compiled), …}. Prints one JSON
 object: {"result": …} or {"error": message} (exit 0 either way)."""
@@ -12,6 +12,7 @@ import sys
 from authorize_action import authorize_action
 from check_grant import check_grant
 from compile_grants import compile_grants
+from domain_admin import domain_admin
 from ensure_grant_sudo import rule_name
 from explain_grants import explain_grants
 from reaching_grants import reaching_grants
@@ -65,10 +66,11 @@ def run(req):
              of FIELDS' keys), "template" (add, optional: a TEMPLATES name whose rights fill what fields leave out),
              "person", "machine" (explain; reaching: "machine"), "caller", "action", "target", "bundles"
              (authorize: fabric-agent's check of a call, authorize_action), "user" (managed: the groups they
-             manage)}.
+             manage); "caller" (domain_admin: whether they are a Domain Admin, 1.3.7.12)}.
     Returns: list: {"grants": [summaries], "templates": TEMPLATES}; show: one summary with names; add, set: {"grant",
              "changed"}; remove: {"name", "changed"}; compile: {"changed"}; explain: explain_grants' result;
-             reaching: reaching_grants'; authorize: authorize_action's; managed: managed_groups'.
+             reaching: reaching_grants'; authorize: authorize_action's; managed: managed_groups';
+             domain_admin: {"member"}.
     Fails:   ValueError for a request refused (its message is shown); ldb.LdbError, OSError.
     Feeds:   this script's main."""
     samdb, lp = open_samdb(CONF)
@@ -90,6 +92,8 @@ def run(req):
         return reaching_grants(samdb, str(req.get("machine", "")))
     if op == "managed":                      # the groups a person manages (1.8.6.6): a read, at any DC
         return managed_groups(samdb, str(req.get("user", "")))
+    if op == "domain_admin":                 # the Backups page's check (1.3.7.12): a read, at any DC
+        return domain_admin(samdb, str(req.get("caller") or ""))
     if op == "authorize":                    # fabric-agent's check of a call (1.6.12.2): a read, at any DC
         caller = req.get("caller")
         return authorize_action(samdb, str(caller) if caller is not None else None, str(req.get("action", "")),

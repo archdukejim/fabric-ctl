@@ -1,5 +1,9 @@
 """What the pages show: the navigation, sections, sub-menus, the permissions that show them."""
 
+# Not a fabric permission: the console's mark that the sign-in found the person a Domain Admin, which shows the Backups
+# page (manual 1.3.7.9). fabric-agent checks Domain Admins itself at every backup route (1.3.7.12).
+BACKUPS = "backups:domain-admins"
+
 # Apply per page (manual 1.8.6.5): fabric-agent's pending page ids -> the navigation page whose changes they are
 PENDING_PAGES = {"people": "/directory/people", "groups": "/directory/groups", "machines": "/directory/computers",
                  "policies": "/directory/policies", "ous": "/directory/ous", "access": "/directory/access",
@@ -40,7 +44,8 @@ NAV = [
                             ("/secrets/unlock", "Unlock methods", ("vault:status",)),
                             ("/secrets/disk", "Disk encryption", ("vault:status",))]),
     ("settings", "Settings", [("/settings", "Setup wizard", ("settings:admin",)),
-                              ("/settings/sign-in", "Sign-in security", ("security:raise",))]),
+                              ("/settings/sign-in", "Sign-in security", ("security:raise",)),
+                              ("/settings/backups", "Backups", (BACKUPS,))]),
 ]
 # DNS filter tab sections: (view, label); the query log needs dns:querylog (MENU_PERMS)
 DNS_FILTER_SECTIONS = [("overview", "Overview"), ("lists", "Lists"), ("rules", "Rules"), ("groups", "Groups"),
@@ -142,7 +147,8 @@ OU_ROOTS = ("people", "service-accounts", "groups", "machines", "machines/server
 RADIUS_PAGES = {"overview": "/8021x", "decisions": "/8021x/decisions", "switches": "/8021x/guides",
                 "windows": "/8021x/guides", "client": "/8021x", "new-client": "/8021x", "mapping": "/8021x",
                 "new-mapping": "/8021x"}
-JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings"}
+JOB_PAGES = {"doctor": "/overview/doctor", "images": "/overview/updates", "settings": "/settings",
+             "backup": "/settings/backups", "restore": "/settings/backups"}
 # a group's kind (2.1.6.67, 1.6.12.17.5) -> (its label, why its members and managers are or are not changed here)
 GROUP_KINDS = {
     "own": ("the site's", ""),

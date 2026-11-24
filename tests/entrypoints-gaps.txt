@@ -63,8 +63,6 @@ agent:post.vault.slots.*.test +
 agent:post.vault.slots.add-hsm +
 agent:post.vault.slots.add-security-key +
 agent:post.vault.slots.add-usb +
-ask:cli.reinstall.confirm +
-ask:cli.reinstall.confirm -
 ask:menu.category.pick +
 ask:menu.category.pick -
 ask:menu.continue +
@@ -158,12 +156,6 @@ ask:service_cert.confirm -
 ask:setup.join_invitation +
 ask:setup.join_invitation -
 ask:undo.* +
-ask:uninstall.confirm +
-ask:uninstall.confirm -
-ask:uninstall.export +
-ask:uninstall.export -
-ask:uninstall.export_dir +
-ask:uninstall.export_dir -
 ask:uninstall.purge +
 ask:uninstall.purge -
 cli:--all +
@@ -240,7 +232,6 @@ cli:people.reset -
 cli:people.show +
 cli:people.show -
 cli:radius.log -
-cli:reinstall -
 cli:restart +
 cli:restart -
 cli:secrets +

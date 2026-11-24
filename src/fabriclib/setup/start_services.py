@@ -2,8 +2,11 @@ import os
 import subprocess
 import time
 
+from fabriclib.backup.load_directory_dump import load_directory_dump
+from fabriclib.backup.load_signin_dump import load_signin_dump
+from fabriclib.ipam.move_lan_subnet import move_lan_subnet
 from fabriclib.common.systemctl_up import systemctl_up
-from fabriclib.common.console import info, ok
+from fabriclib.common.console import info, ok, warn
 from fabriclib.common.errors import ValidationError
 from fabriclib.deploy.apply_deployment import apply_deployment
 from fabriclib.directory.ensure_default_device_roles import ensure_default_device_roles
@@ -41,7 +44,8 @@ def run(ctx):
              Keycloak configured (up to 6 tries, 15 s apart); fabric-agent and fabric-web running when the web UI is
              on; fabric-federation running when federation_endpoint is on. Once Keycloak's password is OpenBao's,
              Postgres's roles are made to match fabric's secrets before Keycloak starts (a reinstall's fresh data
-             folder, 2.1.7.4).
+             folder, 2.1.7.4). After an online bundle's restore (1.3.7.6), the domain's copy is loaded before the DC
+             starts and Keycloak's database once Postgres runs.
     Fails:   SetupError when a container is not healthy (start_unit), the domain cannot be converged, the default
              device roles cannot be made, a CA file Fluent Bit needs is missing, or Keycloak configuration still fails
              after 6 tries; CalledProcessError from systemctl.
@@ -63,9 +67,19 @@ def run(ctx):
         if flag and not v.get(flag):
             continue
         info(f"{unit}…")
+        try:
+            if unit == "samba" and load_directory_dump(ctx.deploy_base, ctx.config_dir):
+                ok("samba: the domain from the backup bundle, its backup marks removed (1.3.7.6)")
+        except ValidationError as e:
+            raise SetupError(str(e))
         ok(f"{unit}: {start_unit(unit, container, unit in ctx.restart_services)}")
         if unit == "postgres" and align_postgres_roles(ctx.secrets):
             ok("postgres: Keycloak's role and password as fabric's secrets hold them (2.1.7.4)")
+        try:
+            if unit == "postgres" and load_signin_dump(ctx.config_dir):
+                ok("postgres: Keycloak's database from the backup bundle (1.3.7.6)")
+        except ValidationError as e:
+            raise SetupError(str(e))
 
     try:
         done = converge_domain(v, os.path.join(ctx.config_dir, "federation.yaml"), ctx.secrets)
@@ -76,6 +90,11 @@ def run(ctx):
         info(line)
     for line in move_subnets_to_plan(v, ctx.secrets):        # once: 0.7's subnets into the address plan (1.10.4.15)
         info(line)
+    try:
+        for line in move_lan_subnet(v, ctx.config_dir, ctx.secrets):    # after a restore to another subnet (1.3.7.7)
+            info(line)
+    except ValidationError as e:
+        warn(f"address plan: the old LAN's subnet is not moved yet ({e}); the next setup goes on with it")
     if v.get("install_keycloak") and install_sso_keytab(v):     # Kerberos sign-in's keytab (manual 2.3.6.2.6.2)
         ok(f"keycloak: {start_unit('keycloak', 'keycloak', True)} (Kerberos sign-in keytab)")
     if (ctx.secrets or {}).get("ad_join"):        # a site whose DC just joined: its join account goes (1.9.8.4)

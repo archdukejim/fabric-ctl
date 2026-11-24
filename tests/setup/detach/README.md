@@ -10,6 +10,7 @@ killed mid-work, then re-attached).
 | `read_run_test.py` | The run record read; a missing, damaged, non-mapping or id-less one reads as none |
 | `write_run_test.py` | The run record atomic and 0600, a failed write leaving the old one whole |
 | `write_handoff_test.py` | The hand-off file new and 0600 in a 0700 folder; an existing file, a planted symlink and a bad run id refused |
+| `run_restore_test.py` | Restore from a backup's run: restored then set up with every step, `--approve` only for groups allowed before, a refusal ending the run, no second unpack after a restart |
 | `read_handoff_test.py` | The secrets read and the file kept for the run (a restarted unit reads it again, 2.1.2.28); once gone, a loose mode, another owner, a symlink and bad content refused and removed |
 | `unit_running_test.py` | `systemctl is-active` states read as running or not; no systemctl reads as not running |
 | `can_detach_test.py` | Only a host booted with systemd, with `systemd-run`, detaches |

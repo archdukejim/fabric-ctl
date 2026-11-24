@@ -15,7 +15,7 @@ def export_secrets(secrets_file, dest, v=None):
     Returns: dest.
     Fails:   load_secrets' ValidationError (OpenBao unreachable or sealed); yaml.YAMLError for a malformed
              file; OSError.
-    Feeds:   setup/backup_install.py backup_install, setup/export_install.py export_install.
+    Feeds:   backup/make_backup (a cold bundle: the copy goes into it, in RAM until packed).
     Notes:   written atomically, root:root 0600 (write_private_file).
     """
     os.makedirs(os.path.dirname(dest), mode=0o700, exist_ok=True)

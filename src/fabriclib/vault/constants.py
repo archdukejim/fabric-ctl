@@ -2,6 +2,7 @@
 SLOT_STORE = "slots.json"                  # unlock methods (key slots), root 0600, signed with the vault key
 SETUP_CREDS = "setup-approle.json"         # AppRole for fabricctl setup (root 0400)
 AGENT_CREDS = "agent-approle.json"         # AppRole for fabric-agent (root 0400)
+BACKUP_CREDS = "backup-approle.json"       # AppRole for backups: a raft snapshot, nothing else (root 0400)
 BOOTSTRAP_TOKEN = "bootstrap-root-token"   # initial root token, only until configure succeeds and revokes it
 KV_MOUNTS = {"fabric/": "fabric's own secrets", "apps/": "secrets for your applications"}
 
@@ -28,6 +29,10 @@ path "database/rotate-role/*"  { capabilities = ["update"] }
 path "sys/policies/password/local-admin"          { capabilities = ["create", "read", "update"] }
 path "sys/policies/password/local-admin/generate" { capabilities = ["read"] }
 path "local-admin/*"       { capabilities = ["create", "read", "update", "list"] }
+""",
+    # Backups (manual 1.3.7.4): a raft snapshot of OpenBao's data (still encrypted by its barrier), nothing else
+    "fabric-backup": """
+path "sys/storage/raft/snapshot" { capabilities = ["read"] }
 """,
     "fabric-agent": """
 path "sys/mounts" { capabilities = ["read"] }

@@ -69,5 +69,11 @@ def finish_login(h, cert, query):
             reminders = []
         with app.lock:
             app.sessions[sid]["reminders"] = reminders
+    try:                                     # the Backups page's entry (1.3.7.9); fabric-agent checks at each route
+        domain_admin = actions.backup_allowed()
+    except (actions.AgentError, actions.ValidationError, actions.PermissionDenied, actions.AuthError):
+        domain_admin = False
+    with app.lock:
+        app.sessions[sid]["domain_admin"] = domain_admin
     h.send(200, views.continue_page(pending.get("next") or "/"), headers=[
         cookie_header(SESSION_COOKIE, sid, app.max_age), cookie_header(LOGIN_COOKIE, "", 0, "Lax")])

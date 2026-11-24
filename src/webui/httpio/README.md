@@ -9,3 +9,4 @@ Reading a request (form, upload, cookie) and building a Set-Cookie header. Not n
 | `read_form.py` | Read and parse a POST body: urlencoded or multipart form data. |
 | `upload_value.py` | Take a value from an upload field or, if none was uploaded, from its paste field; binary files (DER) are base64-encoded for the agent. |
 | `__init__.py` | Empty; makes it a package |
+| `multipart_stream.py` | A multipart body read part by part as it arrives, a part's data in pieces (a bundle's upload) |

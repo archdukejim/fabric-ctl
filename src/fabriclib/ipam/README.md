@@ -26,9 +26,11 @@ are pure functions checked before anything is written.
 | `export_plan.py` | The address table as CSV |
 | `add_dhcp_subnet.py`, `set_dhcp_subnet.py`, `remove_reservation_mac.py` | The old `fabricctl dhcp add-subnet`, `set-subnet` and `unreserve` as changes to the plan (their aliases, `dhcp/run_dhcp_alias`) |
 | `subnets_to_plan.py` | The upgrade: a site's `dhcp.subnets` as the plan's changes, nothing it serves changed |
+| `move_lan_subnet.py` | After a restore to another subnet: the plan's LAN subnet written to the domain at its new network |
 | `move_subnets_to_plan.py` | The upgrade's move: the settings' subnets into the plan once, recorded, `dhcp.subnets` removed (called by every apply and by setup) |
 | `run_ipam_command.py` | `fabricctl ipam`: routes only (sync, scan; the reads and changes to `cli/`; option, class, netboot and watch to `options/`; scan at another site and scan-requests to `scancontrol/`) |
 | [cli/](cli/) | `fabricctl ipam`'s arguments, its reads of the plan and its changes |
+| `moved_plan.py` | A plan with the old LAN's subnet moved to the new one, host numbers kept (pure) |
 | `networks_overview.py` | What the Networks tab shows of a site: its plan drawn, the sites, leases, scan requests, the Sync now card; the kept copy when the DC is down |
 | `networks_view.py` | A site's plan as the Networks tab draws it: each subnet's map and its options with their sources |
 | `subnet_map.py` | One subnet drawn: its ranges as a bar, the counts, every address accounted for |

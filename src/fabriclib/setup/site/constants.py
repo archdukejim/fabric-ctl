@@ -7,6 +7,7 @@ WRONG_TRIES = 5                         # wrong codes before the code is replace
 SESSION_IDLE_SECONDS = 15 * 60          # a session with no request and no open stream this long ends (2.1.8.62)
 TICKET_SECONDS = 120                    # a takeover's confirmation is good this long, and once (2.1.8.62)
 SITE_ID = 649                           # the listener's uid and gid: the top of fabric's band, no account (2.1.8.61)
+UPLOAD_DIR = "/var/lib/fabric-setup/upload"   # Restore from a backup's upload, the listener's while asked (1.3.7.10)
 CERT_DAYS = 1                           # the temporary certificate's life (1.3.6.3)
 RULE_COMMENT = "fabric-setup-site"      # the ufw comment on the site's own rule: how fabric knows the rule is its own
 PORT_RECORD = "/run/fabric-setup/site-port"     # tmpfs, root 0700: the site's port while it runs

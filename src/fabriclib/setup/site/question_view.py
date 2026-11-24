@@ -3,12 +3,15 @@ import re
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 _BRACKET = re.compile(r"\s*\[([^\]]*)\]\s*:?\s*$")
 PLAN_CHOICES = [("p", "Proceed (allows the host changes listed)"), ("q", "Cancel: change nothing")]
+START_CHOICES = [("n", "New install"), ("r", "Restore from a backup")]
+PLANS = ("setup.plan", "restore.plan")
 YES_NO = [("y", "Yes"), ("n", "No")]
 
 
 def question_view(qid, prompt, secret):
     """Purpose: a question as the page shows it: the terminal's own words, its "[default]" taken out as the field's
-             value, its colour codes gone, yes-or-no and the plan as buttons (manual 1.3.6.4).
+             value, its colour codes gone, yes-or-no, the first choice and the plans as buttons (manual 1.3.6.4,
+             1.3.7.10).
     Inputs:  qid — the question's stable ID; prompt — str as given to ask(); secret — bool.
     Returns: dict: qid, label, default (str), permanent (bool), secret, choices (list of [value, label], or []). The
              plan offers Proceed and Cancel: Advanced's menu stays in the terminal (1.3.6.1).
@@ -16,7 +19,9 @@ def question_view(qid, prompt, secret):
     Feeds:   setup/site/guided_site."""
     label = ANSI.sub("", prompt).strip()
     choices, default = [], ""
-    if qid == "setup.plan":
+    if qid == "setup.start":
+        label, choices = "How do you want to set fabric up?", START_CHOICES
+    elif qid in PLANS:
         can_proceed = "roceed" in label          # a plan with a problem offers no Proceed: the notes say why
         label = "Proceed with this plan?" if can_proceed else "Setup cannot proceed with this plan."
         choices = PLAN_CHOICES if can_proceed else PLAN_CHOICES[1:]

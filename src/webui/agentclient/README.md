@@ -128,3 +128,11 @@ The fabric-agent API client: one file per agent route (JSON over the agent's uni
 | `request_scan.py` | Ask another site to scan one of its subnets (done at once). Agent route: POST /v1/ipam/scan/request (dhcp:write). |
 | `sync_now.py` | Sync now (done at once): the plan poll and DNS. Agent route: POST /v1/ipam/sync (dhcp:write), timeout 300 s. |
 | `site_tree.py` | The top bar's site selector: every site nested under its parent, its console and health. Agent route: GET /v1/sites/tree. |
+| `backup_allowed.py` | Whether the person may see Backups (a Domain Admin), once per sign-in. Agent route: GET /v1/backup/allowed. |
+| `backup_overview.py` | The Backups page's read. Agent route: GET /v1/backup. |
+| `backup_download.py` | A bundle opened as a stream to pass on. Agent route: GET /v1/backup/bundles/<file>. |
+| `backup_now.py` | Back up now, a job. Agent route: POST /v1/backup/now. |
+| `backup_schedule.py` | The backup schedule. Agent route: POST /v1/backup/schedule. |
+| `backup_restore.py` | One section restored, a job. Agent route: POST /v1/backup/restore. |
+| `backup_upload.py` | An uploaded bundle passed on as it arrives, chunked. Agent route: POST /v1/backup/upload. |
+| `backup_reinstall.py` | The whole bundle restored as its own unit. Agent route: POST /v1/backup/reinstall. |

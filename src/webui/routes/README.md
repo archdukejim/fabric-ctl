@@ -60,3 +60,6 @@ Every page (GET) and action (POST) behind the gates; each takes the request hand
 | `networks_post.py` | POST /networks/...: a plan change held for Networks' Apply; Sync now at once; the scan page's and DHCP options' forms. |
 | `networks_scan_post.py` | The scan page's forms: Scan now and Scan at <site> at once, a find recorded held for Networks' Apply. |
 | `options_post.py` | DHCP options' forms, each held for its page's Apply. |
+| `backups_page.py` | Settings · Backups (1.3.7.9): the page, a bundle's Restore steps, a bundle's download streamed. |
+| `backups_post.py` | Backups' forms: Back up now and Restore one section (jobs), the schedule; Domain Admins after a recent sign-in. |
+| `backups_upload.py` | Upload a bundle: the form's file part streamed to fabric-agent after the CSRF field (1.3.7.9). |
