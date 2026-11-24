@@ -66,23 +66,27 @@ class DevState:
         z = self.data["zones"][key]
         own = SAMPLE_FABRIC_NAMES if key == "dynamic_zone_var" else {}
         return {"key": key, "name": z["name"], "status": "dev preview — sample data, not served by BIND",
-                "vlans": self._vlans(),
+                "subnets": self._subnets(), "default": [self._subnets()[0]["cidr"]],
                 "records": [dict({"type": t, "index": i, "name": n, "value": v, "edit": self._edit(t, v),
-                                  "vlan": (z.get("split") or {}).get(f"{t}|{n}|{v}", ""),
+                                  "subnets": (z.get("split") or {}).get(f"{t}|{n}|{v}", "all"),
                                   "fabric": dict(zip(("service", "setting"), own[(t, n)])) if (t, n) in own else None,
-                                  "link": (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v))
+                                  "link": (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v),
+                                 **({"ptr_scope": "subnets"} if f"{t}|{n}|{v}" in (z.get("split") or {}) else {}))
                             for i, (t, n, v) in enumerate(z["records"])]}
 
-    def _vlans(self):
-        """Purpose: the sample site's VLANs, for the zone page's VLAN column (2.1.4.16).
+    def _subnets(self):
+        """Purpose: the subnets a sample record may answer, for the zone page's Subnets column (2.1.4.17): the sample
+                 host's LAN, then the sample plan's subnets.
         Inputs:  none (the sample plan of this site, as fake_ipam keeps it).
-        Returns: [{"ref", "label"}].
+        Returns: [{"cidr", "label"}], the host's LAN first.
         Fails:   never.
-        Feeds:   zone; fake_dns (a record's VLAN checked against them)."""
+        Feeds:   zone; fake_dns (a record's subnets checked against them)."""
         from webui.devpreview.sample_networks import SAMPLE_NETWORK_READ
         plan = (self.data.get("networks") or SAMPLE_NETWORK_READ)["plans"]["lan"]
-        return [{"ref": str(x["id"]), "label": f"VLAN {x['id']}"} for x in plan.get("vlans") or []
-                if not x.get("location")]
+        host = next((n["cidr"] for n in plan.get("networks") or [] if n.get("kind") == "lan"), "192.168.1.0/24")
+        return [{"cidr": host, "label": f"{host} (host's LAN)"}] + [
+            {"cidr": s["cidr"], "label": f"{s['cidr']} ({s['name']})"} for s in plan.get("subnets") or []
+            if s.get("cidr") != host]
 
     @staticmethod
     def _edit(rtype, value):

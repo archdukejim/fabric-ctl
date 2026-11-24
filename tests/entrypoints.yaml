@@ -233,6 +233,7 @@
 "ask:menu.dns.record.srv_priority": "src/fabriclib/menu/edit_dns_zone.py"
 "ask:menu.dns.record.srv_target": "src/fabriclib/menu/edit_dns_zone.py"
 "ask:menu.dns.record.srv_weight": "src/fabriclib/menu/edit_dns_zone.py"
+"ask:menu.dns.record.subnets": "src/fabriclib/menu/edit_dns_zone.py"
 "ask:menu.dns.record.text": "src/fabriclib/menu/edit_dns_zone.py"
 "ask:menu.dns.record.type": "src/fabriclib/menu/edit_dns_zone.py"
 "ask:menu.dns.remove_confirm": "src/fabriclib/menu/edit_dns.py"

@@ -6,7 +6,7 @@ Rendered into `<base>/resolver/config` by `dns_filter/deploy_resolver` (manual [
 |---|---|
 | `named.conf.j2` | The resolver: clients allowed, DoT and DoH listeners for clients (once the certificate exists), each view forwarding to AdGuard Home (a group's over DoT naming it, manual 1.12.3.6), fabric's zones forwarded to the authoritative BIND in every view, the response policy order, the query, response and RPZ logs |
 | `fabric.rpz.j2` | Passthru for fabric's own zones: first, so they are never filtered |
-| `split.rpz.j2` | A VLAN's own answers (2.1.4.16): its records as local data, first in its views' policy |
+| `split.rpz.j2` | A subnet's own answers (2.1.4.17): its records and their PTRs as local data, first in its views' policy |
 | `owner.rpz.j2` | The owner's allows and blocks (`dns_filter_allow`, `dns_filter_block`) |
 | `rules.rpz.j2` | A client group's allows and blocks (`group-<name>.rpz`, manual 1.12.2.15) |
 | `safesearch.rpz.j2` | Strict safe search, every engine of fabric's table, YouTube strict or moderate (`safesearch-strict.rpz`, `safesearch-ytmoderate.rpz`) |

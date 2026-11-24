@@ -404,21 +404,38 @@ with serve():
     check("Edit without a record: refused at once, nothing held", "pick a record to change" in flash(page)
           and "change pending" not in page, flash(page))
     page = get("/dns/zones?zone=dynamic_zone_var")
-    check("the VLAN column (2.1.4.16): a record answers everyone, or one VLAN of the plan picked in the add row",
-          "<th>VLAN</th>" in page and 'form="rec-add" name="vlan"' in page and '<option value="20">VLAN 20</option>'
-          in page and "everyone" in page, page.split("<main", 1)[1][:2500])
+    check("the Subnets column (2.1.4.17): a box per subnet offered, the host's LAN ticked in the add row, every "
+          "subnet a choice left unticked", "<th>Subnets</th>" in page and 'form="rec-add" name="sn_shown"' in page
+          and 'form="rec-add" name="sn_1" value="192.168.1.0/24" checked> 192.168.1.0/24 (host&#39;s LAN)' in page
+          and 'form="rec-add" name="sn_all" value="all">' in page and 'value="10.1.20.0/24">' in page,
+          page.split('<tr class="addrow">')[-1][:2500])
     st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "split", "value": "10.1.20.7",
-                                                              "vlan": "20"})
-    check("a record for VLAN 20: held, saying for whom", "Waiting for Apply: Add A record split for VLAN 20 to the "
-          "site's zone" in flash(page), flash(page))
+                                                              "sn_shown": "1", "sn_3": "10.1.20.0/24"})
+    check("a record for 10.1.20.0/24: held, saying for which subnets", "Waiting for Apply: Add A record split for "
+          "10.1.20.0/24 to the site's zone" in flash(page), flash(page))
     dns_apply()
     row = [r for r in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">split<" in r]
-    check("...applied: its row says VLAN 20", row and 'data-label="VLAN"><span class="pill">VLAN 20' in row[0], row)
-    post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "nosuch", "value": "10.1.99.7", "vlan": "99"})
-    page = dns_apply()
-    check("a record for a VLAN the plan has not: refused at Apply, saying why", "VLAN 99 is not in the site&#39;s plan"
-          in page or "VLAN 99 is not in the site's plan" in page, page.split("<main", 1)[1][:1500])
-    post("/changes/zones/discard", {})
+    check("...applied: its row names its subnet, its PTR in that subnet only", row
+          and 'data-label="Subnets"><span class="pill">10.1.20.0/24' in row[0] and "in its subnets only" in row[0], row)
+    post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "plain", "value": "10.1.20.8"})
+    dns_apply()
+    row = [r for r in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">plain<" in r]
+    check("a record from a client without the boxes: the host's LAN alone, never every subnet", row
+          and 'data-label="Subnets"><span class="pill">192.168.1.0/24' in row[0], row)
+    post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "every", "value": "10.1.20.9", "sn_shown": "1",
+                                              "sn_all": "all"})
+    dns_apply()
+    row = [r for r in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">every<" in r]
+    check("every subnet, picked: its row says so", row and "every subnet</span>" in row[0], row)
+    for form, why in (({"sn_shown": "1"}, "pick at least one subnet"),
+                      ({"sn_shown": "1", "sn_1": "10.9.9.0/24"}, "10.9.9.0/24 is neither the host"),
+                      ({"sn_shown": "1", "sn_all": "all", "sn_1": "192.168.1.0/24"}, "pick it alone")):
+        post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "nosuch", "value": "10.1.99.7", **form})
+        page = dns_apply()
+        check(f"negative: a record's subnets refused at Apply ({why}), saying why, nothing added",
+              (why in page or why.replace("'", "&#39;") in page)
+              and ">nosuch<" not in get("/dns/zones?zone=dynamic_zone_var"), page.split("<main", 1)[1][:1500])
+        post("/changes/zones/discard", {})
     st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": n, "name": "preview2"})
     check("Delete: the row's bin, held", "Waiting for Apply: Delete A record preview2"
           in flash(page) and "192.168.1.98" in page, flash(page))

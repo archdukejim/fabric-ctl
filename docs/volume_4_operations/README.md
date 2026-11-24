@@ -36,6 +36,12 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 ## 4.4 DNS: BIND
 
 - [4.4.1 Zones and records](4.4.1-records.md)
+  - 4.4.1.1 DNS Configuration
+  - 4.4.1.2 Adding and removing a zone (0.7.0)
+  - 4.4.1.3 Adding a record in the console; fabric's own names (0.7.1)
+  - 4.4.1.4 Edit, delete or add a record in the zone's table
+  - 4.4.1.5 [DEPRECATED] Give one VLAN its own answer for a name
+  - 4.4.1.6 Choose the subnets that get a record
 - [4.4.2 TSIG keys](4.4.2-tsig.md)
   - 4.4.2.1 TSIG Keys (RFC2136 dynamic updates)
   - 4.4.2.2 Make a key by its mode: ACME (DNS-01) or Custom

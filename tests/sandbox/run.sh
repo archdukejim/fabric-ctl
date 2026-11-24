@@ -1220,6 +1220,42 @@ agent_job() {    # wait for a job: its final JSON
         sleep 3
     done; echo "$J"
 }
+
+echo "--- a record's subnets: split answers from both servers (1.4.1.12, decision 2.1.4.17)"
+# a LAN client is a container on the box's network; a client in no offered subnet is fabric's own container network
+# (the resolver's and BIND's accepted clients include it), queried from inside the DNS containers' namespaces
+SBX_IMAGE=fabric/sandbox:local
+lan_dig() { docker run --rm --network "$NET" --entrypoint dig "$SBX_IMAGE" +short +time=3 +tries=2 "$@"; }
+ns_dig() {   # $1: the container whose network namespace asks; the rest: dig's arguments
+    local c="$1"; shift
+    in_box "nsenter -t \$(docker inspect -f '{{.State.Pid}}' $c) -n dig +short +time=3 +tries=2 $*"
+}
+RES_IP=$(in_box "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bind9-resolver")
+BIND_IP=$(in_box "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bind9")
+agent_json /v1/zones/dynamic_zone_var/records '{"actor": "sandbox", "type": "A", "name": "split-lan", "value": "10.77.0.50"}' > "$OUT/split-add.json"
+agent_json /v1/zones/dynamic_zone_var/records '{"actor": "sandbox", "type": "A", "name": "split-all", "value": "10.77.0.51", "subnets": "all"}' >> "$OUT/split-add.json"
+agent_json /v1/zones/dynamic_zone_var/records '{"actor": "sandbox", "type": "A", "name": "split-bad", "value": "10.77.0.52", "subnets": "10.99.0.0/24"}' > "$OUT/split-bad.json"
+# covers: agent:post.zones.*.records +
+check "a new record starts on the host's LAN alone; every subnet when asked" \
+    "in_box 'grep -A3 \"name: split-lan\" /opt/fabric/config/vars.yaml' | grep -q '10.77.0.0/24' \
+     && ! in_box 'grep -A3 \"name: split-all\" /opt/fabric/config/vars.yaml' | grep -q subnets"
+# covers: agent:post.zones.*.records -
+check "negative: a subnet neither the host's LAN nor in the plan: refused, saying why, nothing added" \
+    "grep -q 'neither the host' '$OUT/split-bad.json' && ! in_box 'grep -q split-bad /opt/fabric/config/vars.yaml'"
+agent_json /v1/apply '{"actor": "sandbox"}' > "$OUT/split-apply.json"
+check "applied" "grep -q '\"ok\": true' '$OUT/split-apply.json'"
+check "a LAN client: the host's LAN's record from the resolver and from BIND, and its PTR" \
+    "[ \"\$(lan_dig @$IP split-lan.lan.test)\" = 10.77.0.50 ] && [ \"\$(lan_dig -p $BIND_PORT @$IP split-lan.lan.test)\" = 10.77.0.50 ] \
+     && [ \"\$(lan_dig -x 10.77.0.50 @$IP)\" = split-lan.lan.test. ]"
+check "...and the every-subnet record" "[ \"\$(lan_dig @$IP split-all.lan.test)\" = 10.77.0.51 ]"
+check "a client in no offered subnet: the every-subnet record from both servers (they answer it)" \
+    "[ \"\$(ns_dig bind9 @$RES_IP split-all.lan.test)\" = 10.77.0.51 ] && [ \"\$(ns_dig bind9-resolver @$BIND_IP split-all.lan.test)\" = 10.77.0.51 ]"
+check "negative: ...not the host's LAN's record from either, nor its PTR (its name not given away elsewhere)" \
+    "[ -z \"\$(ns_dig bind9 @$RES_IP split-lan.lan.test)\" ] && [ -z \"\$(ns_dig bind9-resolver @$BIND_IP split-lan.lan.test)\" ] \
+     && [ -z \"\$(ns_dig bind9 @$RES_IP -x 10.77.0.50)\" ]"
+check "this host itself stays in BIND's default view (fabric's own lookups): no split answer there" \
+    "[ -z \"\$(in_box 'dig +short +time=3 -p $BIND_PORT @$IP split-lan.lan.test')\" ] && in_box 'dig +short -p $BIND_PORT @$IP ns.lan.test' | grep -qx $IP"
+
 in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"; sleep 20      # the first read starts the checks
 in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"
 SITE=$(sed -n 's/.*"site": "\([^"]*\)".*/\1/p' "$OUT/agent-backup.json")

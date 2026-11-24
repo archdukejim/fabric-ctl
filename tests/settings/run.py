@@ -152,10 +152,12 @@ for key, value, words in BAD:
     seen.add(key)
     check(f"refused: {key} = {value!r}, saying why, the settings unchanged", why is True and V == before, why)
 check("every wizard key has a refusal", seen == set(WIZARD_KEYS), set(WIZARD_KEYS) - seen)
-SPLIT_V = {**V, "dns": {"dynamic_zone_var": {"A": [{"name": "nas", "ip": "10.1.20.10", "vlan": "20"}]}}}
-check("negative: the DNS filter turned off while a record answers one VLAN: refused, naming it (2.1.4.16)",
-      refused(lambda: plan({"dns_filter": "none"}, SPLIT_V), "dns_filter: split DNS needs the DNS filter on") is True)
-check("positive: the DNS filter turned off with no record for one VLAN: planned",
+SPLIT_V = {**V, "dns": {"dynamic_zone_var": {"A": [{"name": "nas", "ip": "10.1.20.10",
+                                                     "subnets": ["10.1.20.0/24"]}]}}}
+check("negative: the DNS filter turned off while a record answers some subnets: refused, naming it (2.1.4.17)",
+      refused(lambda: plan({"dns_filter": "none"}, SPLIT_V), "dns_filter: a record for some subnets needs the DNS "
+              "filter on") is True)
+check("positive: the DNS filter turned off with every record for every subnet: planned",
       plan({"dns_filter": "none"})["keys"] == ["dns_filter"])
 # the grants' open fallback (2.1.6.88): off unless set; a settings file may turn it on, a relaxation shown while on
 from fabriclib.system.relaxed_settings import relaxed_settings  # noqa: E402

@@ -4,7 +4,8 @@ from fabriclib.common.save_vars import save_vars
 from fabriclib.common.vars_lock import vars_lock
 from fabriclib.common.write_audit import write_audit
 from fabriclib.dns.constants import RECORD_TYPES
-from fabriclib.dns.split.record_vlan import record_vlan
+from fabriclib.dns.split.reach import reach
+from fabriclib.dns.split.record_subnets import record_subnets
 from fabriclib.dns.tsig_record_notice import tsig_record_notice
 from fabriclib.dns.validate_record import validate_record
 
@@ -16,11 +17,13 @@ def add_record(actor, key, rtype, form, source="cli"):
              key — str, the zone key in `dns:` (dynamic_zone_var is the main domain).
              rtype — one of RECORD_TYPES (A, AAAA, CNAME, MX, TXT, SRV).
              form — dict of user fields as validate_record expects (name, ip, target, text, priority, weight, port),
-             and vlan (a VLAN of the site's plan: the record answers that VLAN alone, split/record_vlan, 2.1.4.16).
+             and subnets ("all", or the subnets it answers: the host's LAN by default, split/record_subnets,
+             2.1.4.17).
              source — "cli" (default) or "web". Reads and writes vars.yaml under vars_lock.
-    Returns: the stored record dict, shaped per validate_record (e.g. {"name", "ip"} for A), with "vlan" when given.
+    Returns: the stored record dict, shaped per validate_record (e.g. {"name", "ip"} for A), with "subnets"
+             unless it answers every subnet.
     Fails:   ValidationError "unsupported record type", "unknown zone", "a CNAME with that name already exists" (for
-             the same VLAN, or everyone), or one from validate_record or record_vlan; OSError or yaml.YAMLError
+             the same subnets), or one from validate_record or record_subnets; OSError or yaml.YAMLError
              from vars_lock / load_vars / save_vars / write_audit.
     Feeds:   agent route POST /v1/zones/<key>/records (fabric-agent, src/agent/, called by the web UI); the
              zone editor (menu/edit_dns_zone).
@@ -35,9 +38,9 @@ def add_record(actor, key, rtype, form, source="cli"):
         zone = (data.get("dns") or {}).get(key)
         if zone is None:
             raise ValidationError("unknown zone")
-        record = record_vlan(key, rtype, record, form, zone, dns_filter=data.get("dns_filter"))   # 2.1.4.16
+        record = record_subnets(key, rtype, record, form, zone, data)          # the subnets it answers, 2.1.4.17
         existing = zone.setdefault(rtype, [])
-        if rtype == "CNAME" and any(r.get("name") == record["name"] and r.get("vlan") == record.get("vlan")
+        if rtype == "CNAME" and any(r.get("name") == record["name"] and reach(r) == reach(record)
                                     for r in existing):
             raise ValidationError("a CNAME with that name already exists")
         keys = tsig_record_notice(data, key, rtype, record)     # before the record is in the zone

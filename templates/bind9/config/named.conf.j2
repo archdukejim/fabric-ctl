@@ -21,8 +21,8 @@ include "/etc/bind/named.conf.zones";
 // 6. THE AD ZONE (optional Windows domain, manual 1.6.5.6): Samba's DLZ module, from the DC's database
 include "/etc/bind-samba/dlz.conf";
 {% else %}
-{#- split DNS (decision 2.1.4.16, manual 1.4.1.11): a view per VLAN with answers of its own. Every zone stays in the
-    default view (in-view below), so there is one copy of each, its dynamic updates included; a VLAN's view answers
+{#- split DNS (decisions 2.1.4.16, 2.1.4.17; manual 1.4.1.12): a view per subnet with answers of its own. Every zone stays in the
+    default view (in-view below), so there is one copy of each, its dynamic updates included; a subnet's view answers
     its own names from its RPZ instead (recursive-only no: on authoritative answers too) #}
 {% set fl = federation_links | default({'children': [], 'upstream': none}) %}
 {% set peers = fl.children + ([fl.upstream] if fl.upstream else []) %}
@@ -50,7 +50,7 @@ view "default" {
 };
 
 {% for s in split %}
-// 6. VLAN {{ s.ref }}'s own answers for {{ s.names | join(', ') }}; every other name as everyone gets it
+// 6. subnet {{ s.ref }}'s own answers for {{ s.names | join(', ') }}; every other name as everyone gets it
 view "{{ s.view }}" {
     match-clients { {% for c in s.cidrs %}{{ c }}; {% endfor %}};
     zone "{{ s.rpz }}" { type primary; file "/var/lib/bind/db.{{ s.rpz }}"; allow-query { none; }; allow-transfer { none; }; };

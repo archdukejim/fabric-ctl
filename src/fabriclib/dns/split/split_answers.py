@@ -1,8 +1,11 @@
 import re
 
+import ipaddress
+
 from fabriclib.dns.constants import RECORD_TYPES
-from fabriclib.ipam.common.plan_cache import load_plan_cache
-from fabriclib.ipam.rules.rule_networks import rule_networks
+from fabriclib.dns.ptr_for_ip import ptr_for_ip
+from fabriclib.dns.split.offered_subnets import offered_subnets
+from fabriclib.dns.split.reach import ALL, reach
 
 
 def _qualified(target, zone):
@@ -34,35 +37,43 @@ def _rdata(rtype, rec, zone):
 
 
 def split_answers(v, plan=None):
-    """Purpose: the VLANs with answers of their own (decision 2.1.4.16, manual 1.4.1.11): for each, its subnets and
-             its records as an RPZ's local data, which the resolver's views and BIND's own give that VLAN's clients
-             in place of the zone's answers for the same names.
-    Inputs:  v — rendered settings (domain, dns: each record may carry "vlan", a VLAN reference of the site's plan);
-             plan — the site's plan (default: the copy this site last read, load_plan_cache).
-    Returns: [{"ref" (the VLAN's reference), "view" ("vlan-<ref>", "@" as "-"), "rpz" ("split-<ref>.rpz"),
-             "cidrs" (its subnets), "names" ([fqdn]), "lines" (["<owner> <TYPE> <data>"], the owner relative to the
-             RPZ, so "www.home.arpa" for www in home.arpa)}], in the plan's VLAN order; a VLAN with no subnet, or
-             one the plan no longer has, is left out (its records answer no one until it has).
+    """Purpose: the subnets with answers of their own (decision 2.1.4.17, manual 1.4.1.12): for each, its records as an
+             RPZ's local data, which the resolver's views and BIND's own give that subnet's clients in place of the
+             zone's answers for the same names. An A or AAAA record's PTR goes in its subnets' RPZ too, and in no
+             reverse zone, so a reverse lookup elsewhere does not give its name away (2.1.4.17, point 1).
+    Inputs:  v — rendered settings (domain, lan_cidr, dns: each record may carry "subnets"); plan — the site's plan
+             (default: the copy this site last read).
+    Returns: [{"ref" (the subnet), "view" ("subnet-<cidr>", "." and "/" as "-"), "rpz" ("split-<cidr>.rpz"),
+             "cidrs" ([the subnet]), "names" ([fqdn]), "lines" (["<owner> <TYPE> <data>"], the owner relative to the
+             RPZ, so "www.home.arpa" for www in home.arpa)}], the most specific subnet first (BIND and the resolver
+             take the first view that matches); a subnet neither the host's LAN nor in the plan any more is left out
+             (its records answer no one until it is back).
     Fails:   OSError or json errors reading a damaged plan copy.
-    Feeds:   deploy/render_templates (BIND's views and RPZ files), dns_filter/deploy_resolver (the resolver's)."""
-    plan = load_plan_cache() if plan is None else plan
-    nets = rule_networks(v, plan or {})["vlans"]
+    Feeds:   deploy/render_templates (BIND's views and RPZ files), dns_filter/resolver_views (the resolver's)."""
+    known = [o["cidr"] for o in offered_subnets(v, plan)]
     found = {}
     for key, zone in (v.get("dns") or {}).items():
+        if not isinstance(zone, dict):
+            continue
         name = v.get("domain") if key == "dynamic_zone_var" else key
         for rtype in RECORD_TYPES:
-            for rec in (zone or {}).get(rtype) or []:
-                ref = str(rec.get("vlan") or "")
-                if not ref or not nets.get(ref):
+            for rec in zone.get(rtype) or []:
+                subnets = reach(rec)
+                if subnets == ALL:
                     continue
-                owner = name if rec.get("name") == "@" else f"{rec.get('name')}.{name}"
-                found.setdefault(ref, []).append((owner, _rdata(rtype, rec, name)))
+                owner = name if rec.get("name") in ("@", "", None) else f"{rec.get('name')}.{name}"
+                lines = [(owner, _rdata(rtype, rec, name))]
+                if rtype in ("A", "AAAA"):
+                    zone_of, label = ptr_for_ip(rec.get("ip"))
+                    if zone_of is not None:
+                        lines.append((f"{label}.{zone_of}", f"PTR {owner}."))
+                for cidr in subnets:
+                    if cidr in known:
+                        found.setdefault(cidr, []).extend(lines)
     out = []
-    for ref in nets:
-        if ref not in found:
-            continue
-        safe = re.sub(r"[^a-z0-9-]", "-", ref.lower())
-        out.append({"ref": ref, "view": f"vlan-{safe}", "rpz": f"split-{safe}.rpz", "cidrs": list(nets[ref]),
-                    "names": list(dict.fromkeys(o for o, _ in found[ref])),
-                    "lines": [f"{o} {d}" for o, d in found[ref]]})
+    for cidr in sorted(found, key=lambda c: (-ipaddress.ip_network(c).prefixlen, known.index(c))):
+        safe = re.sub(r"[^a-z0-9-]", "-", cidr.lower())
+        out.append({"ref": cidr, "view": f"subnet-{safe}", "rpz": f"split-{safe}.rpz", "cidrs": [cidr],
+                    "names": list(dict.fromkeys(o for o, d in found[cidr] if not d.startswith("PTR "))),
+                    "lines": list(dict.fromkeys(f"{o} {d}" for o, d in found[cidr]))})
     return out

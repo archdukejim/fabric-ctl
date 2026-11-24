@@ -10,6 +10,8 @@ from fabriclib.dns.add_record import add_record
 from fabriclib.dns.constants import RECORD_TYPES
 from fabriclib.dns.format_value import format_value
 from fabriclib.dns.remove_record import remove_record
+from fabriclib.dns.split.offered_subnets import offered_subnets
+from fabriclib.dns.split.record_subnets import default_reach
 from fabriclib.dns.sync_status import sync_status
 from fabriclib.menu.apply_and_report import apply_and_report
 from fabriclib.menu.save_menu_change import menu_actor
@@ -17,11 +19,13 @@ from fabriclib.menu.save_menu_change import menu_actor
 SYNC_COLOURS = {"in_sync": GREEN, "out_of_sync": YELLOW, "not_loaded": RED, "unreachable": YELLOW}
 
 
-def _prompt_record(rtype):
-    """Purpose: ask for the fields fabriclib.dns.validate_record expects for one record type.
-    Inputs:  rtype — A, AAAA, CNAME, TXT, MX, SRV (any other type gets only a name).
+def _prompt_record(rtype, zone_key="dynamic_zone_var"):
+    """Purpose: ask for the fields fabriclib.dns.validate_record expects for one record type, and in a forward zone
+             the subnets it answers (2.1.4.17: the host's LAN by default).
+    Inputs:  rtype — A, AAAA, CNAME, TXT, MX, SRV (any other type gets only a name); zone_key — the zone's key.
     Returns: dict form: name plus ip | target | text | priority/target | priority/weight/port/target (MX priority
-             defaults to "10", SRV priority and weight to "0"); unvalidated strings (add_record validates).
+             defaults to "10", SRV priority and weight to "0"), and subnets; unvalidated strings (add_record
+             validates).
     Fails:   EOFError / KeyboardInterrupt from ask().
     Feeds:   edit_dns_zone."""
     form = {"name": ask("menu.dns.record.name", "Record name (e.g. '@', 'www'): ")}
@@ -39,6 +43,13 @@ def _prompt_record(rtype):
         form["weight"] = ask("menu.dns.record.srv_weight", "Weight [0]: ", "0")
         form["port"] = ask("menu.dns.record.srv_port", "Port: ")
         form["target"] = ask("menu.dns.record.srv_target", "Target: ")
+    if not zone_key.endswith(".arpa"):
+        v = load_vars()
+        offered = offered_subnets(v)
+        start = default_reach(v, offered)
+        start = start if start == "all" else ",".join(start)
+        print("  Subnets that get it: all, or one or more of " + ", ".join(o["label"] for o in offered))
+        form["subnets"] = ask("menu.dns.record.subnets", f"Subnets [{start}]: ", start)
     return form
 
 
@@ -97,7 +108,7 @@ def edit_dns_zone(data, zone_key, domain):
             elif choice == "a":
                 rtype = ask("menu.dns.record.type", f"Record type ({', '.join(RECORD_TYPES)}): ").upper()
                 if rtype:
-                    add_record(menu_actor(), zone_key, rtype, _prompt_record(rtype))
+                    add_record(menu_actor(), zone_key, rtype, _prompt_record(rtype, zone_key))
         except ValidationError as exc:
             print(f"{RED}{exc}{NC}")
             ask("menu.continue", "Press Enter to continue...")

@@ -1,4 +1,4 @@
-; VLAN {{ split.ref }}'s own answers (decision 2.1.4.16, manual 1.4.1.11): for each name here, that VLAN's clients get
+; subnet {{ split.ref }}'s own answers (decision 2.1.4.17, manual 1.4.1.12): for each name here, that subnet's clients get
 ; these records (every type: a type not here answers no data); everyone else the zone's own. Rendered at every apply.
 $TTL 300
 @       IN      SOA     ns.{{ domain }}. hostmaster.{{ domain }}. (

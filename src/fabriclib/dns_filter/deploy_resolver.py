@@ -22,7 +22,7 @@ def deploy_resolver(v, secrets, links, jinja_env):
              (the main view and each client group's view, each forwarding to AdGuard Home on its own: everyone over
              plain DNS, a group over DNS-over-TLS naming it; DoT and DoH for clients once the DNS name's certificate is
              in <base>/resolver/tls, 1.12.2.16), its rules zones (fabric's zones never filtered, the owner's allows
-             and blocks, each group's, safe search; each VLAN's own answers and its views, 2.1.4.16), its control
+             and blocks, each group's, safe search; each subnet's own answers and its views, 2.1.4.17), its control
              key, fabric's root CA (to check AdGuard's certificate); a running resolver reloads what changed. The
              lists are AdGuard's (1.12.3.5).
     Inputs:  v — rendered vars: deploy_base_dir, service_users.resolver, ip_bind9, ip_adguard, domain, lan_cidr,
@@ -55,7 +55,7 @@ def deploy_resolver(v, secrets, links, jinja_env):
     security = v.get("security") or {}
     ctx = {**v, "resolver_rndc_secret": secrets["resolver_rndc_secret"], "zones": filter_zones(v, links),
            "safe_zone": views["safe_zone"], "groups": views["groups"], "client_tls": client_tls,
-           "pairs": views["pairs"], "vlans": views["vlans"],
+           "pairs": views["pairs"], "subnets": views["subnets"],
            "adguard_tls": adguard_tls,
            "clients": list(dict.fromkeys([*access_sources(v)["dns"], v["fabric_subnet"],
                                           *(security.get("firewall_allow") or [])])),
@@ -71,7 +71,7 @@ def deploy_resolver(v, secrets, links, jinja_env):
     for g in v["dns_filter_groups"]:
         files[f"group-{g['name']}.rpz"] = rpz.render(zone=f"group-{g['name']}.rpz", what=f"group {g['name']}",
                                                      allow=g["allow"], block=g["block"])
-    for s in views["splits"]:                       # a VLAN's own answers (2.1.4.16)
+    for s in views["splits"]:                       # a subnet's own answers (2.1.4.17)
         files[s["rpz"]] = jinja_env.get_template("resolver/config/split.rpz.j2").render(split=s)
     changed = False
     for name, text in files.items():

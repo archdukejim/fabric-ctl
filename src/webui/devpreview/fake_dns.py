@@ -41,19 +41,39 @@ def _value(body):
     return " ".join([nums[f] for f in need] + [value])
 
 
-def _split(state, zone, rec, body):
-    """Purpose: the VLAN a sample record answers alone (2.1.4.16), kept beside it, checked as the agent checks it.
-    Inputs:  state — DevState; zone — the sample zone; rec — the record's (type, name, value); body — vlan.
+def _split(state, zone, rec, body, old=None):
+    """Purpose: the subnets a sample record answers (2.1.4.17), kept beside it, checked as the agent checks them.
+    Inputs:  state — DevState; zone — the sample zone; rec — the record's (type, name, value); body — subnets ("all"
+             or CIDRs joined by commas; left out: the host's LAN for a new record, an edited one's own); old — the
+             record being replaced, or None.
     Returns: None.
-    Fails:   ValidationError for a VLAN the sample plan has not.
+    Fails:   ValidationError: none picked; "all" beside a subnet; a subnet the sample site does not offer.
     Feeds:   _record."""
-    vlan = str(body.get("vlan") or "").strip()
-    if not vlan:
-        return
-    known = [x["ref"] for x in state._vlans()]
-    if vlan not in known:
-        raise ValidationError(f"VLAN {vlan} is not in the site's plan (it has {', '.join(known) or 'none yet'})")
-    zone.setdefault("split", {})["|".join(rec)] = vlan
+    split = zone.setdefault("split", {})
+    known = [x["cidr"] for x in state._subnets()]
+    text = body.get("subnets")
+    if text is None:
+        picked = split.get("|".join(old), "all") if old else [known[0]]
+    else:
+        words = [w for w in str(text).replace(",", " ").split() if w]
+        if not words:
+            raise ValidationError("pick at least one subnet for the record, or every subnet")
+        if "all" in words:
+            if len(words) > 1:
+                raise ValidationError("every subnet already holds the others: pick it alone, or only subnets")
+            picked = "all"
+        else:
+            bad = [w for w in words if w not in known]
+            if bad:
+                raise ValidationError(f"{bad[0]} is neither the host's LAN nor a subnet of the site's plan (it has "
+                                      f"{', '.join(known)})")
+            picked = sorted(set(words))
+    if old:
+        split.pop("|".join(old), None)
+    if picked != "all":
+        split["|".join(rec)] = picked
+    else:
+        split.pop("|".join(rec), None)
 
 
 def _record(state, key, op, body):
@@ -91,14 +111,11 @@ def _record(state, key, op, body):
     if op == "records/update":
         new = (rtype, name, _value(body))
         split = zone.setdefault("split", {})
-        old_vlan = split.get("|".join(records[idx]), "")
-        if new == records[idx] and str(body.get("vlan") or "") == old_vlan:
+        was = split.get("|".join(records[idx]), "all")
+        same = body.get("subnets") is None or str(body.get("subnets")) == (was if was == "all" else ",".join(was))
+        if new == records[idx] and same:
             raise ValidationError("nothing to change: the record is already so")
-        _split(state, zone, new, body)                  # checked before the record changes
-        if old_vlan and not str(body.get("vlan") or "").strip():
-            split.pop("|".join(records[idx]), None)
-        elif "|".join(records[idx]) != "|".join(new):
-            split.pop("|".join(records[idx]), None)
+        _split(state, zone, new, body, old=records[idx])    # checked before the record changes
         records[idx] = new
         state.log("DNS_UPDATE", f"zone={key} {rtype} {shown} -> {name} {new[2]} (in memory)")
         return {"old": {"name": shown}, "new": {"name": name}}

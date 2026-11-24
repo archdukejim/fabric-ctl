@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Split DNS needs the DNS filter (decision 2.1.4.16, manual 1.4.1.11): with the filter on, or with no record for one
-VLAN, nothing is refused; with it off and a record for one VLAN, refused, naming the records and why; a change checked
+"""Split DNS needs the DNS filter (decisions 2.1.4.16, 2.1.4.17; manual 1.4.1.12): with the filter on, or with every
+record for every subnet, nothing is refused; with it off and a record for some subnets, refused, naming the records and why; a change checked
 before it is saved (the filter's setting given); unset counts as on. Pure logic; no container.
 
     python3 tests/dns/split/split_needs_filter_test.py
@@ -31,31 +31,33 @@ def refused(fn, words):
 
 
 SPLIT = {"dns": {"dynamic_zone_var": {"A": [{"name": "nas", "ip": "192.168.1.10"},
-                                            {"name": "nas", "ip": "10.1.20.10", "vlan": "20"}],
-                                      "CNAME": [{"name": "files", "canonical": "nas", "vlan": "20@branch"}]}}}
+                                            {"name": "nas", "ip": "10.1.20.10", "subnets": ["10.1.20.0/24"]}],
+                                      "CNAME": [{"name": "files", "canonical": "nas",
+                                                 "subnets": ["10.1.20.0/24", "10.1.21.0/24"]}]}}}
 PLAIN = {"dns": {"dynamic_zone_var": {"A": [{"name": "nas", "ip": "192.168.1.10"}]}}}
 
-check("split_names: each record for one VLAN, named with its VLAN",
-      split_names(SPLIT) == ["nas (VLAN 20)", "files (VLAN 20@branch)"], split_names(SPLIT))
-check("split_names: none without a VLAN, nor with no dns at all",
+check("split_names: each record for some subnets, named with its subnets",
+      split_names(SPLIT) == ["nas (10.1.20.0/24)", "files (10.1.20.0/24, 10.1.21.0/24)"], split_names(SPLIT))
+check("split_names: none for records of every subnet (no `subnets`), nor with no dns at all",
       split_names(PLAIN) == [] and split_names({}) == [] and split_names({"dns": None}) == [])
-check("positive: the filter on and records for one VLAN: nothing refused",
+check("positive: the filter on and records for some subnets: nothing refused",
       split_needs_filter({**SPLIT, "dns_filter": "bind"}) is None)
 check("positive: the filter unset counts as on", split_needs_filter(SPLIT) is None)
-check("positive: the filter off and no record for one VLAN: nothing refused",
+check("positive: the filter off and every record for every subnet: nothing refused",
       split_needs_filter({**PLAIN, "dns_filter": "none"}) is None)
-check("negative: the filter off with records for one VLAN: refused, saying why",
+check("negative: the filter off with records for some subnets: refused, saying why",
       refused(lambda: split_needs_filter({**SPLIT, "dns_filter": "none"}), "needs the DNS filter on") is True)
 check("negative: the refusal names the records",
-      refused(lambda: split_needs_filter({**SPLIT, "dns_filter": "none"}), "nas (VLAN 20), files (VLAN 20@branch)")
+      refused(lambda: split_needs_filter({**SPLIT, "dns_filter": "none"}), "nas (10.1.20.0/24), files (10.1.20.0/24, 10.1.21.0/24)")
       is True)
 check("negative: a change turning the filter off is checked before it is saved",
       refused(lambda: split_needs_filter({**SPLIT, "dns_filter": "bind"}, "none"), "Windows domain") is True)
 check("positive: a change turning the filter on is not refused",
       split_needs_filter({**SPLIT, "dns_filter": "none"}, "bind") is None)
-MANY = {"dns": {"z": {"A": [{"name": f"h{i}", "ip": "10.0.0.1", "vlan": "20"} for i in range(7)]}}, "dns_filter": "none"}
+MANY = {"dns": {"z": {"A": [{"name": f"h{i}", "ip": "10.0.0.1", "subnets": ["10.0.0.0/24"]}
+                                  for i in range(7)]}}, "dns_filter": "none"}
 check("negative: many records: five named, the rest counted",
-      refused(lambda: split_needs_filter(MANY), "h4 (VLAN 20) and 2 more") is True)
+      refused(lambda: split_needs_filter(MANY), "h4 (10.0.0.0/24) and 2 more") is True)
 
 print(f"\n{'all passed' if not FAILED else f'{FAILED} failed'}")
 sys.exit(1 if FAILED else 0)

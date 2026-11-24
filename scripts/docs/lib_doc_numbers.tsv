@@ -588,7 +588,11 @@ file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26
 file	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py	47	
 file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
 file	fabriclib-dns|src/fabriclib/dns/split/default_records.py	65	
-file	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py	66	
+file	fabriclib-dns|src/fabriclib/dns/split/norm_subnet.py	69	
+file	fabriclib-dns|src/fabriclib/dns/split/offered_subnets.py	70	
+file	fabriclib-dns|src/fabriclib/dns/split/reach.py	71	
+file	fabriclib-dns|src/fabriclib/dns/split/record_subnets.py	72	
+file	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py	66	0.10.0 / 2026-11-24
 file	fabriclib-dns|src/fabriclib/dns/split/split_answers.py	67	
 file	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py	68	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
@@ -1275,6 +1279,7 @@ file	fabriclib-setup|src/fabriclib/setup/stop_for_copy.py	155
 file	fabriclib-setup|src/fabriclib/setup/uninstall.py	35	
 file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36	
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
+file	fabriclib-setup|src/fabriclib/setup/vlan_records_to_subnets.py	164	
 file	fabriclib-setup|src/fabriclib/setup/wait_ready.py	81	
 file	fabriclib-sizing|src/fabriclib/sizing/advice.py	1	
 file	fabriclib-sizing|src/fabriclib/sizing/refresh_sizing.py	2	
@@ -2767,7 +2772,12 @@ function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_soa_fields	1
 function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|set_negative_ttl	4	
 function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
 function	fabriclib-dns|src/fabriclib/dns/split/default_records.py|default_records	1	
-function	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py|record_vlan	1	
+function	fabriclib-dns|src/fabriclib/dns/split/norm_subnet.py|norm_subnet	1	
+function	fabriclib-dns|src/fabriclib/dns/split/offered_subnets.py|offered_subnets	1	
+function	fabriclib-dns|src/fabriclib/dns/split/reach.py|reach	1	
+function	fabriclib-dns|src/fabriclib/dns/split/record_subnets.py|default_reach	1	
+function	fabriclib-dns|src/fabriclib/dns/split/record_subnets.py|record_subnets	2	
+function	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py|record_vlan	1	0.10.0 / 2026-11-24
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_qualified	1	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_rdata	2	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|split_answers	3	
@@ -3965,6 +3975,7 @@ function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_ldap_bind	2	0.5.
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_records	6	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|checks	3	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|run	4	
+function	fabriclib-setup|src/fabriclib/setup/vlan_records_to_subnets.py|vlan_records_to_subnets	1	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_code	1	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_refusals	2	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|probes	3	
@@ -4288,7 +4299,8 @@ function	webui|src/webui/devpreview/dev_settings.py|dev_settings	1	0.8.0 / 2026-
 function	webui|src/webui/devpreview/dev_state.py|DevState.__init__	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState._edit	10	
 function	webui|src/webui/devpreview/dev_state.py|DevState._ptr	5	
-function	webui|src/webui/devpreview/dev_state.py|DevState._vlans	11	
+function	webui|src/webui/devpreview/dev_state.py|DevState._subnets	12	
+function	webui|src/webui/devpreview/dev_state.py|DevState._vlans	11	0.10.0 / 2026-11-24
 function	webui|src/webui/devpreview/dev_state.py|DevState.log	9	
 function	webui|src/webui/devpreview/dev_state.py|DevState.overview	6	
 function	webui|src/webui/devpreview/dev_state.py|DevState.reverse	3	
@@ -4521,6 +4533,7 @@ function	webui|src/webui/routes/tree_page.py|tree_page	1
 function	webui|src/webui/routes/tsig_post.py|_edit	2	
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
 function	webui|src/webui/routes/vault_post.py|vault_post	1	
+function	webui|src/webui/routes/zone_post.py|_subnets	2	
 function	webui|src/webui/routes/zone_post.py|zone_post	1	
 function	webui|src/webui/routes/zones_post.py|zones_post	1	
 function	webui|src/webui/security/cert_subject_rfc2253.py|cert_subject_rfc2253	1	

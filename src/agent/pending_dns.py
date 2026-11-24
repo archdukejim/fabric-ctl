@@ -54,7 +54,8 @@ def describe_dns(route, body):
     zone, rtype, name = _zone(route[1]), body.get("type", ""), body.get("name", "")
     if route[2:] == ["delete"]:
         return f"Remove zone {zone} with its records"
-    only = f" for VLAN {body['vlan']}" if body.get("vlan") else ""          # one VLAN's own answer (2.1.4.16)
+    picked = str(body.get("subnets") or "").replace(",", " ").split()     # the subnets it answers (2.1.4.17)
+    only = (" for every subnet" if picked == ["all"] else f" for {', '.join(picked)}") if picked else ""
     if route[2:] == ["records"]:
         return f"Add {rtype} record {name}{only} to {zone}" + _widens(route[1], rtype, body)
     if route[3:] == ["delete"]:

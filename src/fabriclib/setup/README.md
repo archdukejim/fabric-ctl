@@ -20,7 +20,8 @@
 | `apply_plan_defaults.py` | The plan's hardened defaults recorded as values, so what is shown is what renders |
 | `finish_vars.py` | The last of collecting the settings: a fresh install's log-on rights, TSIG secrets moved, `fabric.yaml` saved |
 | `stop_for_copy.py` | fabric stopped, and proven stopped, before a consistent copy (an export, a cold backup) |
-| `upgrade_vars.py` | Existing install's vars before re-render: the release's images, unless pinned (what it did for installs before 0.8.0 is retired, 2.1.1.61) |
+| `upgrade_vars.py` | Existing install's vars before re-render: the release's images, unless pinned; the upgrade steps (Step-CA's maximum, 0.10.0's VLAN records) (what it did for installs before 0.8.0 is retired, 2.1.1.61) |
+| `vlan_records_to_subnets.py` | The upgrade step of 2.1.4.17: a DNS record 0.10.0 gave to a VLAN answers that VLAN's subnets; acts only on a record carrying `vlan` |
 | `detect_network.py` | Guess hostname, host IP, gateway, LAN CIDR and interface from the default route |
 | `choose_plan.py` | The plan: what setup will do, the memory split, every host change; [P]roceed (the one yes), [M]enu, [Q]uit |
 | `advanced/` | The menu of every setting (1.2.9.11.3): its items and their questions |
