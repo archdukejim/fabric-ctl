@@ -6,7 +6,7 @@ def norm_subnet(text):
     Inputs:  text — str or None.
     Returns: str.
     Fails:   never.
-    Feeds:   offered_subnets, record_subnets."""
+    Feeds:   offered_subnets, split_checks (pick_networks)."""
     try:
         return str(ipaddress.ip_network(str(text or "").strip(), strict=False)) if text else ""
     except ValueError:

@@ -1,5 +1,4 @@
 from fabriclib.dns.ptr_for_ip import ptr_for_ip
-from fabriclib.dns.split.reach import ALL, reach
 from fabriclib.dns.zone_name import zone_name
 
 REVERSE_SUFFIXES = (".in-addr.arpa", ".ip6.arpa")
@@ -17,8 +16,8 @@ def reverse_zones(v):
              (fabric-agent, src/agent/); the web UI's dev preview (src/webui/devpreview).
     Notes:   one PTR per address: the first named record wins, then an apex (@) record, then the zone's `ns` host.
              Private IPv4 (RFC 1918, CGNAT) and IPv6 ULA only. A reverse zone written by hand in `dns:` is left alone.
-             A record for some subnets (2.1.4.17) gets its PTR in those subnets' answers only (split_answers), so
-             none here.
+             A split's records (2.1.4.18) get their PTRs in their networks' answers only (split_answers), so none
+             here: only the All networks tab's (the zone's own) are read.
     """
     dns = v.get("dns") or {}
     manual = {k for k in dns if k.endswith(REVERSE_SUFFIXES)}
@@ -29,7 +28,7 @@ def reverse_zones(v):
         if key in manual or not isinstance(recs, dict):
             continue
         fwd = zone_name(v, key)
-        entries = [(rtype, r) for rtype in ("A", "AAAA") for r in recs.get(rtype) or [] if reach(r) == ALL]
+        entries = [(rtype, r) for rtype in ("A", "AAAA") for r in recs.get(rtype) or []]
         if recs.get("zone_authority") and v.get("host_ip"):
             entries.append(("A", {"name": "ns", "ip": v["host_ip"], "_ns": True}))
         for rtype, rec in entries:

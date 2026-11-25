@@ -52,8 +52,8 @@ def plan_settings(v, given, ignored=(), source="web", have_gb=None, networks=Non
     """Purpose: the plan for a change of the wizard's settings (manual 1.8.5.5), from the wizard, a settings file in
              the console or `fabricctl settings import`; nothing changes. Each value is checked as setup checks it
              (check_wizard_value); then together: log forwarding on needs a destination, DHCP turned on its first
-             subnet (turn_dhcp_on: the host's interfaces), the DNS filter kept on while a record answers one VLAN
-             (split_needs_filter, 2.1.4.16), and the parts that run must fit the memory (plan_memory).
+             subnet (turn_dhcp_on: the host's interfaces), the DNS filter kept on while a zone is mapped or split
+             (split_needs_filter, 2.1.4.18), and the parts that run must fit the memory (plan_memory).
              One invalid value refuses the whole change.
     Inputs:  v — the settings as saved (vars.yaml); given — {wizard key: value}, any subset (other keys are a caller's
              error); ignored — [{"key", "reason"}] a file's ignored keys, carried into the plan; source — "web",

@@ -54,15 +54,16 @@ def resolver_views(v, plan=None):
     """Purpose: what the resolver's views hold (manual 1.12.3.6): each group's match-clients (the most specific
              address wins), its rules zone and its safe search, and everyone's safe search. The lists are AdGuard
              Home's (1.12.3.5): no view holds one.
-             A subnet with answers of its own (2.1.4.17) gets a view of its own, and a view per group with clients
-             in it: those views come first (a group's clients in that subnet), then the groups', then the subnets',
-             then everyone's, so the most specific still wins.
+             A network with answers of its own (2.1.4.18, manual 1.4.1.13) gets a view of its own, and a view per
+             group with clients in it: those views come first (a group's clients in that network), then the
+             groups', then the networks', then everyone's, so the most specific still wins. While a zone is mapped,
+             the groups' views and everyone's hold the rest's RPZ ("no such name" for the mapped zones).
     Inputs:  v — checked vars (dns_filter_groups, dns_filter_safe_search, dns_filter_youtube, dns, domain); plan —
              the site's plan (default: the copy last read; split_answers).
-    Returns: {"safe_zone": everyone's safe-search zone or None, "groups": [{name, match, rules_zone, safe_zone}],
-             "splits": split_answers' subnets, "pairs": [{the group's fields, "name": "<group>-<view>", "match"
-             (the group's clients in the subnet), "split" (the subnet's rpz)}], "subnets": [{"name" (its view),
-             "match" ([the subnet]), "split" (its rpz)}]}.
+    Returns: {"safe_zone": everyone's safe-search zone or None, "groups": [{name, match, rules_zone, safe_zone,
+             split (the rest's rpz, or None)}], "splits": split_answers' views, "rest": its rest (or None), "pairs":
+             [{the group's fields, "name": "<group>-<view>", "match" (the group's clients in the network), "split"
+             (the network's rpz)}], "subnets": [{"name" (its view), "match" ([the network]), "split" (its rpz)}]}.
     Fails:   never.
     Feeds:   dns_filter/deploy_resolver."""
     matches = _matches(v.get("dns_filter_groups") or [])
@@ -70,8 +71,11 @@ def resolver_views(v, plan=None):
                "safe_zone": SAFE_ZONES[g["youtube"]] if g["safe_search"] else None}
               for g in v.get("dns_filter_groups") or []]
     safe = SAFE_ZONES[v.get("dns_filter_youtube") or "strict"] if v.get("dns_filter_safe_search") else None
-    splits = split_answers(v, plan)
+    answers = split_answers(v, plan)
+    splits, rest = answers["views"], answers["rest"]
+    groups = [{**g, "split": rest["rpz"] if rest else None} for g in groups]
     pairs = [{**g, "name": f"{g['name']}-{s['view']}", "group": g["name"], "match": _inside(g["match"], s["cidrs"]),
               "split": s["rpz"]} for s in splits for g in groups]
-    return {"safe_zone": safe, "groups": groups, "splits": splits, "pairs": [p for p in pairs if p["match"]],
+    return {"safe_zone": safe, "groups": groups, "splits": splits, "rest": rest,
+            "pairs": [p for p in pairs if p["match"]],
             "subnets": [{"name": s["view"], "match": s["cidrs"], "split": s["rpz"]} for s in splits]}

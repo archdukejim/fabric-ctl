@@ -1,5 +1,6 @@
-; subnet {{ split.ref }}'s own answers (decision 2.1.4.17, manual 1.4.1.12): for each name here, that subnet's clients get
-; these records (every type: a type not here answers no data); everyone else the zone's own. Rendered at every apply.
+; network {{ split.ref }}'s own answers (decision 2.1.4.18, manual 1.4.1.13): for each name here, that network's
+; clients get these records (every type: a type not here answers no data; "CNAME ." is "no such name"); everyone else
+; the zone's own. Rendered at every apply.
 $TTL 300
 @       IN      SOA     ns.{{ domain }}. hostmaster.{{ domain }}. (
                         {{ (lookup('pipe', 'date +%s') | int) + 1000000000 }} ; Serial (Epoch timestamp offset)

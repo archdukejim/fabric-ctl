@@ -10,8 +10,7 @@ from fabriclib.dns.add_record import add_record
 from fabriclib.dns.constants import RECORD_TYPES
 from fabriclib.dns.format_value import format_value
 from fabriclib.dns.remove_record import remove_record
-from fabriclib.dns.split.offered_subnets import offered_subnets
-from fabriclib.dns.split.record_subnets import default_reach
+from fabriclib.dns.split.zone_networks import ALL, zone_networks
 from fabriclib.dns.sync_status import sync_status
 from fabriclib.menu.apply_and_report import apply_and_report
 from fabriclib.menu.save_menu_change import menu_actor
@@ -19,13 +18,11 @@ from fabriclib.menu.save_menu_change import menu_actor
 SYNC_COLOURS = {"in_sync": GREEN, "out_of_sync": YELLOW, "not_loaded": RED, "unreachable": YELLOW}
 
 
-def _prompt_record(rtype, zone_key="dynamic_zone_var"):
-    """Purpose: ask for the fields fabriclib.dns.validate_record expects for one record type, and in a forward zone
-             the subnets it answers (2.1.4.17: the host's LAN by default).
-    Inputs:  rtype — A, AAAA, CNAME, TXT, MX, SRV (any other type gets only a name); zone_key — the zone's key.
+def _prompt_record(rtype):
+    """Purpose: ask for the fields fabriclib.dns.validate_record expects for one record type.
+    Inputs:  rtype — A, AAAA, CNAME, TXT, MX, SRV (any other type gets only a name).
     Returns: dict form: name plus ip | target | text | priority/target | priority/weight/port/target (MX priority
-             defaults to "10", SRV priority and weight to "0"), and subnets; unvalidated strings (add_record
-             validates).
+             defaults to "10", SRV priority and weight to "0"); unvalidated strings (add_record validates).
     Fails:   EOFError / KeyboardInterrupt from ask().
     Feeds:   edit_dns_zone."""
     form = {"name": ask("menu.dns.record.name", "Record name (e.g. '@', 'www'): ")}
@@ -43,14 +40,23 @@ def _prompt_record(rtype, zone_key="dynamic_zone_var"):
         form["weight"] = ask("menu.dns.record.srv_weight", "Weight [0]: ", "0")
         form["port"] = ask("menu.dns.record.srv_port", "Port: ")
         form["target"] = ask("menu.dns.record.srv_target", "Target: ")
-    if not zone_key.endswith(".arpa"):
-        v = load_vars()
-        offered = offered_subnets(v)
-        start = default_reach(v, offered)
-        start = start if start == "all" else ",".join(start)
-        print("  Subnets that get it: all, or one or more of " + ", ".join(o["label"] for o in offered))
-        form["subnets"] = ask("menu.dns.record.subnets", f"Subnets [{start}]: ", start)
     return form
+
+
+def _networks_note(zone):
+    """Purpose: what the zone editor says of a zone answered by network (decision 2.1.4.18): the records shown are
+             the All networks tab's, and its networks and splits are set in the console (4.4.1.7, 4.4.1.8).
+    Inputs:  zone — the zone.
+    Returns: str, or "" for a zone that answers every network with no split.
+    Fails:   never.
+    Feeds:   edit_dns_zone."""
+    nets, splits = zone_networks(zone), len(zone.get("splits") or [])
+    if nets == ALL and not splits:
+        return ""
+    parts = ([f"answers {', '.join(nets)} only"] if nets != ALL else []) + \
+        ([f"has {splits} split{'s' if splits > 1 else ''}"] if splits else [])
+    return (f"This zone {' and '.join(parts)}: the records below are its All networks tab; its networks and splits "
+            f"are changed in the console (DNS → Zones).")
 
 
 def _apply():
@@ -66,8 +72,8 @@ def _apply():
 
 
 def edit_dns_zone(data, zone_key, domain):
-    """Purpose: menu for one DNS zone: its sync state and records; add or delete a record, apply live, or force-recreate
-             the zone.
+    """Purpose: menu for one DNS zone: its sync state and records (the All networks tab, 2.1.4.18: a zone answered by
+             network says so); add or delete a record, apply live, or force-recreate the zone.
     Inputs:  data — the vars working copy, refreshed from vars.yaml after each change (so a later save from the menu
              cannot overwrite it with a stale copy); zone_key — key under dns ("dynamic_zone_var" is the main domain);
              domain — the name shown for dynamic_zone_var. Prompts on stdin.
@@ -83,6 +89,9 @@ def edit_dns_zone(data, zone_key, domain):
         print(f"{BOLD}--- DNS Zone: {shown} ---{NC}\n")
         state, message = sync_status(shown)
         print(f"  {SYNC_COLOURS.get(state, NC)}{message}{NC}\n")
+        note = _networks_note(zone)
+        if note:
+            print(f"  {YELLOW}{note}{NC}\n")
         records, idx = {}, 1
         for rtype in RECORD_TYPES:
             for ridx, record in enumerate(zone.get(rtype) or []):
@@ -108,7 +117,7 @@ def edit_dns_zone(data, zone_key, domain):
             elif choice == "a":
                 rtype = ask("menu.dns.record.type", f"Record type ({', '.join(RECORD_TYPES)}): ").upper()
                 if rtype:
-                    add_record(menu_actor(), zone_key, rtype, _prompt_record(rtype, zone_key))
+                    add_record(menu_actor(), zone_key, rtype, _prompt_record(rtype))
         except ValidationError as exc:
             print(f"{RED}{exc}{NC}")
             ask("menu.continue", "Press Enter to continue...")

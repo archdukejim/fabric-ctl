@@ -98,7 +98,7 @@ for tpl in sorted(env.list_templates()):
         extra = dict(zone_name='test.lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
     if tpl.startswith('bind9/data/reverse'):
         extra = dict(reverse_zone_name='7.168.192.in-addr.arpa', ptr_records=rv['zones']['7.168.192.in-addr.arpa'])
-    if tpl.endswith('/split.rpz.j2'):     # a subnet's own answers (2.1.4.17), as dns/split/split_answers gives them
+    if tpl.endswith('/split.rpz.j2'):     # a network's own answers (2.1.4.18), as dns/split/split_answers gives them
         extra = dict(split={'ref': '192.168.20.0/24', 'view': 'subnet-192-168-20-0-24',
                             'rpz': 'split-192-168-20-0-24.rpz', 'cidrs': ['192.168.20.0/24'],
                             'names': ['nas.test.lan.j-j.family'],

@@ -24,6 +24,11 @@ request. Root peers (the host itself) are not asked for a token.
   POST /v1/zones/<key>/records          {actor, type, name, ip|target|...}
   POST /v1/zones/<key>/records/delete   {actor, type, index, name}
   POST /v1/zones/<key>/records/update   {actor, type, index, old_name, name, value|ip|target|...}
+       (each record route also takes split: the tab's index, left out for All networks; 2.1.4.18)
+  POST /v1/zones/<key>/networks         {actor, networks}
+  POST /v1/zones/<key>/splits           {actor, subnets}
+  POST /v1/zones/<key>/splits/update    {actor, split, old, subnets}
+  POST /v1/zones/<key>/splits/delete    {actor, split, old}
   POST /v1/apply                        {actor}
   POST /v1/events                       {actor, action, detail}  (login audit)
   GET  /v1/pki/ca | /v1/pki/issued | /v1/tsig | /v1/reverse-zones

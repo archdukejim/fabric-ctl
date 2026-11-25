@@ -13,41 +13,67 @@
 {% endif %}
 {% if zone %}
 {% set w = can('dns:write') %}{% set zk = zone.key | urlencode %}
-{% set ed = namespace(r=None) %}{% for r in zone.records if w and not r.fabric and edit == r.type ~ '-' ~ r.index %}{% set ed.r = r %}{% endfor %}
-{% set sv = zone.subnets | default([]) %}
-{#- the subnets a record answers (2.1.4.17, manual 1.4.1.12): a box per subnet the site offers, or every subnet #}
-{% macro snpick(form, cur) %}<span class="checks" role="group" aria-label="Subnets that get it"><input type="hidden" form="{{ form }}" name="sn_shown" value="1"><label><input type="checkbox" form="{{ form }}" name="sn_all" value="all"{{ ' checked' if cur == 'all' }}> every subnet</label>{% for x in zone.subnets %}<label><input type="checkbox" form="{{ form }}" name="sn_{{ loop.index }}" value="{{ x.cidr }}"{{ ' checked' if cur != 'all' and x.cidr in cur }}> {{ x.label }}</label>{% endfor %}{% if cur != 'all' %}{% for c in cur if c not in zone.subnets | map(attribute='cidr') %}<label><input type="checkbox" form="{{ form }}" name="sn_k{{ loop.index }}" value="{{ c }}" checked> {{ c }} (no longer offered)</label>{% endfor %}{% endif %}</span>{% endmacro %}
-{% macro snshow(cur) %}{% if cur == 'all' %}<span class="muted small">every subnet</span>{% elif cur %}{% for c in cur %}<span class="pill">{{ c }}</span> {% endfor %}{% else %}<span class="bad-text small">no subnet: answers no one</span>{% endif %}{% endmacro %}
+{#- split DNS by zone (decision 2.1.4.18, manual 1.4.1.13): the zone's networks, and a tab per split #}
+{% set st = zone.splits[tab] if tab is number else none %}
+{% set recs = st.records if st else zone.records %}
+{% set tq = ('&split=' ~ tab) if st else '' %}
+{% set ed = namespace(r=None) %}{% for r in recs if w and not r.fabric and edit == r.type ~ '-' ~ r.index %}{% set ed.r = r %}{% endfor %}
+{% macro tabfield() %}{% if st %}<input type="hidden" name="split" value="{{ tab }}">{% endif %}{% endmacro %}
+{% macro netbox(prefix, cur, allow_all) %}<span class="checks" role="group" aria-label="Networks">{% if allow_all %}<label><input type="checkbox" name="{{ prefix }}_all" value="all"{{ ' checked' if cur == 'all' }}> every network</label>{% endif %}{% for x in zone.offered %}<label><input type="checkbox" name="{{ prefix }}_{{ loop.index }}" value="{{ x.cidr }}"{{ ' checked' if cur != 'all' and x.cidr in cur }}> {{ x.label }}</label>{% endfor %}{% if cur != 'all' %}{% for c in cur if c not in zone.offered | map(attribute='cidr') %}<label><input type="checkbox" name="{{ prefix }}_k{{ loop.index }}" value="{{ c }}" checked> {{ c }} (no longer offered)</label>{% endfor %}{% endif %}</span>{% endmacro %}
+{% macro netshow(cur) %}{% if cur == 'all' %}every network{% else %}{% for c in cur %}<span class="pill">{{ c }}</span> {% endfor %}{% endif %}{% endmacro %}
 {% macro pencil() %}<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16z M14 6l4 4"/></svg>{% endmacro %}
 {% macro bin() %}<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v6 M14 11v6"/></svg>{% endmacro %}
 <section class="card"><h2>{{ zone.name }} <span class="muted">{{ zone.records | length }}</span></h2>
 <p class="muted">{{ zone.status }}</p>
+{% if zone.offered %}<div class="networks"><span class="muted">Networks</span>
+{% if w and zone.mappable %}<form method="post" action="/bind9/zone/{{ zk }}/networks" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ netbox('nw', zone.networks, true) }} <button>Save networks</button></form>
+{% else %}<span>{{ netshow(zone.networks) }}</span>{% if zone.key == 'dynamic_zone_var' %} <span class="muted small">· the site's own domain answers every network (split it instead)</span>{% endif %}{% endif %}
+</div>{% endif %}
+{% if zone.splittable and (zone.splits or w) %}<div class="picker" role="tablist" aria-label="Answers by network"><a href="/dns/zones?zone={{ zk }}" class="subtab{{ ' active' if tab is none }}" role="tab"{{ ' aria-selected="true"' if tab is none }}>All networks <span class="muted">{{ zone.records | length }}</span></a>
+{% for s in zone.splits %}<a href="/dns/zones?zone={{ zk }}&amp;split={{ s.index }}" class="subtab{{ ' active' if tab == s.index }}" role="tab"{{ ' aria-selected="true"' if tab == s.index }}>{{ s.subnets | join(', ') }} <span class="muted">{{ s.records | length }}</span></a>{% endfor %}
+{% if w %}<a href="/dns/zones?zone={{ zk }}&amp;split=new" class="subtab{{ ' active' if tab == 'new' }}">+ Split</a>{% endif %}
+</div>{% endif %}
+{% if tab == 'new' %}
+<h3>Add a split</h3>
+<form method="post" action="/bind9/zone/{{ zk }}/splits" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+<div class="wide">{{ netbox('sp', [], false) }}</div>
+<div><button>Add split</button> <a class="btn ghost" href="/dns/zones?zone={{ zk }}">Cancel</a></div></form>
+<p class="muted">The networks ticked get a tab of their own, starting as a copy of the All networks tab's records
+(fabric's own names stay there and answer in every tab). Their clients then get exactly that tab's records for
+{{ zone.name }}; every other network keeps All networks. A network sits in one split per zone. Waits for
+<strong>Apply</strong>; edit the new tab's records after it.</p>
+{% else %}
+{% if st %}<div class="splitbar">
+{% if w %}<form method="post" action="/bind9/zone/{{ zk }}/splits/update" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="split" value="{{ tab }}"><input type="hidden" name="old" value="{{ st.subnets | join(',') }}"><span class="muted">This split's networks</span> {{ netbox('sp', st.subnets, false) }} <button>Save networks</button></form>
+<form method="post" action="/bind9/zone/{{ zk }}/splits/delete" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="split" value="{{ tab }}"><input type="hidden" name="old" value="{{ st.subnets | join(',') }}"><button class="danger">Remove split</button></form>
+{% else %}<span class="muted">This split's networks</span> {{ netshow(st.subnets) }}{% endif %}
+</div>
+<p class="muted">Clients in {{ st.subnets | join(', ') }} get these records for {{ zone.name }}, instead of the All
+networks tab's: a name missing here does not exist for them.</p>{% endif %}
 {# the row's controls name these forms (form=), so no form sits inside a cell (1.8.6.3, decision 2.1.4.15) #}
-{% if w %}<form id="rec-add" method="post" action="/bind9/zone/{{ zk }}/add"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"></form>
-{% for r in zone.records if not r.fabric %}<form id="del-{{ r.type }}-{{ r.index }}" method="post" action="/bind9/zone/{{ zk }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="type" value="{{ r.type }}"><input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}"></form>{% endfor %}
-{% if ed.r %}<form id="rec-edit" method="post" action="/bind9/zone/{{ zk }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="type" value="{{ ed.r.type }}"><input type="hidden" name="index" value="{{ ed.r.index }}"><input type="hidden" name="old_name" value="{{ ed.r.name }}"></form>{% endif %}{% endif %}
-{% if zone.records or w %}{% call p.list(["Type", "Name", "Value"] + (["Subnets"] if sv else []) + ["Reverse (PTR)"] + ([""] if w else []), "records") %}{% for r in zone.records %}
+{% if w %}<form id="rec-add" method="post" action="/bind9/zone/{{ zk }}/add"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ tabfield() }}</form>
+{% for r in recs if not r.fabric %}<form id="del-{{ r.type }}-{{ r.index }}" method="post" action="/bind9/zone/{{ zk }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ tabfield() }}<input type="hidden" name="type" value="{{ r.type }}"><input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}"></form>{% endfor %}
+{% if ed.r %}<form id="rec-edit" method="post" action="/bind9/zone/{{ zk }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ tabfield() }}<input type="hidden" name="type" value="{{ ed.r.type }}"><input type="hidden" name="index" value="{{ ed.r.index }}"><input type="hidden" name="old_name" value="{{ ed.r.name }}"></form>{% endif %}{% endif %}
+{% if recs or w %}{% call p.list(["Type", "Name", "Value", "Reverse (PTR)"] + ([""] if w else []), "records") %}{% for r in recs %}
 {% if ed.r and r is sameas ed.r %}{% set e = r.edit or {} %}<tr class="editing">
 <td data-label="Type"><span class="pill">{{ r.type }}</span></td>
 <td data-label="Name"><input form="rec-edit" name="name" value="{{ r.name }}" required aria-label="Name"></td>
 <td data-label="Value"><span class="inline">{% if r.type in ('MX', 'SRV') %}<input form="rec-edit" name="priority" value="{{ e.priority }}" inputmode="numeric" class="num" aria-label="Priority" placeholder="priority">{% endif %}{% if r.type == 'SRV' %}<input form="rec-edit" name="weight" value="{{ e.weight }}" inputmode="numeric" class="num" aria-label="Weight" placeholder="weight"><input form="rec-edit" name="port" value="{{ e.port }}" inputmode="numeric" class="num" aria-label="Port" placeholder="port">{% endif %}<input form="rec-edit" name="value" value="{{ e.value }}" required aria-label="Value"></span></td>
-{% if sv %}<td data-label="Subnets">{{ snpick('rec-edit', r.subnets) }}</td>{% endif %}
 <td data-label="Reverse (PTR)"><span class="muted small">{{ 'set again at Apply' if r.type in ('A', 'AAAA') }}</span></td>
-<td class="rowact"><button form="rec-edit">Save</button> <a class="btn ghost" href="/dns/zones?zone={{ zk }}">Cancel</a></td></tr>
+<td class="rowact"><button form="rec-edit">Save</button> <a class="btn ghost" href="/dns/zones?zone={{ zk }}{{ tq }}">Cancel</a></td></tr>
 {% else %}<tr>
 <td data-label="Type"><span class="pill">{{ r.type }}</span></td><td data-label="Name">{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td data-label="Value"><code>{{ r.value }}</code></td>
-{% if sv %}<td data-label="Subnets">{{ snshow(r.subnets) }}</td>{% endif %}
-<td data-label="Reverse (PTR)">{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% if r.ptr_scope == 'subnets' %} <span class="muted small">· in its subnets only</span>{% endif %}{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
-{% if w %}<td class="rowact">{% if r.fabric %}<span class="muted small">kept by fabric</span>{% else %}<a class="iconbtn" href="/dns/zones?zone={{ zk }}&amp;edit={{ r.type }}-{{ r.index }}" aria-label="Edit {{ r.name }} {{ r.type }}" title="Edit">{{ pencil() }}</a><button class="iconbtn danger" form="del-{{ r.type }}-{{ r.index }}" aria-label="Delete {{ r.name }} {{ r.type }}" title="Delete">{{ bin() }}</button>{% endif %}</td>{% endif %}</tr>
+<td data-label="Reverse (PTR)">{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% if r.ptr_scope == 'split' %} <span class="muted small">· this split only</span>{% endif %}{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
+{% if w %}<td class="rowact">{% if r.fabric %}<span class="muted small">kept by fabric</span>{% else %}<a class="iconbtn" href="/dns/zones?zone={{ zk }}{{ tq }}&amp;edit={{ r.type }}-{{ r.index }}" aria-label="Edit {{ r.name }} {{ r.type }}" title="Edit">{{ pencil() }}</a><button class="iconbtn danger" form="del-{{ r.type }}-{{ r.index }}" aria-label="Delete {{ r.name }} {{ r.type }}" title="Delete">{{ bin() }}</button>{% endif %}</td>{% endif %}</tr>
 {% endif %}{% endfor %}
 {% if w %}<tr class="addrow">
 <td data-label="Type"><select form="rec-add" name="type" aria-label="New record's type">{% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></td>
 <td data-label="Name"><input form="rec-add" name="name" required placeholder="www or @" aria-label="New record's name"></td>
 <td data-label="Value"><span class="inline"><input form="rec-add" name="priority" inputmode="numeric" class="num f-prio" placeholder="priority" aria-label="Priority (MX, SRV)"><input form="rec-add" name="weight" inputmode="numeric" class="num f-srv" placeholder="weight" aria-label="Weight (SRV)"><input form="rec-add" name="port" inputmode="numeric" class="num f-srv" placeholder="port" aria-label="Port (SRV)"><input form="rec-add" name="value" required placeholder="192.168.1.20, a host name, or the text" aria-label="New record's value"></span></td>
-{% if sv %}<td data-label="Subnets">{{ snpick('rec-add', zone.default) }}</td>{% endif %}
 <td data-label="Reverse (PTR)"></td>
 <td class="rowact"><button form="rec-add">Add</button></td></tr>{% endif %}
 {% endcall %}{% else %}{{ p.empty("No records in this zone yet.") }}{% endif %}
+{% endif %}
 {% if w %}
 {% set alias_keys = (tsig_keys or []) | selectattr('domain', 'equalto', zone.name) | selectattr('with_aliases') | list %}
 {% if alias_keys %}<p class="flash">A new CNAME pointing at one of these records (or at one of its aliases) gives the
@@ -62,10 +88,10 @@ accepted.</p>
 TXT; MX and SRV take a priority, SRV a weight and a port too. A and AAAA records with a private address get their PTR
 record automatically — see Reverse zones. Names marked <span class="pill">provided by fabric</span> are fabric's own:
 every apply adds them back from their setting, so they are kept by fabric. The landing page's <code>info</code> is
-yours: rename, repoint or delete it.{% if sv %} <strong>Subnets</strong> says which subnets' clients get a record:
-a new one starts on the host's LAN alone, and every subnet is a choice. A client of a subnet gets that subnet's records
-for a name, else the every-subnet ones, else none, and a record's reverse (PTR) name only in its own subnets. Records for
-some subnets need the DNS filter on (decision 2.1.4.17).{% endif %} Which records the landing page links to is set in its own section:
+yours: rename, repoint or delete it.{% if zone.offered %} <strong>Networks</strong> says which networks see the
+zone at all (a client elsewhere gets "no such name"); a <strong>split</strong> gives some of them a tab of records of
+their own, and a split's A and AAAA records get their reverse (PTR) names in its networks only. Mapping or splitting a
+zone needs the DNS filter on (decision 2.1.4.18).{% endif %} Which records the landing page links to is set in its own section:
 <a href="/dns/zones?view=landing">Landing page</a>.</p>{% endif %}
 </section>
 {% if w %}

@@ -3,7 +3,6 @@ import shutil
 
 from fabriclib.common.errors import ValidationError
 from fabriclib.dns.rfc2136_settings import rfc2136_settings
-from fabriclib.dns.split.default_records import default_records
 from fabriclib.dns.split.split_answers import split_answers
 
 BIND_CONFIG = ("named.conf", "named.conf.acl", "named.conf.logs", "named.conf.options", "named.conf.tls",
@@ -62,17 +61,18 @@ def render_templates(paths, jinja_env, context, final_vars, secrets, tsig_keys, 
             render(f"{u['folder']}/docker-compose.yml.j2", f"{u['folder']}/docker-compose.yml")
             render("systemd/wrapper.service.j2", f"systemd/{u['service']}.service", item=u)
 
-    split = split_answers(final_vars)          # the subnets with answers of their own: BIND's views (2.1.4.17)
+    split = split_answers(final_vars)          # the networks with answers of their own: BIND's views (2.1.4.18)
+    rpzs = split["views"] + ([split["rest"]] if split["rest"] else [])
     for name in BIND_CONFIG:
         render(f"bind9/config/{name}.j2", f"bind9/config/{name}", split_views=split)
     for key, records in (final_vars.get("dns") or {}).items():
         zone = final_vars.get("domain") if key == "dynamic_zone_var" else key
-        render("bind9/data/zone.j2", f"bind9/data/db.{zone}", zone_name=zone, zone_records=default_records(records))
-    for s in split:                             # each subnet's own answers, an RPZ installed and reloaded as a zone
+        render("bind9/data/zone.j2", f"bind9/data/db.{zone}", zone_name=zone, zone_records=records)
+    for s in rpzs:                              # each network's own answers, an RPZ installed and reloaded as a zone
         render("bind9/data/split.rpz.j2", f"bind9/data/db.{s['rpz']}", split=s)
     data = os.path.join(out, "bind9/data")
-    for f in os.listdir(data) if os.path.isdir(data) else []:      # a VLAN's answers all gone: its RPZ with them
-        if f.startswith("db.split-") and f.endswith(".rpz") and f[3:] not in {s["rpz"] for s in split}:
+    for f in os.listdir(data) if os.path.isdir(data) else []:      # a network's answers all gone: its RPZ with them
+        if f.startswith("db.split-") and f.endswith(".rpz") and f[3:] not in {s["rpz"] for s in rpzs}:
             os.remove(os.path.join(data, f))
     for zone, ptrs in reverse["zones"].items():
         render("bind9/data/reverse-zone.j2", f"bind9/data/db.{zone}", reverse_zone_name=zone, ptr_records=ptrs)
