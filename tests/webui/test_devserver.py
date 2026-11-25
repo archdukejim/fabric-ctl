@@ -3,7 +3,6 @@
 memory only, the console's frame and navigation per bundle (manual 1.8.6), and no way to switch the preview on in the
 production server."""
 import contextlib
-import html.parser
 import http.client
 import importlib.util
 import os
@@ -17,6 +16,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 WEBUI = os.path.join(REPO, "src", "webui")
 UX_WEB = os.path.join(REPO, "src", "ux", "web")          # server.py and the dev preview's devserver.py
 sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+from live_forms import greyed, live_forms  # noqa: E402
 from webui import views  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
 
@@ -57,41 +58,6 @@ def flash(page):
     m = re.search(r'<p class="flash (ok|bad)" role="(?:status|alert)">(.*?)</p>', page, re.S)
     return (m.group(1) + ": " + m.group(2).replace("&#39;", "'")) if m else ""
 
-
-class _Live(html.parser.HTMLParser):
-    """The post forms a person can send (1.8.6.15): a form counts when a button or submit in it is enabled and not
-    inside a disabled fieldset."""
-    def __init__(self):
-        super().__init__()
-        self.stack, self.form, self.live = [], None, []
-
-    def handle_starttag(self, tag, attrs):
-        a = dict(attrs)
-        if tag == "fieldset":
-            self.stack.append("disabled" in a)
-        elif tag == "form" and (a.get("method") or "").lower() == "post":
-            self.form = a.get("action", "")
-        elif self.form is not None and (tag == "button" or (tag == "input" and a.get("type") == "submit")) \
-                and "disabled" not in a and not any(self.stack) and a.get("type") != "button":
-            self.live.append(self.form)
-
-    def handle_endtag(self, tag):
-        if tag == "fieldset" and self.stack:
-            self.stack.pop()
-        elif tag == "form":
-            self.form = None
-
-
-def live_forms(page):
-    """The actions of the post forms in the page's <main> a person can send; greyed ones are left out (1.8.6.15)."""
-    parser = _Live()
-    parser.feed(page.split("<main", 1)[-1].split("</main>", 1)[0])
-    return sorted(set(parser.live))
-
-
-def greyed(page, perm):
-    """True when the page shows a control greyed for the permission (1.8.6.15)."""
-    return f"Needs the {perm} permission" in page
 
 
 def change_ids(page):

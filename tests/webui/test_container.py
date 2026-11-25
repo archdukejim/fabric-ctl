@@ -28,6 +28,7 @@ import yaml
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path[0:0] = [os.path.join(REPO, "src"), REPO, os.path.join(REPO, "tests", "common")]
 import test_run as testrun  # noqa: E402
+from live_forms import greyed, live_forms  # noqa: E402
 from fabriclib.dns_filter.common.lists_version import lists_version  # noqa: E402
 from fabriclib.dns_filter.filter_lists import filter_lists  # noqa: E402
 from fabriclib.rbac.permissions import BUNDLES  # noqa: E402
@@ -1220,10 +1221,11 @@ st, _, _sc, body = req("POST", "/directory/ous/_form/delete", POSTH, {"csrf": co
 check("auditor: an OU's Delete is refused by fabric-agent when held (ous:admin named)", st == 303
       and "ous:admin" in urllib.parse.unquote_plus(_.get("Location", "")), (st, _))
 st, _, _sc, body = req("GET", "/directory/kerberos", ALICE, cookie=aud)
-check("auditor: Kerberos through the real agent (domain:read), no DC here: the KDCs and SPNs said why; no policy form "
-      "nor sign-in switch (neither domain:admin nor security:raise)", st == 200 and "Ticket policy" in body
-      and body.count("could not be read") >= 2 and 'action="/directory/domain/kerberos/policy"' not in body
-      and 'action="/security/kerberos"' not in body, (st, body[-1500:]))
+check("auditor: Kerberos through the real agent (domain:read), no DC here: the KDCs and SPNs said why; the policy "
+      "form greyed, no sign-in switch to send (neither domain:admin nor security:raise)", st == 200
+      and "Ticket policy" in body and body.count("could not be read") >= 2 and greyed(body, "domain:admin")
+      and not {"/directory/domain/kerberos/policy", "/security/kerberos"} & set(live_forms(body)),
+      (st, live_forms(body), body[-1500:]))
 # one site per console (2.1.8.68, 1.8.6.14): the views of other sites answer 404 through the real console, saying so
 for path in ("/directory/sites", "/directory/sites/lan", "/federation", "/sites/lan", "/sites/ghost",
              "/networks?site=elsewhere", "/networks/options?site=elsewhere"):

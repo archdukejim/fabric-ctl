@@ -15,7 +15,8 @@ import urllib.parse
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path[0:0] = [os.path.join(REPO, "src")]
+sys.path[0:0] = [os.path.join(REPO, "src"), os.path.join(REPO, "tests", "common")]
+from live_forms import greyed, live_forms  # noqa: E402
 FAILED = 0
 
 
@@ -675,8 +676,10 @@ check("page: the admin sees the query log with Allow on a blocked line, and the 
       "ads.example" in admin and 'action="/dns-filter/rules"' in admin and 'href="/dns-filter"' in admin)
 check("page: a network operator gets the rules' forms but no Query log section",
       'action="/dns-filter/rules"' in operator and "?view=querylog" not in operator)
-check("page: with dns:querylog only, the log shows without any form that changes the filter",
-      "ads.example" in reader and "/dns-filter/rules" not in reader and "/dns-filter/lists" not in reader)
+check("page: with dns:querylog only, the log shows; every form that changes the filter greyed (dns:filter)",
+      "ads.example" in reader and not [a for a in live_forms(reader) if a.startswith(("/dns-filter/rules",
+                                                                                      "/dns-filter/lists"))]
+      and greyed(reader, "dns:filter"), live_forms(reader))
 check("page: statistics off says why", "Postgres is not installed" in views.dns_filter(
     ctx("dns:filter"), "overview", OV, None, SEARCH))
 check("page: Allow on a group's blocked line goes to that group's rules",
@@ -716,8 +719,9 @@ check("page: each section's cards carry the ids a post returns to",
           (views.dns_filter(ctx("dns:filter"), "settings", OV, None, SEARCH), ["safe-search", "upstreams"]),
           (admin, ["querylog"])) for i in ids))
 seen = views.dns_filter(ctx("dns:querylog"), "lists", OV, LOG, SEARCH)
-check("page: without dns:filter the ticks show but post nothing", "/dns-filter/lists/apply" not in seen
-      and 'class="tick on"' in seen and "tickbox" not in seen)
+check("page: without dns:filter the ticks show, Apply changes greyed (dns:filter)",
+      "/dns-filter/lists/apply" not in live_forms(seen) and 'class="tick on"' in seen and "tickbox" not in seen
+      and greyed(seen, "dns:filter"), live_forms(seen))
 check("page: everyone's safe search is in Settings",
       'action="/dns-filter/safe-search"' in views.dns_filter(ctx("dns:filter"), "settings", OV, None, SEARCH))
 viewer = views.dns_filter(ctx("dns:querylog"), "groups", None, LOG, SEARCH)

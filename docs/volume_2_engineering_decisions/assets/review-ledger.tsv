@@ -2349,13 +2349,14 @@ tests/backup/section_paths_test.py	689f086351a2905757ec1c1cd4f40fb576e7ddec	2026
 tests/backup/start_console_restore_test.py	c58d2f4adc9f6dd534535f779f4fa7f3b61047c4	2026-11-23	
 tests/ci/README.md	78278efb5a511e089fd82def756c3be5bfeca8df	2026-10-15	
 tests/ci/logs_secret_free_test.py	e710a2ffadd9a5adc4e9750edf4a52bb43c512ec	2026-10-15	
-tests/common/README.md	48d90aaef9fdddc62a79bfbaf05ae6377a08253b	2026-11-17	
+tests/common/README.md	c84da02a6f9ea75f6b26b6802bae10d2f7996f35	2026-11-25	
 tests/common/apply_intent_test.py	874e77af9e21fed5dd41eac320b3787bc604da4b	2026-10-24	
 tests/common/ask.py	52a510850e39121e2bec244890dabb189195a748	2026-10-12	
 tests/common/copy_if_changed_test.py	620aa40a821cea1b4352113ce6bcb0205b4b206a	2026-10-25	
 tests/common/copy_tree_with_perms_test.py	9d1e9138a5009f530d21be486a71c31df12764b3	2026-10-25	
 tests/common/kea_image.py	11f6907c09c4ade1101ce25cf239a2f2d3ffbb2e	2026-10-25	
 tests/common/kea_on_host.py	e64c601f8065a6a1fc78001d7d001e38d96d267f	2026-11-09	
+tests/common/live_forms.py	371ae83888691865eb9cf53a9e559a07cb6d75fa	2026-11-25	
 tests/common/one_off_labels_test.py	6a8c3627a31fa6864806a34a934f4b98735120f2	2026-10-31	
 tests/common/same_content_test.py	c74473ef4511e8fce5928217d3d338e4b11f7882	2026-10-25	
 tests/common/save_vars_test.py	6ebd62374b0a8ebd0b5c00df7722c493dfb27116	2026-10-17	
@@ -2508,7 +2509,7 @@ tests/release/README.md	df2450ef1df17bc8aa5bb5bb1fd7b1c262f56f02	2026-11-09
 tests/release/apt_key_test.sh	b8d05fcd45ead6b86272520c4af430e3af5d8bd9	2026-10-31	
 tests/render.py	dbdee253fd9aafc109d3ba736ea50ee9089b8be9	2026-11-25	
 tests/resolver/README.md	9d0451677cd3faf2d80956d33d6344c85e7e2b74	2026-10-31	
-tests/resolver/console.py	30e6bfb2adc8a05c8914afb7b110781bef8f0276	2026-11-08	
+tests/resolver/console.py	2ec34e3522e329e0b84aab5ed00e6555ea5be5f3	2026-11-25	
 tests/resolver/groups.py	5e317666ba1567ea2e4d0629061af57d292a1e4a	2026-10-25	
 tests/resolver/querylog.py	0378e80e7fa13e77534999301e31df4fea7bd779	2026-10-31	
 tests/resolver/run.py	73ed914152c7b7af09b8e0b121e422104aad32f2	2026-10-29	
@@ -2634,8 +2635,8 @@ tests/webui/README.md	7f6400d8dbe569f0c741ed6768521fb9695f5e09	2026-11-23
 tests/webui/multipart_stream_test.py	8767d23baa5e33eaede9720a5d8e76a9a899c79c	2026-11-23	
 tests/webui/narrow_probe.py	e4bf04507b8e3957c0dd1b2cfc935aa63b71ee04	2026-10-25	
 tests/webui/test_backups.py	5823deb4a28776ae17fc1f20a541bff878888bd6	2026-11-23	
-tests/webui/test_container.py	777df8fbba47d446b4959d725dee9cdc5cd6f407	2026-11-15	
-tests/webui/test_devserver.py	bc5014ae40e801cd026507368ee2d548af3f2f49	2026-11-25	
+tests/webui/test_container.py	1553493384e5c07ecd9ad00c82709000486fc4fa	2026-11-25	
+tests/webui/test_devserver.py	9e1d43fb8e64b1d04e19bb6656a224367de35242	2026-11-25	
 tests/webui/test_narrow.py	eb32693b6903f9bec298f8a34ebe2c54b6bcf771	2026-11-15	
 tests/webui/test_networks.py	b6899273f98b87bff09a40e597c5acfa7c510851	2026-11-15	
 tests/zone_test.py	46cf001846dabdb150c1c5678c63136aa42c7c4e	2026-10-24	
