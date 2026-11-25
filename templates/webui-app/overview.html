@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 {% if page == '/overview/doctor' %}
 <h1>Overview · Doctor</h1>
 <section class="card"><p>fabric's end-to-end checks (<code>fabricctl doctor</code>): every service answering, its certificates, its
@@ -10,12 +10,12 @@ names in DNS, the sign-in. A few seconds to a minute; the result opens on its ow
 {% else %}
 {% set behind = images | selectattr('state', 'equalto', 'update available') | list %}
 <p class="muted">{{ behind | length }} update(s) available. Each is health-gated: a service that does not come up healthy goes back by itself.</p>
-<section class="card"><table class="list"><thead><tr><th>Service</th><th>State</th><th>Runs</th><th>Validated</th>{% if can('images:update') %}<th></th>{% endif %}</tr></thead><tbody>
+<section class="card"><table class="list"><thead><tr><th>Service</th><th>State</th><th>Runs</th><th>Validated</th><th></th></tr></thead><tbody>
 {% for r in images %}<tr><td data-label="Service">{{ r.service }}</td>
 <td data-label="State"><span class="pill {{ 'ok' if r.state == 'current' else ('warn' if r.state in ('update available', 'held (set by the admin)', 'restart needed') else 'bad') }}">{{ r.state }}</span></td>
 <td data-label="Runs" class="muted">{{ (r.running or '—') | truncate(48, True) }}</td><td data-label="Validated" class="muted">{{ (r.validated or '—') | truncate(48, True) }}</td>
-{% if can('images:update') %}<td class="num">{% if r.state == 'update available' %}<form method="post" action="/overview/images/{{ r.service | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Update</button></form>{% endif %}
-<form method="post" action="/overview/images/{{ r.service | urlencode }}/rollback"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost" title="back to the image before its last update">Roll back</button></form></td>{% endif %}</tr>
+<td class="num">{% if r.state == 'update available' %}<form method="post" action="/overview/images/{{ r.service | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button{{ lock('images:update') }}>Update</button></form>{% endif %}
+<form method="post" action="/overview/images/{{ r.service | urlencode }}/rollback"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost"{% if can('images:update') %} title="back to the image before its last update"{% else %}{{ lock('images:update') }}{% endif %}>Roll back</button></form></td></tr>
 {% endfor %}</tbody></table></section>
 {% endif %}
 {% else %}

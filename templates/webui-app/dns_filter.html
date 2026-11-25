@@ -1,12 +1,12 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {# from a query-log line: the rule goes to the line's group (its view), or to everyone #}
-{% macro rule_button(kind, name, label, view) %}{% if can('dns:filter') %}<form method="post" action="/dns-filter/rules">{{ csrf() }}<input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="name" value="{{ name }}"><input type="hidden" name="group" value="{{ '' if view == 'everyone' else view }}"><input type="hidden" name="back" value="querylog"><button class="ghost" title="{{ label }} for {{ view }}">{{ label }}</button></form>{% endif %}{% endmacro %}
+{% macro rule_button(kind, name, label, view) %}<form method="post" action="/dns-filter/rules">{{ csrf() }}<input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="name" value="{{ name }}"><input type="hidden" name="group" value="{{ '' if view == 'everyone' else view }}"><input type="hidden" name="back" value="querylog"><button class="ghost"{% if can('dns:filter') %} title="{{ label }} for {{ view }}"{% else %}{{ lock('dns:filter') }}{% endif %}>{{ label }}</button></form>{% endmacro %}
 {% macro zone_label(zone, list) %}{{ list or {'owner.rpz': 'your rules', 'fabric.rpz': "fabric's name", 'safesearch-strict.rpz': 'safe search', 'safesearch-ytmoderate.rpz': 'safe search'}.get(zone, ("the group's rules" if zone and zone.startswith('group-') else zone)) }}{% endmacro %}
 {% macro hidden_group(group, back) %}<input type="hidden" name="group" value="{{ group }}"><input type="hidden" name="back" value="{{ back }}">{% endmacro %}
 {# Strict safe search: one switch, the sites it covers named from fabric's own table (manual 1.12.2.15) #}
 {% macro safe_search(group, on, youtube, back) %}
-<form method="post" action="/dns-filter/safe-search" class="stack">{{ csrf() }}{{ hidden_group(group, back) }}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/safe-search" class="stack">{{ csrf() }}{{ hidden_group(group, back) }}
 <label class="check"><input type="checkbox" name="on"{{ ' checked' if on }}{{ ' disabled' if not can('dns:filter') }}> <strong>Strict safe search</strong></label>
 <p class="muted small">Switched on, every one of these answers only its safe results, for HTTPS too:
 {% for e in d.safe_search_sites.engines %}{{ e.engine }} ({{ e.names }} {{ 'site' if e.names == 1 else 'sites' }}){{ ', ' if not loop.last else '. ' }}{% endfor %}
@@ -15,7 +15,7 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <label>YouTube<select name="youtube"{{ ' disabled' if not on or not can('dns:filter') }}><option value="strict"{{ ' selected' if youtube == 'strict' }}>strict</option><option value="moderate"{{ ' selected' if youtube == 'moderate' }}>moderate</option></select></label>
 {% if not on and can('dns:filter') %}<input type="hidden" name="youtube" value="{{ youtube or 'strict' }}">{% endif %}
 <p class="muted small">Used only while safe search is on.</p>
-{% if can('dns:filter') %}<div><button>Save safe search</button></div>{% endif %}</form>
+<div><button>Save safe search</button></div></form>{% endcall %}
 {% endmacro %}
 {# A list's checkbox (manual 1.12.3.17): a real one in the lists form, ticked in the browser; nothing changes until Apply changes #}
 {% macro tick(l) %}{% if can('dns:filter') %}<input type="checkbox" class="tickbox" name="on-{{ l.id }}" aria-label="Use {{ l.name }}"{{ ' checked' if l.id in ticked }}>{% else %}<span class="tick{{ ' on' if l.enabled }}">{{ '✓' if l.enabled else '' }}</span>{% endif %}{% endmacro %}
@@ -26,16 +26,16 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <td class="num" data-label="Rules">{{ l.rules or '—' }}</td><td class="num" data-label="Memory (est.)">{{ ('~' ~ l.memory_mb ~ ' MiB') if l.memory_mb is not none else '—' }}</td>
 <td data-label="Copy">{% if l.last_success %}{{ ago(l.last_success) }}{% elif l.last_fetch %}<span class="pill warn">failed</span>{% else %}<span class="muted">not yet</span>{% endif %}</td>
 {# inside the lists form: Remove posts the form to its own action, carrying the list's URL (no nested form) #}
-<td class="num">{% if can('dns:filter') and l.on_site and l.category == 'Added by URL' %}<button class="ghost" name="url" value="{{ l.url }}" formaction="/dns-filter/lists/delete">Remove</button>{% endif %}</td></tr>{% endfor %}
+<td class="num">{% if l.on_site and l.category == 'Added by URL' %}<button class="ghost" name="url" value="{{ l.url }}" formaction="/dns-filter/lists/delete"{{ lock('dns:filter') }}>Remove</button>{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% endmacro %}
 {% macro rules_tiles(allow, block, group, back) %}
 <div class="tiles">
 {% for kind, label, names in [('allow', 'Allowed', allow), ('block', 'Blocked', block)] %}
 <div class="tile"><strong>{{ label }}</strong>
-{% if names %}<table><tbody>{% for n in names %}<tr><td><code>{{ n }}</code></td><td class="num">{% if can('dns:filter') %}<form method="post" action="/dns-filter/rules/delete">{{ csrf() }}{{ hidden_group(group, back) }}<input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="name" value="{{ n }}"><button class="ghost">Remove</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% if names %}<table><tbody>{% for n in names %}<tr><td><code>{{ n }}</code></td><td class="num"><form method="post" action="/dns-filter/rules/delete">{{ csrf() }}{{ hidden_group(group, back) }}<input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="name" value="{{ n }}"><button class="ghost"{{ lock('dns:filter') }}>Remove</button></form></td></tr>{% endfor %}</tbody></table>
 {% else %}<p class="blank">None.</p>{% endif %}
-{% if can('dns:filter') %}<form method="post" action="/dns-filter/rules" class="stack">{{ csrf() }}{{ hidden_group(group, back) }}<input type="hidden" name="kind" value="{{ kind }}"><label>Name<input name="name" required placeholder="example.com"></label><div><button>{{ 'Allow' if kind == 'allow' else 'Block' }}</button></div></form>{% endif %}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/rules" class="stack">{{ csrf() }}{{ hidden_group(group, back) }}<input type="hidden" name="kind" value="{{ kind }}"><label>Name<input name="name" required placeholder="example.com"></label><div><button>{{ 'Allow' if kind == 'allow' else 'Block' }}</button></div></form>{% endcall %}
 </div>{% endfor %}
 </div>
 {% endmacro %}
@@ -85,20 +85,20 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 <section class="card" id="lists"><h2>Lists <span class="muted">every client of the site</span></h2>
 <p class="muted">Tick the lists to use and untick those to stop, then press <strong>Apply changes</strong>: nothing changes until then, and the page does not reload while you tick. Apply changes makes every change waiting on this tab at once, in seconds; nothing restarts. Ticks not applied are lost if you leave the page. Every list here is kept fetched every night, so ticking one never waits for a download; a list that cannot be fetched keeps its last good copy. AdGuard's catalogue was read {{ ago(d.catalogue_fetched) }}.</p>
 <p class="muted small"><strong>Memory</strong> is what AdGuard Home needs to hold a list (its rules × 0.14 KB); while it reads the lists it briefly needs about 2.5 times the total. Ticked now: ~{{ d.memory.estimate_mb }} MiB{% if d.memory.limit_mb %}, ~{{ d.memory.peak_mb }} MiB at most, of a limit of {{ d.memory.limit_mb | round | int }} MiB{% endif %}. Ticks that would pass the limit together are refused at Apply, and nothing changes.{% if d.memory.unknown %} Not counted yet (no copy): {{ d.memory.unknown | join(', ') }}.{% endif %}</p>
-{% if can('dns:filter') %}<form method="post" action="/dns-filter/lists/apply" class="lists-form" autocomplete="off">{{ csrf() }}<input type="hidden" name="version" value="{{ d.lists_version }}"><input type="hidden" name="shown" value="{{ d.lists | map(attribute='id') | join(' ') }}">{% endif %}
-{% for cat in d.categories %}{% set rows = d.lists | selectattr('category', 'equalto', cat) | list %}{% set on = rows | selectattr('id', 'in', ticked) | list %}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/lists/apply" class="lists-form" autocomplete="off">{{ csrf() }}<input type="hidden" name="version" value="{{ d.lists_version }}"><input type="hidden" name="shown" value="{{ d.lists | map(attribute='id') | join(' ') }}">
+{%- for cat in d.categories %}{% set rows = d.lists | selectattr('category', 'equalto', cat) | list %}{% set on = rows | selectattr('id', 'in', ticked) | list %}
 <details{{ ' open' if cat == 'General' or on }}><summary>{{ cat }} <span class="muted">({{ on | length }} of {{ rows | length }} ticked)</span></summary>
 {{ lists_table(rows) }}
 </details>{% else %}<p class="blank">The catalogue has not been read yet: <em>Fetch every list now</em> reads it.</p>{% endfor %}
-{% if can('dns:filter') %}<div class="applyline"><button>Apply changes</button>
+<div class="applyline"><button>Apply changes</button>
 <span class="muted small">{% if applying %}Applying… this page refreshes itself until it is done.{% elif waiting %}{{ waiting }} other change{{ '' if waiting == 1 else 's' }} of this tab {{ 'waits' if waiting == 1 else 'wait' }} too (<a href="/changes/dns-filter">Review</a>): Apply changes makes {{ 'it' if waiting == 1 else 'them' }} with your ticks.{% else %}Your ticks wait until you press Apply changes.{% endif %}</span></div>
-</form>
-<form method="post" action="/dns-filter/fetch">{{ csrf() }}<button class="ghost">Fetch every list now</button></form>
+</form>{% endcall +%}
+<form method="post" action="/dns-filter/fetch">{{ csrf() }}<button class="ghost"{{ lock('dns:filter') }}>Fetch every list now</button></form>
 <details><summary>Add a list by its URL</summary>
-<form method="post" action="/dns-filter/lists" class="grid">{{ csrf() }}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/lists" class="grid">{{ csrf() }}
 <label>Name<input name="name" maxlength="200" placeholder="My list"></label>
 <label>URL (hosts, domains or AdGuard syntax)<input name="url" required placeholder="https://example.org/list.txt"></label>
-<div><button>Add list</button></div></form></details>{% endif %}
+<div><button>Add list</button></div></form>{% endcall %}</details>
 </section>
 {% endif %}
 
@@ -116,24 +116,22 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 </section>
 {% for g in d.groups %}
 <section class="card" id="group-{{ g.name }}"><h2>{{ g.name }} <span class="muted">{{ g.clients | join(', ') }}</span>{% if g.safe_search %} <span class="pill ok">strict safe search</span>{% endif %}</h2>
-{% if can('dns:filter') %}<form method="post" action="/dns-filter/groups" class="grid">{{ csrf() }}<input type="hidden" name="name" value="{{ g.name }}">
-<label>Addresses and subnets<input name="clients" required value="{{ g.clients | join(' ') }}"></label><div><button class="ghost">Save addresses</button></div></form>{% endif %}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/groups" class="grid">{{ csrf() }}<input type="hidden" name="name" value="{{ g.name }}">
+<label>Addresses and subnets<input name="clients" required value="{{ g.clients | join(' ') }}"></label><div><button class="ghost">Save addresses</button></div></form>{% endcall %}
 <h3>Safe search</h3>
 {{ safe_search(g.name, g.safe_search, g.youtube, 'groups') }}
 <h3>Its own rules</h3>
 <p class="muted small">An allowed name passes the site's lists and your rules for this group; a blocked name is blocked for it whatever they say.</p>
 {{ rules_tiles(g.allow, g.block, g.name, 'groups') }}
-{% if can('dns:filter') %}<form method="post" action="/dns-filter/groups/delete">{{ csrf() }}<input type="hidden" name="name" value="{{ g.name }}"><button class="ghost">Remove the group {{ g.name }}</button></form>{% endif %}
+<form method="post" action="/dns-filter/groups/delete">{{ csrf() }}<input type="hidden" name="name" value="{{ g.name }}"><button class="ghost"{{ lock('dns:filter') }}>Remove the group {{ g.name }}</button></form>
 </section>
 {% endfor %}
-{% if can('dns:filter') %}
 <section class="card" id="add-group"><h2>Add a client group</h2>
-<form method="post" action="/dns-filter/groups" class="grid">{{ csrf() }}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/groups" class="grid">{{ csrf() }}
 <label>Name (lowercase letters, digits, -)<input name="name" required maxlength="32" pattern="[a-z0-9][a-z0-9-]*" placeholder="kids"></label>
 <label>Addresses and subnets (IPv4, separated by spaces)<input name="clients" required placeholder="192.168.4.50 192.168.10.0/24"></label>
-<div><button>Add group</button></div></form>
+<div><button>Add group</button></div></form>{% endcall +%}
 </section>
-{% endif %}
 {% endif %}
 
 {% if view == 'querylog' %}
@@ -166,10 +164,10 @@ Not covered (no way to force it through DNS): {{ d.safe_search_sites.not_covered
 {% if d.upstreams %}<table><thead><tr><th>Address</th><th>Certificate name</th></tr></thead><tbody>
 {% for u in d.upstreams %}<tr><td data-label="Address">{{ u.address }}</td><td data-label="Certificate name"><code>{{ u.name }}</code></td></tr>{% endfor %}</tbody></table>
 {% endif %}
-{% if can('dns:filter') %}<form method="post" action="/dns-filter/upstreams" class="stack">{{ csrf() }}
+{% call p.locked('dns:filter') %}<form method="post" action="/dns-filter/upstreams" class="stack">{{ csrf() }}
 <label>Upstreams, one per line: address and certificate name<textarea name="upstreams" rows="3" required placeholder="1.1.1.1 cloudflare-dns.com&#10;1.0.0.1 cloudflare-dns.com">{% for u in d.upstreams %}{{ u.address }} {{ u.name }}
 {% endfor %}</textarea></label>
-<div><button>Save upstreams</button></div></form>{% endif %}
+<div><button>Save upstreams</button></div></form>{% endcall %}
 </section>
 {% endif %}
 {% endif %}

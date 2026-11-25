@@ -1,8 +1,8 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 {% set lights = {'active': 'ok', 'disabled': 'bad', 'locked': 'warn'} %}
 {% if view == "list" %}
 <h1>Directory · People</h1>
-{% call p.actions() %}{% if can('people:create') %}<a class="btn" href="/directory/people/_new">Add person</a>{% endif %}{% endcall %}
+{% call p.actions() %}{{ p.btn('/directory/people/_new', 'Add person', 'people:create') }}{% endcall %}
 {% if unavailable %}<p class="flash bad" role="alert">The people could not be read: {{ unavailable }}</p>
 {% else %}
 <section class="card"><h2>People <span class="muted">{{ total }}</span></h2>
@@ -17,7 +17,7 @@
 <td data-label="Last sign-in">{{ u.last_logon[:16] | replace('T', ' ') if u.last_logon else 'never' }}</td></tr>{% endfor %}{% endcall %}
 {{ p.pager("/directory/people", search, at, pages, "people") }}
 {% elif search %}{{ p.empty("Nobody matches “" ~ search ~ "”.") }}
-{% else %}{% call p.empty("No people in this site yet.") %}{% if can('people:create') %}<a class="btn" href="/directory/people/_new">Add person</a>{% endif %}{% endcall %}{% endif %}
+{% else %}{% call p.empty("No people in this site yet.") %}{{ p.btn('/directory/people/_new', 'Add person', 'people:create') }}{% endcall %}{% endif %}
 <p class="muted small">The site's people (<code>OU=people</code>). Last sign-in is the domain's own record, up to 14 days behind.</p>
 </section>
 {% endif %}
@@ -26,7 +26,7 @@
 <p><a href="/directory/people">← People</a></p>
 <h1>Directory · Add person</h1>
 <section class="card"><h2>Add person</h2>
-<form method="post" action="/directory/people/_new" class="grid">
+{% call p.locked('people:create') %}<form method="post" action="/directory/people/_new" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>User name<input name="uid" required pattern="[a-z][a-z0-9._-]{1,31}" placeholder="jsmith" autocomplete="off"></label>
 <label>E-mail<input name="email" type="email" required></label>
@@ -35,6 +35,7 @@
 <label>Create in<select name="ou"><option value="">people (fabric&#39;s folder)</option>{% for o in places %}<option>{{ o }}</option>{% endfor %}</select></label>
 <div><button>Add person</button></div>
 </form>
+{% endcall %}
 <p class="muted small">Waits for People's Apply. They get a one-time password, shown once on the Review after Apply, and choose their own and set up a second factor at their first sign-in.</p>
 </section>
 
@@ -45,28 +46,29 @@
 {% if unavailable %}<p class="flash bad" role="alert">This person could not be read: {{ unavailable }}</p>
 {% else %}
 {% call p.actions() %}
-{% if can('people:reset') %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/reset"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button title="a one-time password, the second factor removed, sessions ended">Reset password</button></form>
-{% if d.state == 'locked' %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/unlock"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button>Unlock</button></form>{% endif %}{% endif %}
-{% if can('people:disable') %}{% set act = 'enable' if d.state == 'disabled' else 'disable' %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost">{{ act | capitalize }}</button></form>{% endif %}
+<form method="post" action="/directory/people/{{ d.uid | urlencode }}/reset"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button{% if can('people:reset') %} title="a one-time password, the second factor removed, sessions ended"{% else %}{{ lock('people:reset') }}{% endif %}>Reset password</button></form>
+{% if d.state == 'locked' %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/unlock"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button{{ lock('people:reset') }}>Unlock</button></form>{% endif %}
+{% set act = 'enable' if d.state == 'disabled' else 'disable' %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/{{ act }}"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><button class="ghost"{{ lock('people:disable') }}>{{ act | capitalize }}</button></form>
 {% endcall %}
 <section class="card facts"><h2>State</h2><p>{{ p.status(lights.get(d.state, 'ok'), d.state or 'active') }}</p>
 <dl><dt>Last sign-in</dt><dd>{{ d.last_logon[:16] | replace('T', ' ') if d.last_logon else 'never' }}</dd>
 </dl></section>
 {{ p.facts("Details", details) }}
-{% if can('people:edit') %}<section class="card"><h2>Edit details</h2>
-<form method="post" action="/directory/people/{{ d.uid | urlencode }}/edit" class="grid">
+<section class="card"><h2>Edit details</h2>
+{% call p.locked('people:edit') %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/edit" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 {% for key, label in fields %}<label>{{ label }}<input name="{{ key }}" value="{{ (d.person or {})[key] or '' }}" autocomplete="off"{% if key == 'email' %} type="email"{% elif key == 'country' %} maxlength="2" pattern="[A-Za-z]{2}"{% elif key == 'employee_id' %} maxlength="16"{% else %} maxlength="64"{% endif %}></label>
 {% endfor %}<div><button>Save details</button></div>
 </form>
-<p class="muted small">Only what you change is sent; an emptied field is cleared (never the names). The manager is a person's user name. Waits for People's Apply.</p></section>{% endif %}
+{% endcall %}
+<p class="muted small">Only what you change is sent; an emptied field is cleared (never the names). The manager is a person's user name. Waits for People's Apply.</p></section>
 <section class="card"><h2>Groups <span class="muted">{{ d.groups | length }}</span></h2>
-{% if d.groups %}{% call p.list(["Group", ""]) %}{% for g in d.groups %}<tr><td data-label="Group">{{ g }}</td><td class="row-actions">{% if can('people:groups') %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/groups"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="group" value="{{ g }}"><button class="ghost">Take out</button></form>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% if d.groups %}{% call p.list(["Group", ""]) %}{% for g in d.groups %}<tr><td data-label="Group">{{ g }}</td><td class="row-actions"><form method="post" action="/directory/people/{{ d.uid | urlencode }}/groups"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="group" value="{{ g }}"><button class="ghost"{{ lock('people:groups') }}>Take out</button></form></td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("In no group.") }}{% endif %}
-{% if can('people:groups') and addable %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/groups" class="grid">
+{% if addable %}{% call p.locked('people:groups') %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/groups" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="action" value="add">
 <label>Group<select name="group" required>{% for g in addable %}<option>{{ g }}</option>{% endfor %}</select></label>
-<div><button>Add to group</button></div></form>{% endif %}
+<div><button>Add to group</button></div></form>{% endcall %}{% endif %}
 <p class="muted small">Fabric's groups carry permissions: only an administrator changes them. Read at the person's next sign-in.</p></section>
 {% if grants is not none %}<section class="card"><h2>Grants that reach them <span class="muted">{{ grants.grants | length }}</span></h2>
 {% if grants.error %}<p class="flash bad">The grants could not be read: {{ grants.error }}</p>
@@ -86,12 +88,13 @@
 <td>{{ p.light('ok' if v.enabled else 'bad', 'enabled' if v.enabled else 'disabled') }}</td><td data-label="Device">{% if can('devices:read') %}<a href="/8021x/devices/{{ v.name | urlencode }}">{{ v.name }}</a>{% else %}{{ v.name }}{% endif %}</td>
 <td data-label="Type">{{ v.type }}</td><td data-label="Roles">{{ v.roles | join(", ") }}</td><td data-label="VLAN">{{ v.vlan if v.vlan is not none else "—" }}</td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("No 802.1X device is theirs.") }}{% endif %}</section>
-{% if can('people:remove') %}<section class="card"><h2>Remove {{ d.uid }}</h2>
-<form method="post" action="/directory/people/{{ d.uid | urlencode }}/delete" class="grid">
+<section class="card"><h2>Remove {{ d.uid }}</h2>
+{% call p.locked('people:remove') %}<form method="post" action="/directory/people/{{ d.uid | urlencode }}/delete" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Type their user name to confirm<input name="confirm" required autocomplete="off"></label>
 <div><button class="danger">Remove person</button></div></form>
-<p class="muted small">At People's Apply their sessions end, their account and group memberships go, and the certificates fabric issued them are revoked. Never yourself or the last administrator.</p></section>{% endif %}
+{% endcall %}
+<p class="muted small">At People's Apply their sessions end, their account and group memberships go, and the certificates fabric issued them are revoked. Never yourself or the last administrator.</p></section>
 {% endif %}
 {% endif %}
 {% endblock %}

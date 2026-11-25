@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {#- a grant's fields: its who and where, and each category's rights as switches; f — the values to start from -#}
 {% macro fields(f) %}
@@ -12,7 +12,7 @@
 {% endmacro %}
 {% if view == "list" %}
 <h1>Directory · Access</h1>
-{% call p.actions() %}{% if can('groups:admin') %}<a class="btn" href="/directory/access/_new">Add grant</a>{% endif %}{% endcall %}
+{% call p.actions() %}{{ p.btn('/directory/access/_new', 'Add grant', 'groups:admin') }}{% endcall %}
 {% if unavailable %}<p class="flash bad" role="alert">The grants could not be read: {{ unavailable }}</p>
 {% else %}
 <section class="card"><h2>Grants <span class="muted">{{ total }}</span></h2>
@@ -27,7 +27,7 @@
 <td data-label="Reaches">{{ 'nobody' if g.reaches_nobody else (g.counts.people ~ ' people, ' ~ g.counts.machines ~ ' machines') }}</td></tr>{% endfor %}{% endcall %}
 {{ p.pager("/directory/access", search, at, pages, "grants") }}
 {% elif search %}{{ p.empty("No grant matches “" ~ search ~ "”.") }}
-{% else %}{% call p.empty("No grants: no machine admits anyone from the domain.") %}{% if can('groups:admin') %}<a class="btn" href="/directory/access/_new">Add grant</a>{% endif %}{% endcall %}{% endif %}
+{% else %}{% call p.empty("No grants: no machine admits anyone from the domain.") %}{{ p.btn('/directory/access/_new', 'Add grant', 'groups:admin') }}{% endcall %}{% endif %}
 <p class="muted small">A grant gives the people in all of its who groups its rights on what is in all of its where groups. A machine no grant reaches admits nobody from the domain. fabric compiles grants into groups, GPOs and sudo rules at once.</p>
 </section>
 {% endif %}
@@ -42,12 +42,12 @@
 <label>Template<select name="template"><option value="">empty</option>{% for t, f in templates | dictsort %}<option value="{{ t }}"{{ ' selected' if t == template }}>{{ t }} ({{ f.description }})</option>{% endfor %}</select></label>
 <div><button class="ghost">Use</button></div></form></section>
 <section class="card"><h2>Add grant{% if template %} from {{ template }}{% endif %}</h2>
-<form method="post" action="/directory/grants/_new" class="grid">
+{% call p.locked('groups:admin') %}<form method="post" action="/directory/grants/_new" class="grid">
 {{ csrf() }}<input type="hidden" name="template" value="{{ template }}">
 <label>Name<input name="name" required pattern="[a-z][a-z0-9-]{1,39}" autocomplete="off" placeholder="web-ops"></label>
 <label>Kind<select name="kind"><option value="allow">allows</option><option value="restrict">restricts (narrows what the allowing ones give)</option></select></label>
 {{ fields(start) }}
-<div><button>Add grant</button></div></form>
+<div><button>Add grant</button></div></form>{% endcall %}
 <p class="muted small">Waits for the Access page's Apply, then compiled at once. Refused with why: the tiers' groups, the domain controllers' hosts, sudo of every command for everyone, a group that is not there.</p></section>
 {% endif %}
 
@@ -63,18 +63,16 @@
 {% if g.where_machines %}<p>{% for m in g.where_machines %}<a href="/directory/computers/{{ m | urlencode }}">{{ m }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
 {% if g.where_people_names %}<p>{{ g.where_people_names | join(', ') }}</p>{% endif %}
 {% if not g.where_machines and not g.where_people_names %}{{ p.empty("Nothing is in all of its where groups.") }}{% endif %}</section>
-{% if can('groups:admin') %}
 <section class="card"><h2>Change</h2>
-<form method="post" action="/directory/grants/{{ g.name | urlencode }}" class="grid">
+{% call p.locked('groups:admin') %}<form method="post" action="/directory/grants/{{ g.name | urlencode }}" class="grid">
 {{ csrf() }}
 {{ fields(g) }}
-<div><button>Save grant</button></div></form>
+<div><button>Save grant</button></div></form>{% endcall %}
 <p class="muted small">Its kind stays: remove it and add it again to change it. Waits for the Access page's Apply.</p></section>
 <section class="card"><h2>Remove {{ g.name }}</h2>
-<form method="post" action="/directory/grants/{{ g.name | urlencode }}/delete" class="grid">
-{{ csrf() }}<div><button class="danger">Remove grant</button></div></form>
+{% call p.locked('groups:admin') %}<form method="post" action="/directory/grants/{{ g.name | urlencode }}/delete" class="grid">
+{{ csrf() }}<div><button class="danger">Remove grant</button></div></form>{% endcall %}
 <p class="muted small">At Apply its groups, GPO share and sudo rule go: what it gave is taken away at once.</p></section>
-{% endif %}
 {% endif %}
 {% endif %}
 {% endblock %}

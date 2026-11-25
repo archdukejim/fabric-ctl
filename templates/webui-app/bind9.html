@@ -1,11 +1,11 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 <h1>DNS · Zones</h1>
 <nav class="sections">
 {% for id, label in bind9_sections if id != 'dhcp' or can('dhcp:read') %}<a href="/dns/zones{{ '' if id == 'forward' else '?view=' ~ id }}" class="section{{ ' active' if id == section or (id == 'forward' and section == 'new') or (id == 'tsig' and section in ('key', 'newkey')) }}"{{ ' aria-current="page"' if id == section }}>{{ label }}</a>{% endfor %}
 </nav>
 
 {% if section == 'forward' %}
-{% call p.actions() %}{% if can('dns:write') %}<a class="btn" href="/dns/zones?view=new">Add zone</a>{% endif %}{% endcall %}
+{% call p.actions() %}{{ p.btn('/dns/zones?view=new', 'Add zone', 'dns:write') }}{% endcall %}
 {% if forward_zones | length > 1 %}
 <div class="picker"><span class="muted">Zone</span>
 {% for z in forward_zones %}<a href="/dns/zones?zone={{ z.key | urlencode }}" class="subtab{{ ' active' if zone and z.key == zone.key }}">{{ z.name }} <span class="muted">{{ z.records }}</span></a>{% endfor %}
@@ -26,7 +26,7 @@
 <section class="card"><h2>{{ zone.name }} <span class="muted">{{ zone.records | length }}</span></h2>
 <p class="muted">{{ zone.status }}</p>
 {% if zone.offered %}<div class="networks"><span class="muted">Networks</span>
-{% if w and zone.mappable %}<form method="post" action="/bind9/zone/{{ zk }}/networks" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ netbox('nw', zone.networks, true) }} <button>Save networks</button></form>
+{% if zone.mappable %}{% call p.locked('dns:write') %}<form method="post" action="/bind9/zone/{{ zk }}/networks" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ netbox('nw', zone.networks, true) }} <button>Save networks</button></form>{% endcall +%}
 {% else %}<span>{{ netshow(zone.networks) }}</span>{% if zone.key == 'dynamic_zone_var' %} <span class="muted small">· the site's own domain answers every network (split it instead)</span>{% endif %}{% endif %}
 </div>{% endif %}
 {% if zone.splittable and (zone.splits or w) %}<div class="picker" role="tablist" aria-label="Answers by network"><a href="/dns/zones?zone={{ zk }}" class="subtab{{ ' active' if tab is none }}" role="tab"{{ ' aria-selected="true"' if tab is none }}>All networks <span class="muted">{{ zone.records | length }}</span></a>
@@ -35,18 +35,17 @@
 </div>{% endif %}
 {% if tab == 'new' %}
 <h3>Add a split</h3>
-<form method="post" action="/bind9/zone/{{ zk }}/splits" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
+{% call p.locked('dns:write') %}<form method="post" action="/bind9/zone/{{ zk }}/splits" class="grid"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <div class="wide">{{ netbox('sp', [], false) }}</div>
-<div><button>Add split</button> <a class="btn ghost" href="/dns/zones?zone={{ zk }}">Cancel</a></div></form>
+<div><button>Add split</button> <a class="btn ghost" href="/dns/zones?zone={{ zk }}">Cancel</a></div></form>{% endcall +%}
 <p class="muted">The networks ticked get a tab of their own, starting as a copy of the All networks tab's records
 (fabric's own names stay there and answer in every tab). Their clients then get exactly that tab's records for
 {{ zone.name }}; every other network keeps All networks. A network sits in one split per zone. Waits for
 <strong>Apply</strong>; edit the new tab's records after it.</p>
 {% else %}
 {% if st %}<div class="splitbar">
-{% if w %}<form method="post" action="/bind9/zone/{{ zk }}/splits/update" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="split" value="{{ tab }}"><input type="hidden" name="old" value="{{ st.subnets | join(',') }}"><span class="muted">This split's networks</span> {{ netbox('sp', st.subnets, false) }} <button>Save networks</button></form>
-<form method="post" action="/bind9/zone/{{ zk }}/splits/delete" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="split" value="{{ tab }}"><input type="hidden" name="old" value="{{ st.subnets | join(',') }}"><button class="danger">Remove split</button></form>
-{% else %}<span class="muted">This split's networks</span> {{ netshow(st.subnets) }}{% endif %}
+{% call p.locked('dns:write') %}<form method="post" action="/bind9/zone/{{ zk }}/splits/update" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="split" value="{{ tab }}"><input type="hidden" name="old" value="{{ st.subnets | join(',') }}"><span class="muted">This split's networks</span> {{ netbox('sp', st.subnets, false) }} <button>Save networks</button></form>
+<form method="post" action="/bind9/zone/{{ zk }}/splits/delete" class="inline"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="split" value="{{ tab }}"><input type="hidden" name="old" value="{{ st.subnets | join(',') }}"><button class="danger">Remove split</button></form>{% endcall +%}
 </div>
 <p class="muted">Clients in {{ st.subnets | join(', ') }} get these records for {{ zone.name }}, instead of the All
 networks tab's: a name missing here does not exist for them.</p>{% endif %}
@@ -54,7 +53,7 @@ networks tab's: a name missing here does not exist for them.</p>{% endif %}
 {% if w %}<form id="rec-add" method="post" action="/bind9/zone/{{ zk }}/add"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ tabfield() }}</form>
 {% for r in recs if not r.fabric %}<form id="del-{{ r.type }}-{{ r.index }}" method="post" action="/bind9/zone/{{ zk }}/delete"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ tabfield() }}<input type="hidden" name="type" value="{{ r.type }}"><input type="hidden" name="index" value="{{ r.index }}"><input type="hidden" name="name" value="{{ r.name }}"></form>{% endfor %}
 {% if ed.r %}<form id="rec-edit" method="post" action="/bind9/zone/{{ zk }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}">{{ tabfield() }}<input type="hidden" name="type" value="{{ ed.r.type }}"><input type="hidden" name="index" value="{{ ed.r.index }}"><input type="hidden" name="old_name" value="{{ ed.r.name }}"></form>{% endif %}{% endif %}
-{% if recs or w %}{% call p.list(["Type", "Name", "Value", "Reverse (PTR)"] + ([""] if w else []), "records") %}{% for r in recs %}
+{% call p.list(["Type", "Name", "Value", "Reverse (PTR)", ""], "records") %}{% for r in recs %}
 {% if ed.r and r is sameas ed.r %}{% set e = r.edit or {} %}<tr class="editing">
 <td data-label="Type"><span class="pill">{{ r.type }}</span></td>
 <td data-label="Name"><input form="rec-edit" name="name" value="{{ r.name }}" required aria-label="Name"></td>
@@ -64,15 +63,15 @@ networks tab's: a name missing here does not exist for them.</p>{% endif %}
 {% else %}<tr>
 <td data-label="Type"><span class="pill">{{ r.type }}</span></td><td data-label="Name">{{ r.name or '(missing)' }}{% if r.fabric %} <span class="pill" title="{{ r.fabric.service }}: every apply adds it from the setting {{ r.fabric.setting }}">provided by fabric</span>{% endif %}{% if r.link %} <span class="muted small">· on the landing page</span>{% endif %}</td><td data-label="Value"><code>{{ r.value }}</code></td>
 <td data-label="Reverse (PTR)">{% if r.ptr %}<span class="muted small">auto</span> <code class="small">{{ r.ptr }}</code>{% if r.ptr_scope == 'split' %} <span class="muted small">· this split only</span>{% endif %}{% elif r.ptr_note %}<span class="muted small">none — {{ r.ptr_note }}</span>{% endif %}</td>
-{% if w %}<td class="rowact">{% if r.fabric %}<span class="muted small">kept by fabric</span>{% else %}<a class="iconbtn" href="/dns/zones?zone={{ zk }}{{ tq }}&amp;edit={{ r.type }}-{{ r.index }}" aria-label="Edit {{ r.name }} {{ r.type }}" title="Edit">{{ pencil() }}</a><button class="iconbtn danger" form="del-{{ r.type }}-{{ r.index }}" aria-label="Delete {{ r.name }} {{ r.type }}" title="Delete">{{ bin() }}</button>{% endif %}</td>{% endif %}</tr>
+<td class="rowact">{% if r.fabric %}<span class="muted small">kept by fabric</span>{% elif w %}<a class="iconbtn" href="/dns/zones?zone={{ zk }}{{ tq }}&amp;edit={{ r.type }}-{{ r.index }}" aria-label="Edit {{ r.name }} {{ r.type }}" title="Edit">{{ pencil() }}</a><button class="iconbtn danger" form="del-{{ r.type }}-{{ r.index }}" aria-label="Delete {{ r.name }} {{ r.type }}" title="Delete">{{ bin() }}</button>{% else %}<button class="iconbtn" type="button" aria-label="Edit {{ r.name }} {{ r.type }}"{{ lock('dns:write') }}>{{ pencil() }}</button><button class="iconbtn danger" type="button" aria-label="Delete {{ r.name }} {{ r.type }}"{{ lock('dns:write') }}>{{ bin() }}</button>{% endif %}</td></tr>
 {% endif %}{% endfor %}
-{% if w %}<tr class="addrow">
-<td data-label="Type"><select form="rec-add" name="type" aria-label="New record's type">{% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></td>
-<td data-label="Name"><input form="rec-add" name="name" required placeholder="www or @" aria-label="New record's name"></td>
-<td data-label="Value"><span class="inline"><input form="rec-add" name="priority" inputmode="numeric" class="num f-prio" placeholder="priority" aria-label="Priority (MX, SRV)"><input form="rec-add" name="weight" inputmode="numeric" class="num f-srv" placeholder="weight" aria-label="Weight (SRV)"><input form="rec-add" name="port" inputmode="numeric" class="num f-srv" placeholder="port" aria-label="Port (SRV)"><input form="rec-add" name="value" required placeholder="192.168.1.20, a host name, or the text" aria-label="New record's value"></span></td>
+<tr class="addrow">
+<td data-label="Type"><select form="rec-add" name="type" aria-label="New record's type"{{ lock('dns:write') }}>{% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></td>
+<td data-label="Name"><input form="rec-add" name="name" required placeholder="www or @" aria-label="New record's name"{{ lock('dns:write') }}></td>
+<td data-label="Value"><span class="inline"><input form="rec-add" name="priority" inputmode="numeric" class="num f-prio" placeholder="priority" aria-label="Priority (MX, SRV)"{{ lock('dns:write') }}><input form="rec-add" name="weight" inputmode="numeric" class="num f-srv" placeholder="weight" aria-label="Weight (SRV)"{{ lock('dns:write') }}><input form="rec-add" name="port" inputmode="numeric" class="num f-srv" placeholder="port" aria-label="Port (SRV)"{{ lock('dns:write') }}><input form="rec-add" name="value" required placeholder="192.168.1.20, a host name, or the text" aria-label="New record's value"{{ lock('dns:write') }}></span></td>
 <td data-label="Reverse (PTR)"></td>
-<td class="rowact"><button form="rec-add">Add</button></td></tr>{% endif %}
-{% endcall %}{% else %}{{ p.empty("No records in this zone yet.") }}{% endif %}
+<td class="rowact"><button form="rec-add"{{ lock('dns:write') }}>Add</button></td></tr>
+{% endcall %}
 {% endif %}
 {% if w %}
 {% set alias_keys = (tsig_keys or []) | selectattr('domain', 'equalto', zone.name) | selectattr('with_aliases') | list %}
@@ -94,32 +93,30 @@ their own, and a split's A and AAAA records get their reverse (PTR) names in its
 zone needs the DNS filter on (decision 2.1.4.18).{% endif %} Which records the landing page links to is set in its own section:
 <a href="/dns/zones?view=landing">Landing page</a>.</p>{% endif %}
 </section>
-{% if w %}
 {% if zone.key != 'dynamic_zone_var' %}
 {% set shown = forward_zones | selectattr('key', 'equalto', zone.key) | first %}
 <section class="card"><h2>Remove zone {{ zone.name }}</h2>
 <p class="muted">Waits for <strong>Apply</strong>; then BIND and the DNS filter stop answering for {{ zone.name }} within seconds. Its
 <strong>{{ shown.records if shown else zone.records | length }} record(s)</strong> go with it (they are kept in the audit log).
 A TSIG key or ACL policy for this zone must be removed first (TSIG keys).</p>
-<form method="post" action="/bind9/zones/{{ zone.key | urlencode }}/remove" class="grid">
+{% call p.locked('dns:write') %}<form method="post" action="/bind9/zones/{{ zone.key | urlencode }}/remove" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Type the zone's name to confirm<input name="confirm" required autocomplete="off" placeholder="{{ zone.name }}"></label>
 <div><button class="danger">Remove zone</button></div>
-</form></section>
+</form>{% endcall %}</section>
 {% endif %}
-{% endif %}
-{% else %}{% call p.empty("No forward zones.") %}{% if can('dns:write') %}<a class="btn" href="/dns/zones?view=new">Add zone</a>{% endif %}{% endcall %}{% endif %}
+{% else %}{% call p.empty("No forward zones.") %}{{ p.btn('/dns/zones?view=new', 'Add zone', 'dns:write') }}{% endcall %}{% endif %}
 
 {% elif section == 'new' %}
 <p><a href="/dns/zones">← Forward zones</a></p>
 <section class="card"><h2>Add zone</h2>
-{% if can('dns:write') %}<form method="post" action="/bind9/zones/new" class="grid">
+{% call p.locked('dns:write') %}<form method="post" action="/bind9/zones/new" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Zone name<input name="name" required placeholder="home.lan" pattern="[A-Za-z0-9]([A-Za-z0-9.\-]*[A-Za-z0-9])?\.?"></label>
 <label class="check wide"><input type="checkbox" name="hide_public" value="on"> Hide the public name — needed for a name
 under a public top-level domain (.com, .net, …): every client of this site then gets this zone's answers instead of the real ones</label>
 <div><button>Add zone</button></div>
-</form>{% else %}<p class="muted">Adding a zone needs the permission dns:write.</p>{% endif %}
+</form>{% endcall %}
 <p class="muted">Waits for <strong>Apply</strong>; then BIND answers for the new zone within seconds, and the DNS filter
 forwards it to BIND, never filtered. Names for private use need no tick: <code>home.arpa</code>, <code>.internal</code>, <code>.lan</code>,
 <code>.local</code>, <code>.test</code>, <code>.example</code>. Refused: the site's own domain, the DHCP and Windows
@@ -137,27 +134,27 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 <td data-label="Record"><span class="pill">{{ r.type }}</span> {{ r.name }}</td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("The landing page links to none of your records yet.") }}{% endif %}
 </section>
-{% if can('dns:write') and zone %}
+{% if zone %}
 {% set choices = [] %}{% for r in zone.records if r.type in ('A', 'AAAA', 'CNAME') and '*' not in r.name %}{% set _ = choices.append(r) %}{% endfor %}
 <section class="card"><h2>Add a link</h2>
-{% if choices %}<form method="post" action="/bind9/landing/add" class="grid">
+{% if choices %}{% call p.locked('dns:write') %}<form method="post" action="/bind9/landing/add" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Record<select name="record" required>{% for r in choices %}<option value="{{ r.type }}|{{ r.index }}|{{ r.name }}">{{ r.name }} ({{ r.type }} {{ r.value }}){{ ' — linked' if r.link }}</option>{% endfor %}</select></label>
 <label>Label<input name="link_label" maxlength="60" placeholder="Proxmox host1"></label>
 <label>Port<input name="link_port" inputmode="numeric" placeholder="8006"></label>
 <label>Path<input name="link_path" placeholder="/"></label>
 <div><button>Link it</button></div>
-</form>
+</form>{% endcall +%}
 <p class="muted">Only A, AAAA and CNAME records of {{ zone.name }}, and never a wildcard. The label is the text shown
 (default: the name); linking a record that is linked already replaces its link.</p>
 {% else %}{% call p.empty("No A, AAAA or CNAME record to link.") %}<a class="btn" href="/dns/zones">Forward zones</a>{% endcall %}{% endif %}
 </section>
 {% if linked %}
-<section class="card"><h2>Remove a link</h2><form method="post" action="/bind9/landing/remove" class="grid">
+<section class="card"><h2>Remove a link</h2>{% call p.locked('dns:write') %}<form method="post" action="/bind9/landing/remove" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Link<select name="record" required>{% for r in linked %}<option value="{{ r.type }}|{{ r.index }}|{{ r.name }}">{{ r.link.label or r.name }} ({{ r.type }} {{ r.name }})</option>{% endfor %}</select></label>
 <div><button class="danger">Remove link</button></div>
-</form><p class="muted">The record stays; only the landing page stops linking it.</p></section>
+</form>{% endcall %}<p class="muted">The record stays; only the landing page stops linking it.</p></section>
 {% endif %}
 {% endif %}
 
@@ -194,7 +191,6 @@ here, each as <code>https://&lt;name&gt;.{{ zone.name if zone else '&lt;domain&g
 <p><a href="/dns/zones?view=tsig">← TSIG keys</a></p>
 {{ p.facts("TSIG key " ~ k.name, [("Mode", "ACME (DNS-01)" if k.mode == 'acme' else "Custom"), ("Zone", k.domain), ("Algorithm", k.algorithm), ("May update", k.scope), ("Types", k.types), ("ACLs", k.acls | join(', ') or '—')]) }}
 {% for n in k.notes %}<p class="flash">{{ n }}</p>{% endfor %}
-{% if can('tsig:manage') %}
 {% set granted = k.records | map('lower') | list %}
 {% set entries = k.with_aliases | map(attribute='record') | map('lower') | list %}
 <section class="card"><h2>Edit names</h2>
@@ -203,40 +199,39 @@ keeps its secret, so its clients keep working, and waits for <strong>Apply</stro
 and secret stay: a key for another zone is a new key, and a new secret is <strong>New secret</strong>.</p>
 {% if k.records or k.with_aliases %}{% call p.list(["Name", "Covers today", ""]) %}
 {% for r in k.records %}<tr><td data-label="Name"><code>{{ r }}</code></td><td data-label="Covers today"><code>_acme-challenge.{{ r }}.{{ k.domain }}</code></td>
-<td><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="drop" value="{{ r }}"><button class="danger">Remove</button></form></td></tr>{% endfor %}
+<td><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="drop" value="{{ r }}"><button class="danger"{{ lock('tsig:manage') }}>Remove</button></form></td></tr>{% endfor %}
 {% for e in k.with_aliases %}<tr><td data-label="Name"><code>{{ e.record }}</code> and its aliases</td><td data-label="Covers today">{% if e.names %}{{ e.names | join(', ') }}{% else %}<span class="muted">nothing: no such A or AAAA record now</span>{% endif %}</td>
-<td><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="drop_with_aliases" value="{{ e.record }}"><button class="danger">Remove</button></form></td></tr>{% endfor %}
+<td><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update"><input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="drop_with_aliases" value="{{ e.record }}"><button class="danger"{{ lock('tsig:manage') }}>Remove</button></form></td></tr>{% endfor %}
 {% endcall %}{% else %}<p class="muted">No names: its rights are {{ k.scope }}.</p>{% endif %}
-<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update" class="grid">
+{% call p.locked('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Add a record of {{ k.domain }}<select name="pick"><option value="">—</option>
 {% for c in tsig_choices or [] %}{% if c.name not in granted %}<option value="rec:{{ c.name }}">{{ c.name }} ({{ c.types | join(' ') }})</option>{% endif %}{% if c.address and c.name not in entries %}<option value="ali:{{ c.name }}">{{ c.name }} with its aliases{{ ': ' ~ c.aliases | join(', ') if c.aliases }}</option>{% endif %}{% endfor %}
 </select></label>
 {% if k.mode != 'acme' %}<label class="wide">Or a name typed in (Custom)<input name="typed" placeholder="printer"></label>{% endif %}
 <div><button>Add</button></div>
-</form>
+</form>{% endcall +%}
 <p class="muted small">"With its aliases" grants the record and every CNAME of the zone pointing at it, chains included, as
 the zone is at each Apply: an alias made later is granted, one removed loses its grant. To grant only some, add names
 one by one.</p>
 {% if k.mode != 'acme' %}
-<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update" class="grid">
+{% call p.locked('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/update" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="set_scope" value="1">
 <label class="wide">Scope (Custom)<select name="scope">{% for v, l in [("records", "The names listed above"), ("primary", "Any _acme-challenge name in the zone"), ("any_name", "Any name in the zone")] %}<option value="{{ v }}"{{ ' selected' if (v == 'any_name' and k.any_name) or (v == 'primary' and k.primary and not k.any_name and not k.records and not k.with_aliases) or (v == 'records' and (k.records or k.with_aliases)) }}>{{ l }}</option>{% endfor %}</select></label>
 <fieldset class="wide"><legend>Record types</legend>
 {% for t in tsig_any_types %}<label class="check"><input type="checkbox" name="type_{{ t }}" value="1"{{ ' checked' if t in k.types.split(' ') }}> {{ t }}</label>{% endfor %}
 </fieldset>
 <div><button>Change scope</button></div>
-</form>{% endif %}
+</form>{% endcall %}{% endif %}
 </section>
-<section class="card"><h2>New secret</h2><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/rotate">
+<section class="card"><h2>New secret</h2>{% call p.locked('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/rotate">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <p class="muted">A new secret, shown once and made at once: BIND takes it at once, so its client needs it now.</p>
-<button>New secret</button></form></section>
-<section class="card"><h2>Remove</h2><form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/delete">
+<button>New secret</button></form>{% endcall %}</section>
+<section class="card"><h2>Remove</h2>{% call p.locked('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ k.name | urlencode }}/delete">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <p class="muted">Its secret and ACL entries go with it; once applied, BIND refuses updates signed with it. Waits for <strong>Apply</strong>.</p>
-<button class="danger">Remove TSIG key</button></form></section>
-{% endif %}
+<button class="danger">Remove TSIG key</button></form>{% endcall %}</section>
 
 {% elif section == 'newkey' %}
 <p><a href="/dns/zones?view=tsig">← TSIG keys</a></p>
@@ -291,14 +286,12 @@ each Apply. Done at once, since it makes the key's secret: shown once, and BIND 
 <td data-label="Types">{{ k.types }}</td><td data-label="ACLs">{{ k.acls | join(', ') or '—' }}</td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("No TSIG keys yet.") }}{% endif %}
 </section>
-{% if can('tsig:manage') %}
 <section class="card"><h2>New TSIG key</h2>
 <p class="muted">First its mode:</p>
-<p><a class="btn" href="/dns/zones?view=newkey&amp;mode=acme">ACME (DNS-01)</a> pick a zone, then the records whose
+<p>{{ p.btn('/dns/zones?view=newkey&mode=acme', 'ACME (DNS-01)', 'tsig:manage') }} pick a zone, then the records whose
 certificates it proves: TXT at their <code>_acme-challenge</code> names only.</p>
-<p><a class="btn" href="/dns/zones?view=newkey&amp;mode=custom">Custom</a> any other use: listed hosts, any
+<p>{{ p.btn('/dns/zones?view=newkey&mode=custom', 'Custom', 'tsig:manage') }} any other use: listed hosts, any
 <code>_acme-challenge</code> name in the zone (a wildcard certificate), or any name with chosen record types.</p></section>
-{% endif %}
 <section class="card"><h2>ACLs and update policies</h2>
 <p class="muted">Who may query the zones, and which certbot devices may prove which names, are set on the host today: <code>fabricctl acl</code>.</p></section>
 {% endif %}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {% macro last(value) %}{{ value[:16] | replace('T', ' ') if value else 'never' }}{% endmacro %}
 {% if view in ("list", "groups") %}
@@ -9,7 +9,7 @@
 {% endif %}
 
 {% if view == "list" %}
-{% call p.actions() %}{% if can('machines:admin') %}<a class="btn" href="/directory/computers/_new">Add computer</a>{% endif %}{% endcall %}
+{% call p.actions() %}{{ p.btn('/directory/computers/_new', 'Add computer', 'machines:admin') }}{% endcall %}
 {% if unavailable %}<p class="flash bad" role="alert">The computers could not be read: {{ unavailable }}</p>
 {% else %}
 <section class="card"><h2>Computers <span class="muted">{{ total }}</span></h2>
@@ -25,7 +25,7 @@
 <td data-label="Machine groups">{{ m.groups | join(', ') or '—' }}</td><td data-label="Last sign-in">{{ last(m.last_logon) }}</td></tr>{% endfor %}{% endcall %}
 {{ p.pager("/directory/computers", search, at, pages, "computers", keep) }}
 {% elif search or keep %}{{ p.empty("No computer matches.") }}
-{% else %}{% call p.empty("No computers in the domain yet.") %}{% if can('machines:admin') %}<a class="btn" href="/directory/computers/_new">Add computer</a>{% endif %}{% endcall %}{% endif %}
+{% else %}{% call p.empty("No computers in the domain yet.") %}{{ p.btn('/directory/computers/_new', 'Add computer', 'machines:admin') }}{% endcall %}{% endif %}
 <p class="muted small">The domain's computers (<code>OU=machines</code>, filed by type) and the fabric hosts. A disabled computer cannot sign anyone in or join an 802.1X port; its account stays. Last sign-in is the domain's own record, up to 14 days behind.</p>
 </section>
 {% endif %}
@@ -39,9 +39,9 @@
 <td data-label="Machine group"><strong>{{ g.name }}</strong>{% if not g.fabric %}<div class="muted small">not made by fabric</div>{% endif %}</td>
 <td data-label="Computers">{% for m in g.machines %}<a href="/directory/computers/{{ m | urlencode }}">{{ m }}</a>{{ ', ' if not loop.last }}{% else %}none{% endfor %}{% if g.other_members %}<div class="muted small">also {{ g.other_members | join(', ') }}</div>{% endif %}</td>
 <td data-label="Sudo rules">{{ g.rules | join(', ') or '—' }}</td>
-<td class="row-actions">{% if can('machines:admin') %}<form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete">{{ csrf() }}<button class="danger" title="refused while a sudo rule names it; its computers stay">Delete</button></form>{% endif %}</td></tr>{% endfor %}{% endcall %}
+<td class="row-actions"><form method="post" action="/directory/hostgroups/{{ g.short | urlencode }}/delete">{{ csrf() }}<button class="danger"{% if can('machines:admin') %} title="refused while a sudo rule names it; its computers stay"{% else %}{{ lock('machines:admin') }}{% endif %}>Delete</button></form></td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("No machine groups yet.") }}{% endif %}
-{% if can('machines:admin') %}
+{% call p.locked('machines:admin') %}
 {% if groups and all_machines %}<form method="post" action="/directory/hostgroups/_form/members" class="grid">
 {{ csrf() }}
 <label>Machine group<select name="group" required>{% for g in groups %}<option value="{{ g.short }}">{{ g.name }}</option>{% endfor %}</select></label>
@@ -53,7 +53,8 @@
 <label>New machine group<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="web" title="it becomes hosts-&lt;name&gt;"></label>
 <div><button>Create</button></div>
 </form>
-<p class="muted small">Waits for Computers' Apply. A computer put in or taken out of a machine group changes where its grants and sudo rules apply once applied (sssd reads them within minutes).</p>{% endif %}
+{% endcall %}
+<p class="muted small">Waits for Computers' Apply. A computer put in or taken out of a machine group changes where its grants and sudo rules apply once applied (sssd reads them within minutes).</p>
 </section>
 {% endif %}
 
@@ -61,7 +62,7 @@
 <p><a href="/directory/computers">← Computers</a></p>
 <h1>Directory · Add computer</h1>
 <section class="card"><h2>Add computer</h2>
-<form method="post" action="/directory/machines/_new" class="grid">
+{% call p.locked('machines:admin') %}<form method="post" action="/directory/machines/_new" class="grid">
 {{ csrf() }}
 <label>Host name<input name="name" required pattern="[a-z0-9]([a-z0-9-]{0,13}[a-z0-9])?" placeholder="ws01" autocomplete="off"></label>
 <label>Type<select name="type"><option value="">none (OU=machines)</option>{% for id, label in types | dictsort %}<option value="{{ id }}">{{ label }} (its folder and group)</option>{% endfor %}</select></label>
@@ -69,6 +70,7 @@
 <label><input type="checkbox" name="managed" value="yes" checked> Managed by fabric (SSH with Kerberos, DNS; manual 1.6.11.6)</label>
 <div><button>Add computer</button></div>
 </form>
+{% endcall %}
 <p class="muted small">It goes into this site's group. Waits for Computers' Apply; its one-time join password is shown once on the Review after Apply: give it to <code>join-linux.sh --one-time</code> on a Linux machine. Windows machines join with an admin's account and are filed by their edition.</p>
 </section>
 
@@ -87,7 +89,7 @@
 <h1>Directory · {{ m.name }}{% if m.dns %} <span class="muted">{{ m.dns }}</span>{% endif %}</h1>
 {% if unavailable %}<p class="flash bad" role="alert">This computer could not be read: {{ unavailable }}</p>
 {% else %}
-{% call p.actions() %}{% if can('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/{{ 'disable' if m.enabled else 'enable' }}">{{ csrf() }}<button class="ghost">{{ 'Disable' if m.enabled else 'Enable' }}</button></form>{% endif %}{% endcall %}
+{% call p.actions() %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/{{ 'disable' if m.enabled else 'enable' }}">{{ csrf() }}<button class="ghost"{{ lock('machines:admin') }}>{{ 'Disable' if m.enabled else 'Enable' }}</button></form>{% endcall %}
 <section class="card facts"><h2>State</h2><p>{{ p.status('ok' if m.enabled else 'bad', 'enabled' if m.enabled else 'disabled') }}</p>
 <dl><dt>Last sign-in</dt><dd>{{ last(m.last_logon) }}</dd><dt>Joined</dt><dd>{{ m.created or '—' }}</dd></dl></section>
 {{ p.facts("Details", [("Type", types.get(m.type, "none")), ("OS", m.os or "—"), ("Folder", m.folder or "—"), ("Machine groups", m.groups | join(", ") or "none")]) }}
@@ -106,41 +108,43 @@
 {% else %}{{ p.empty("No 802.1X device has its name.") }}{% endif %}</section>
 {% set ch = c.choices or {} %}
 <section class="card"><h2>Machine groups <span class="muted">{{ (m.groups or []) | length }}</span></h2>
-{% if m.groups %}{% call p.list(["Machine group", ""]) %}{% for g in m.groups %}<tr><td data-label="Machine group">{{ g }}</td><td class="row-actions">{% if can('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/groups">{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="group" value="{{ g }}"><button class="ghost">Take out</button></form>{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% if m.groups %}{% call p.list(["Machine group", ""]) %}{% for g in m.groups %}<tr><td data-label="Machine group">{{ g }}</td><td class="row-actions"><form method="post" action="/directory/machines/{{ m.name | urlencode }}/groups">{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="group" value="{{ g }}"><button class="ghost"{{ lock('machines:admin') }}>Take out</button></form></td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("In no machine group.") }}{% endif %}
 {% set addable = (ch.groups or []) | reject('in', m.groups or []) | list %}
-{% if can('machines:admin') and addable %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/groups" class="grid">
+{% if addable %}{% call p.locked('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/groups" class="grid">
 {{ csrf() }}<input type="hidden" name="action" value="add">
 <label>Machine group<select name="group" required>{% for g in addable %}<option>{{ g }}</option>{% endfor %}</select></label>
-<div><button>Add to group</button></div></form>{% endif %}</section>
-{% if can('machines:admin') %}
+<div><button>Add to group</button></div></form>{% endcall %}{% endif %}</section>
 <section class="card"><h2>Change type</h2>
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/type" class="grid">
+{% call p.locked('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/type" class="grid">
 {{ csrf() }}
 <label>Type<select name="type" required>{% for id, label in types | dictsort %}<option value="{{ id }}"{{ ' selected' if m.type == id }}>{{ label }}</option>{% endfor %}</select></label>
 <label><input type="checkbox" name="move" value="yes" checked> Move it to that type's folder</label>
 <div><button>Change type</button></div></form>
+{% endcall %}
 <p class="muted small">Its type group decides which shipped grants reach it. Waits for Computers' Apply.</p></section>
-{% if can('ous:admin') %}<section class="card"><h2>Move to folder</h2>
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/move" class="grid">
+<section class="card"><h2>Move to folder</h2>
+{% call p.locked('ous:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/move" class="grid">
 {{ csrf() }}
 <label>Folder<select name="path" required>{% for f in ch.folders or [] %}<option{{ ' selected' if f == m.folder }}>{{ f }}</option>{% endfor %}</select></label>
 <div><button>Move</button></div></form>
-<p class="muted small">Folders grant nothing: nobody's access changes. Waits for Computers' Apply.</p></section>{% endif %}
+{% endcall %}
+<p class="muted small">Folders grant nothing: nobody's access changes. Waits for Computers' Apply.</p></section>
 <section class="card"><h2>Add a service</h2>
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/keytab" class="grid">
+{% call p.locked('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/keytab" class="grid">
 {{ csrf() }}
 <label>Service class<input name="service" required maxlength="32" pattern="[A-Za-z][A-Za-z0-9-]{0,31}" placeholder="HTTP" autocomplete="off"></label>
 <label>Its local user<input name="user" required maxlength="32" placeholder="www-data" autocomplete="off"></label>
 <label>Keytab path (optional)<input name="path" maxlength="255" placeholder="the tool's default" autocomplete="off"></label>
 <div><button>Show the command</button></div></form>
+{% endcall %}
 <p class="muted small">Gives one command for the computer's administrator to run over SSH: the console never holds a key. Nothing waits for Apply.</p></section>
 <section class="card"><h2>Remove {{ m.name }}</h2>
-<form method="post" action="/directory/machines/{{ m.name | urlencode }}/delete" class="grid">
+{% call p.locked('machines:admin') %}<form method="post" action="/directory/machines/{{ m.name | urlencode }}/delete" class="grid">
 {{ csrf() }}
 <div><button class="danger">Remove computer</button></div></form>
+{% endcall %}
 <p class="muted small">At Computers' Apply its account goes from the domain: it can no longer sign anyone in, and it must join again to come back.</p></section>
-{% endif %}
 {% endif %}
 {% endif %}
 {% endblock %}

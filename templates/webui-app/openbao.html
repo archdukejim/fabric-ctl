@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 <h1>Secrets · {{ {"status": "Status", "disk": "Disk encryption", "secrets": "fabric's secrets"}.get(view, "Unlock methods") }}</h1>
 {% set sl = slots | selectattr('id', 'equalto', slot_id) | first if slot_id else none %}
 {% set light = 'bad' if not s.reachable or s.sealed or not s.initialized else ('warn' if not s.key.ok else 'ok') %}
@@ -61,18 +61,16 @@
 <dt>Key</dt><dd><code class="small">{{ sl.key_id }}</code></dd><dt>Added</dt><dd>{{ sl.added }}</dd>
 <dt>Last tested</dt><dd>{{ sl.tested or 'never' }}</dd></dl>
 <p class="muted small">{{ slot_types[sl.type][1] }}</p></section>
-{% if can('vault:unlock') %}
 <section class="card"><h2>Test</h2>
 <p class="muted">Unwraps the vault key with this method now and checks it; nothing is changed.</p>
-<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test" class="grid">
+{% call p.locked('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/test" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
-<div><button{{ '' if live else ' disabled' }}>Test {{ slot_types[sl.type][0] | lower }}</button></div></form></section>
+<div><button{{ '' if live else ' disabled' }}>Test {{ slot_types[sl.type][0] | lower }}</button></div></form>{% endcall %}</section>
 <section class="card"><h2>Remove</h2>
 {% if slots | length > 1 %}<p class="muted">Done at once, after you type this host's name.</p>
-<p><a class="btn danger-link" href="/secrets/remove?{{ {'slot': sl.id} | urlencode }}">Remove {{ slot_types[sl.type][0] | lower }}…</a></p>
+<p>{{ p.btn('/secrets/remove?' ~ ({'slot': sl.id} | urlencode), 'Remove ' ~ (slot_types[sl.type][0] | lower) ~ '…', 'vault:unlock', 'danger-link') }}</p>
 {% else %}<p class="muted">The last unlock method cannot be removed.</p>{% endif %}</section>
-{% endif %}
 
 {% elif view == 'add-security-key' %}
 <p><a href="/secrets/unlock">← Unlock methods</a></p>
@@ -81,7 +79,7 @@
 <p class="flash warn">Tested with a software token (SoftHSM2) only. YubiKey, Nitrokey and other hardware tokens are untested.</p>
 {% set pk = devices.pkcs11 or [] %}
 {% if pk %}
-{% if can('vault:unlock') %}<form method="post" action="/openbao/slots/add-security-key" class="grid">
+{% call p.locked('vault:unlock') %}<form method="post" action="/openbao/slots/add-security-key" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <fieldset class="wide"><legend>Tokens the PKCS#11 libraries see</legend>
 {% set enrolled = slots | map(attribute='device') | join(' ') %}
@@ -96,7 +94,7 @@
 <label>Token PIN<input name="pin" type="password" autocomplete="off" required minlength="4" maxlength="64"></label>
 <label class="wide">Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button{{ '' if add_live['security-key'] else ' disabled' }}>Add security key</button></div>
-</form>{% endif %}
+</form>{% endcall %}
 <p class="muted small">fabric wraps the vault key with the token, unwraps it again and checks it before saving. It never spends a token's last PIN try, and after a wrong PIN it does not retry unattended. You may be asked to sign in again first.</p>
 {% else %}<p class="blank">No PKCS#11 token found. Plug one in; the library must be installed (<code>ykcs11</code> for YubiKey, <code>opensc-pkcs11</code> for most others, both with <code>pcscd</code>).</p>{% endif %}
 {% set seen = pk | map(attribute='serial') | list %}
@@ -108,7 +106,7 @@
 <section class="card"><h2>Add a USB stick</h2>
 <p class="muted">The stick is wiped and gets a copy of the vault key. fabric records its serial and filesystem UUID and ignores sticks it did not make. Keypad-encrypted drives (Apricorn, IronKey, iStorage) work too: unlock them with their PIN first. A plain stick can be copied by anyone who holds it for a moment — a security key cannot.</p>
 {% if devices.disks %}
-{% if can('vault:unlock') %}<form method="post" action="/openbao/slots/add-usb" class="grid">
+{% call p.locked('vault:unlock') %}<form method="post" action="/openbao/slots/add-usb" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <fieldset class="wide"><legend>Plugged into this host (will be erased)</legend>
 {% for d in devices.disks %}<label class="check perm"><input type="radio" name="disk" value="{{ d.path }}"{{ ' checked' if loop.first }}> <strong>{{ d.model }}</strong> <span class="muted small">{{ d.size_gb }} GB · serial {{ d.serial or '—' }} · {{ d.path }}{% if d.labels %} · {{ d.labels | join(', ') }}{% endif %}</span></label>{% endfor %}
@@ -116,7 +114,7 @@
 <label>Label<input name="label" placeholder="safe stick" maxlength="60"></label>
 <label class="wide">Type this host's name to confirm erasing it<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button class="danger"{{ '' if add_live['usb'] else ' disabled' }}>Erase and add</button></div>
-</form>{% endif %}
+</form>{% endcall %}
 {% else %}<p class="blank">No USB disk found. Plug one into this host and reload.</p>{% endif %}
 </section>
 
@@ -125,7 +123,7 @@
 <section class="card"><h2>Add an HSM or key manager (KMIP)</h2>
 <p class="muted">Any KMIP server that can Encrypt/Decrypt (AES-256-CBC) with a key you created on it — CipherTrust, Fortanix, Entrust KeyControl, IBM GKLM, Cosmian, OVHcloud KMS, … The vault key is encrypted by a key that never leaves the device, over mutual TLS (the device's certificate verified against the CA you give). Revoking fabric's client, or disabling the key, on the device is the kill switch.</p>
 <p class="flash warn">Tested with the PyKMIP server only. Vendor HSMs and key managers are untested.</p>
-{% if can('vault:unlock') %}<form method="post" action="/openbao/slots/add-hsm" enctype="multipart/form-data" class="grid">
+{% call p.locked('vault:unlock') %}<form method="post" action="/openbao/slots/add-hsm" enctype="multipart/form-data" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Endpoint<input name="endpoint" required placeholder="kms.lan:5696"></label>
 <label>Key id (an active AES-256 key on the device)<input name="key_id" required maxlength="128"></label>
@@ -136,7 +134,7 @@
 <label class="wide">Its private key (PEM)<input type="file" name="key_file" required></label>
 <label class="wide">Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button{{ '' if add_live['hsm'] else ' disabled' }}>Test and add</button></div>
-</form>{% endif %}
+</form>{% endcall %}
 <p class="muted small">No client certificate yet? Make one under Step-CA → New key + certificate (e.g. CN <code>fabric-{{ host }}</code>), register the certificate on the device, then upload both here. A wrap and unwrap through the device run before anything is saved; the certificates are kept root-only on this host.</p></section>
 
 {% elif view == 'rotate' %}
@@ -144,11 +142,11 @@
 <section class="card"><h2>Rotate the vault key</h2>
 {% call p.list(["", "Method", "After rotation"]) %}{% for m in slots %}<tr><td>{{ p.light('ok' if m.present else 'bad', 'present now' if m.present else 'not present') }}</td><td data-label="Method">{{ slot_types[m.type][0] }} <span class="muted small">{{ m.label }}</span></td>
 <td data-label="After rotation">{% if m.present %}re-protected with the new key{% else %}<span class="bad-text">stops working (device not present)</span>{% endif %}</td></tr>{% endfor %}{% endcall %}
-{% if can('vault:unlock') %}<form method="post" action="/openbao/rotate" class="grid">
+{% call p.locked('vault:unlock') %}<form method="post" action="/openbao/rotate" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button{{ '' if live and slots | selectattr('present') | list else ' disabled' }}>Rotate</button></div>
-</form>{% endif %}
+</form>{% endcall %}
 <p class="muted small">OpenBao restarts once with the old and new key, re-protects itself, then keeps only the new one. You will be asked to sign in again first.</p></section>
 
 {% elif view == 'remove' %}
@@ -156,11 +154,11 @@
 <section class="card"><h2>Remove {{ slot_types[sl.type][0] | lower }}</h2>
 <p>{{ sl.label }} — <code class="small">{{ sl.device }}</code></p>
 <p class="muted">{% if sl.type == 'local' %}The key file is shredded. From then on only your devices unlock the vault.{% elif sl.type == 'usb' %}Its record is removed; the copy on the stick stays usable until you rotate the key — rotate if the stick is lost.{% else %}Its protected copy is deleted; the device's own key is untouched.{% endif %}</p>
-{% if can('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/remove" class="grid">
+{% call p.locked('vault:unlock') %}<form method="post" action="/openbao/slots/{{ sl.id | urlencode }}/remove" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label class="wide">Type this host's name to confirm<input name="confirm" autocomplete="off" required placeholder="{{ host }}"></label>
 <div><button class="danger"{{ '' if live and slots | length > 1 else ' disabled' }}>Remove</button></div>
-</form>{% endif %}{% if slots | length < 2 %}<p class="muted">The last unlock method cannot be removed.</p>{% endif %}
+</form>{% endcall %}{% if slots | length < 2 %}<p class="muted">The last unlock method cannot be removed.</p>{% endif %}
 </section>
 
 {% elif view == 'disk' %}

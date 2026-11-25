@@ -3,6 +3,7 @@
 memory only, the console's frame and navigation per bundle (manual 1.8.6), and no way to switch the preview on in the
 production server."""
 import contextlib
+import html.parser
 import http.client
 import importlib.util
 import os
@@ -55,6 +56,42 @@ def flash(page):
     """The message the page shows for the last action (manual 1.8.6.3), '' when none."""
     m = re.search(r'<p class="flash (ok|bad)" role="(?:status|alert)">(.*?)</p>', page, re.S)
     return (m.group(1) + ": " + m.group(2).replace("&#39;", "'")) if m else ""
+
+
+class _Live(html.parser.HTMLParser):
+    """The post forms a person can send (1.8.6.15): a form counts when a button or submit in it is enabled and not
+    inside a disabled fieldset."""
+    def __init__(self):
+        super().__init__()
+        self.stack, self.form, self.live = [], None, []
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == "fieldset":
+            self.stack.append("disabled" in a)
+        elif tag == "form" and (a.get("method") or "").lower() == "post":
+            self.form = a.get("action", "")
+        elif self.form is not None and (tag == "button" or (tag == "input" and a.get("type") == "submit")) \
+                and "disabled" not in a and not any(self.stack) and a.get("type") != "button":
+            self.live.append(self.form)
+
+    def handle_endtag(self, tag):
+        if tag == "fieldset" and self.stack:
+            self.stack.pop()
+        elif tag == "form":
+            self.form = None
+
+
+def live_forms(page):
+    """The actions of the post forms in the page's <main> a person can send; greyed ones are left out (1.8.6.15)."""
+    parser = _Live()
+    parser.feed(page.split("<main", 1)[-1].split("</main>", 1)[0])
+    return sorted(set(parser.live))
+
+
+def greyed(page, perm):
+    """True when the page shows a control greyed for the permission (1.8.6.15)."""
+    return f"Needs the {perm} permission" in page
 
 
 def change_ids(page):
@@ -1617,9 +1654,9 @@ with serve("fabric-helpdesk"):
           page[-1500:])
     post("/changes/people/discard", {})
     page = get("/directory/people/sam")
-    check("helpdesk: Disable, but no group or remove form (people:groups, people:remove are admins')",
-          "/directory/people/sam/disable" in page and "/directory/people/sam/groups" not in page
-          and "/directory/people/sam/delete" not in page)
+    check("helpdesk: Disable, and the group and remove forms greyed (people:groups, people:remove are admins')",
+          "/directory/people/sam/disable" in live_forms(page) and not {"/directory/people/sam/groups",
+          "/directory/people/sam/delete"} & set(live_forms(page)) and greyed(page, "people:remove"), live_forms(page))
     post("/directory/people/sam/disable", {})
     st, loc, page = post("/changes/people/apply", {})
     check("helpdesk: disable a plain user", "Disable sam" in page and "Nothing waits" in page, page[-1500:])
@@ -1752,27 +1789,28 @@ with serve("fabric-auditor"):
     check("--as fabric-auditor: records shown, no add form", "nas" in page and "/add" not in page
           and "dev-fabric-auditor" in page)
     page = get("/dns/zones?view=landing")
-    check("--as fabric-auditor: the landing page's links shown, no add or remove form",
-          "https://nas.home.arpa:5001/" in page and "/bind9/landing/" not in page)
+    check("--as fabric-auditor: the landing page's links shown, its add and remove forms greyed (dns:write)",
+          "https://nas.home.arpa:5001/" in page and live_forms(page) == [] and greyed(page, "dns:write"),
+          live_forms(page))
     page = get("/directory/policies")
-    check("--as fabric-auditor: the password policy shown, no form (domain:admin)",
-          "minimum length" in page and "/directory/domain/password-policy" not in page)
+    check("--as fabric-auditor: the password policy shown in its greyed form (domain:admin)",
+          "Minimum length" in page and live_forms(page) == [] and greyed(page, "domain:admin"), live_forms(page))
     st, loc, page = post("/directory/domain/password-policy", {"minimum_length": "4"})
     check("--as fabric-auditor: refused: holding a password policy change, the permission named (domain:admin); "
           "nothing pending", "you need the permission domain:admin" in flash(page)
           and "change pending" not in page, flash(page))
     page = get("/directory/groups/lab-users")
-    check("--as fabric-auditor: a group's page without Delete, the managers' or the members' forms (groups:admin; "
-          "not a manager)", "lab-restart" in page and 'method="post"' not in page.split("<main", 1)[1]
-          .split("</main>", 1)[0] and req("GET", "/directory/groups/_new")[0] == 403, page[-2000:])
+    check("--as fabric-auditor: a group's page with Delete, the managers' and the members' forms greyed "
+          "(groups:admin; not a manager)", "lab-restart" in page and live_forms(page) == []
+          and greyed(page, "groups:admin") and req("GET", "/directory/groups/_new")[0] == 403, live_forms(page))
     st, loc, page = post("/directory/groups/lab-users/managers", {"managers": "x"})
     # covers: web:post.directory.groups.*.managers -
     check("--as fabric-auditor: refused: holding a managers change, the permission named (groups:admin)",
           "groups:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/computers/host-1")
-    check("--as fabric-auditor: a computer's page, its grants, without a single action or form (machines:admin)",
-          "server-administrators" in page and 'method="post"' not in page.split("<main", 1)[1]
-          .split("</main>", 1)[0] and req("GET", "/directory/computers/_new")[0] == 403, page[-2000:])
+    check("--as fabric-auditor: a computer's page, its grants, every action greyed (machines:admin)",
+          "server-administrators" in page and live_forms(page) == [] and greyed(page, "machines:admin")
+          and req("GET", "/directory/computers/_new")[0] == 403, live_forms(page))
     for op, form in (("disable", {}), ("delete", {}), ("type", {"type": "server"}),
                      ("move", {"path": "machines"})):
         st, loc, page = post(f"/directory/machines/host-1/{op}", form)
@@ -1780,16 +1818,17 @@ with serve("fabric-auditor"):
         check(f"--as fabric-auditor: refused: holding a computer's {op}, the permission named (machines:admin)",
               "machines:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/access/lan-helpdesk")
-    check("--as fabric-auditor: a grant's page without Change or Remove, and no Add grant (groups:admin)",
-          "people: edit, reset, unlock" in page and "/directory/grants/" not in page
-          and req("GET", "/directory/access/_new")[0] == 403, page[-2000:])
+    check("--as fabric-auditor: a grant's page with Change and Remove greyed, and Add grant greyed (groups:admin)",
+          "people: edit, reset, unlock" in page and live_forms(page) == [] and greyed(page, "groups:admin")
+          and 'href="/directory/access/_new"' not in get("/directory/access")
+          and req("GET", "/directory/access/_new")[0] == 403, live_forms(page))
     st, loc, page = post("/directory/grants/lan-helpdesk/delete", {})
     check("--as fabric-auditor: refused: holding a grant's removal, the permission named (groups:admin)",
           "groups:admin" in flash(page) and "change pending" not in page, flash(page))
     page = get("/directory/ous?ou=people/staff")
-    check("--as fabric-auditor: an OU of the site's without Rename or Delete (ous:admin), and no Create OU",
-          "<dt>People</dt><dd>1</dd>" in page and "/directory/ous/_form/" not in page
-          and "/directory/ous/_new" not in get("/directory/ous"), page[-2000:])
+    check("--as fabric-auditor: an OU of the site's with Rename and Delete greyed (ous:admin), and Create OU greyed",
+          "<dt>People</dt><dd>1</dd>" in page and live_forms(page) == [] and greyed(page, "ous:admin")
+          and live_forms(get("/directory/ous")) == [], live_forms(page))
     st, loc, page = post("/directory/ous/_new", {"parent": "people", "name": "x"})
     check("--as fabric-auditor: refused: holding Create OU, the permission named (ous:admin)",
           "ous:admin" in flash(page) and "change pending" not in page, flash(page))
@@ -1797,9 +1836,8 @@ with serve("fabric-auditor"):
     check("--as fabric-auditor: people listed, no Add person", "jim@home.arpa" in page
           and "/directory/people/_new" not in page)
     page = get("/directory/people/sam")
-    check("--as fabric-auditor: a person's page without a single action or form",
-          "sam@home.arpa" in page and 'method="post"' not in page.split("<main", 1)[1].split("</main>", 1)[0]
-          and "Reset password" not in page, page[-2000:])
+    check("--as fabric-auditor: a person's page with every action greyed, naming its permission",
+          "sam@home.arpa" in page and live_forms(page) == [] and greyed(page, "people:reset"), live_forms(page))
     check("--as fabric-auditor: refused: Add person's page (403, people:create)",
           req("GET", "/directory/people/_new")[0] == 403)
     st, loc, page = post("/directory/people/sam/unlock", {})
@@ -1811,23 +1849,25 @@ with serve("fabric-auditor"):
     check("--as fabric-auditor: refused: a group change, the permission named (people:groups)",
           "people:groups" in flash(page), flash(page))
     page = get("/overview/updates")
-    check("--as fabric-auditor: the Updates table, but no update or roll-back forms",
-          "postgres" in page and "/overview/images/" not in page)
+    check("--as fabric-auditor: the Updates table, its update and roll-back buttons greyed (images:update)",
+          "postgres" in page and not [f for f in live_forms(page) if f.startswith("/overview/images/")]
+          and greyed(page, "images:update"), live_forms(page))
     st, _, _, _ = req("POST", "/overview/images/postgres/update", {"csrf": "dev"})
     check("--as fabric-auditor: refused: an image update (403, images:update)", st == 403, st)
     page = get("/pki/acme")
-    check("--as fabric-auditor: the ACME view without enroll or withdraw", "nas.home.arpa" in page
-          and "/stepca/acme/enroll" not in page and "/delete" not in page)
+    check("--as fabric-auditor: the ACME view with enroll and withdraw greyed", "nas.home.arpa" in page
+          and live_forms(page) == [] and 'href="/stepca/acme/' not in page, live_forms(page))
     page = get("/pki/issued/3b07d2")
     st, loc, done = post("/stepca/revoke", {"target": "3b07d2", "reason": "superseded"})
-    check("--as fabric-auditor: a certificate's page without Revoke; a revocation refused (pki:revoke), still valid",
-          "printer.home.arpa" in page and 'action="/stepca/revoke"' not in page
+    check("--as fabric-auditor: a certificate's page with Revoke greyed; a revocation refused (pki:revoke), still "
+          "valid", "printer.home.arpa" in page and live_forms(page) == [] and greyed(page, "pki:revoke")
           and (st == 403 or (st == 303 and "pki:revoke" in flash(done)))
           and "expires soon" in get("/pki/issued/3b07d2"), (st, loc, flash(done)))
     page = get("/pki/lifetimes")
     st, loc, done = post("/stepca/lifetimes", {"service_days": "40"})
-    check("--as fabric-auditor: Lifetimes shown without its form; a change refused (pki:settings), nothing pending",
-          "47 days" in page and 'action="/stepca/lifetimes"' not in page and "pki:settings" in flash(done)
+    check("--as fabric-auditor: Lifetimes shown in its greyed form; a change refused (pki:settings), nothing pending",
+          'value="47"' in page and live_forms(page) == [] and greyed(page, "pki:settings")
+          and "pki:settings" in flash(done)
           and "change pending" not in done, (st, loc, flash(done)))
 
 # My account (manual 1.8.6.6): a person with no fabric role signs in to it alone, and so does everyone else

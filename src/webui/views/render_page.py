@@ -1,6 +1,7 @@
 import os
 
 import jinja2
+from markupsafe import Markup, escape
 
 from webui.views.constants import MENU_PERMS
 from webui.views.nav_menu import nav_menu
@@ -19,21 +20,23 @@ _env.filters.update(plain=without_manual_numbers, written=when_written)   # 1.8.
 
 def render_page(name, **kw):
     """Purpose: Render one template in the console's frame (manual 1.8.6.2) with the common page variables, hiding the
-             navigation entries, sub-menus and forms the signed-in person has no permission for.
+             navigation entries and sub-menus the signed-in person has no permission for (controls are greyed,
+             1.8.6.15).
     Inputs:  name — a template in templates/webui-app (without .html); kw — the template's variables: ctx (dict with
              user, csrf, perms, version, and the message of the last action in flash ({"ok": str} or {"err": str},
              manual 1.8.6.3); default None = no frame), page (the navigation page shown, its path; default None),
              queue (the navigation page whose pending changes this page's are, for the top bar; default page),
              menu / sections (lists of (view, label), filtered through MENU_PERMS), msg / err (shown as the page's
              message; the session's flash fills them when not given), and any others.
-    Returns: the rendered HTML str. Templates also get can(permission), nav (nav_menu's entries), visible (the
+    Returns: the rendered HTML str. Templates also get can(permission), lock(permission) (a greyed
+             control's attributes, or nothing: 1.8.6.15), nav (nav_menu's entries), visible (the
              set of navigation paths the person may open), entries (the ids of the entries they see) and bar (the
              page shown's pending changes for the top bar, 1.8.6.5: {"id", "pending", "running"}, or None).
     Fails:   jinja2.TemplateNotFound for an unknown name; other jinja2 errors propagate (e.g. UndefinedError when the
              template reads an attribute of a value the caller left out).
     Feeds:   every page function in src/webui/views/.
-    Notes:   This only hides what the person cannot use; fabric-agent enforces every permission. Autoescape is on and
-             pages carry no inline script or style, so they work under the server's strict CSP.
+    Notes:   This only hides or greys what the person cannot use; fabric-agent enforces every permission. Autoescape
+             is on and pages carry no inline script or style, so they work under the server's strict CSP.
     """
     kw.setdefault("ctx", None)
     kw.setdefault("page", None)
@@ -42,7 +45,13 @@ def render_page(name, **kw):
 
     def can(perm):
         return perm in perms
+
+    def lock(perm):          # a greyed control's attributes (1.8.6.15): nothing when the person has the permission
+        if can(perm):
+            return Markup("")
+        return Markup(' disabled aria-disabled="true" title="Needs the %s permission"') % escape(perm)
     kw["can"] = can
+    kw["lock"] = lock
     kw["nav"] = nav_menu(perms, kw["page"], ctx.get("pending_counts"))
     kw["visible"] = {p["href"] for e in kw["nav"] for p in e["pages"]}
     kw["entries"] = {e["id"] for e in kw["nav"]}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}
 {#- Networks · Segments and Networks · Access (manual 1.10.4.40.1, 1.10.4.48.5): this site's plan as a list, a VLAN's, a subnet's and an address's page, Add VLAN
     on its own page, a search; this site only (1.8.6.14). Every change waits for Networks' Apply (1.10.4.40.2); Sync
     now is done at once. No form in a table cell, no inline script or style. -#}
@@ -46,7 +46,7 @@
 {% elif view == 'new-vlan' %}
 <p><a href="{{ here() }}">← {{ n.site }}'s VLANs</a></p>
 <section class="card"><h2>Add VLAN at {{ n.site }}</h2>
-{% if can('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans" class="grid">{{ csrf() }}
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans" class="grid">{{ csrf() }}
 <label>VLAN ID (1–4094)<input name="id" required inputmode="numeric" placeholder="20"></label>
 <label>Name (one DNS label)<input name="name" required placeholder="iot"></label>
 <label>Location (empty: this DC's own; a location without a DC served from here)<input name="location" placeholder="branch"></label>
@@ -59,10 +59,10 @@
 <label>Purpose<input name="purpose" maxlength="200"></label>
 <label>Notes<input name="notes" maxlength="500"></label>
 <label>May overlap another network because… (empty: never)<input name="allow_overlap" maxlength="200"></label>
-<div><button>Add VLAN</button></div></form>
+<div><button>Add VLAN</button></div></form>{% endcall %}
 <p class="muted">In a /24, fabric suggests gateway .1, static .2–.99, DHCP .100–.249, reserved .250–.254. The VLAN waits
 for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in line.</p>
-{% else %}<p class="muted">Adding a VLAN needs the permission dhcp:write.</p>{% endif %}</section>
+</section>
 
 {% elif s %}
 <p><a href="{{ here() }}">← {{ n.site }}'s VLANs</a> · <a href="{{ here('&vlan=' ~ (vlan.ref | urlencode)) }}">{{ vlan.label }} ({{ vlan.name }})</a></p>
@@ -71,28 +71,28 @@ for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in 
 {{ p.facts(row.ip, [("Kind", kind(row)), ("Range", row.range or '—'), ("Name", row.name or None), ("MAC", row.mac or None),
    ("Owner", row.owner or None), ("In DNS", 'yes' if row.dns else ('no' if planned else None)), ("Lease", row.lease or None),
    ("Notes", row.notes or None)]) }}
-{% if can('dhcp:write') and planned %}
+{% if planned %}
 <section class="card"><h2>Change {{ row.ip }}</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses/{{ row.ip | urlencode }}" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses/{{ row.ip | urlencode }}" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}
 <label>Kind<select name="kind">{% for k in ('static', 'reservation', 'infrastructure') %}<option{{ ' selected' if k == row.kind }}>{{ k }}</option>{% endfor %}</select></label>
 <label>Name (one DNS label; empty: none)<input name="name" value="{{ row.name or '' }}"></label>
 <label>MAC (a reservation's; empty: none)<input name="mac" value="{{ row.mac or '' }}"></label>
 <label>Owner<input name="owner" value="{{ row.owner or '' }}" maxlength="200"></label>
 <label>Notes<input name="notes" value="{{ row.notes or '' }}" maxlength="500"></label>
 {{ onoff('dns', "In DNS (A and PTR in the site's zone)", row.dns) }}
-<div><button>Save address</button></div></form></section>
+<div><button>Save address</button></div></form>{% endcall %}</section>
 <section class="card"><h2>Remove {{ row.ip }}</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses/{{ row.ip | urlencode }}/delete" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}
-<div><button class="danger">Remove address</button></div></form>
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses/{{ row.ip | urlencode }}/delete" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}
+<div><button class="danger">Remove address</button></div></form>{% endcall %}
 <p class="muted">Waits for <strong>Apply</strong>; a reservation's device then gets an address from the DHCP range.</p></section>
-{% elif can('dhcp:write') and row.kind == 'lease' %}
+{% elif row.kind == 'lease' %}
 <section class="card"><h2>Record {{ row.ip }}</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="ip" value="{{ row.ip }}"><input type="hidden" name="vlan" value="{{ vlan.ref }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="ip" value="{{ row.ip }}"><input type="hidden" name="vlan" value="{{ vlan.ref }}">
 <label>As<select name="kind"><option value="reservation">a reservation for this device</option><option value="static">a static record</option></select></label>
 <label>MAC<input name="mac" value="{{ row.mac or '' }}"></label>
 <label>Name<input name="name" value="{{ row.name or '' }}"></label>
 <label>Owner<input name="owner" maxlength="200"></label>
-<div><button>Record it</button></div></form></section>
+<div><button>Record it</button></div></form>{% endcall %}</section>
 {% elif row.kind == 'gateway' %}<p class="muted">The subnet's gateway: changed in the subnet's own settings.</p>{% endif %}
 
 {% else %}
@@ -124,28 +124,27 @@ for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in 
 {% call p.list(["Class", "Option", "Value", ""]) %}{% for c in s.classes %}{% for o in c.rows %}<tr{% if o.overridden_by %} class="overridden"{% endif %}><td data-label="Class">{{ c.name }} <span class="muted">({{ c.owner }})</span></td><td data-label="Option">{{ o.name or o.code or '—' }}</td><td data-label="Value"><code>{{ o.data }}</code></td><td data-label="">{% if o.overridden_by %}<span class="pill warn">overridden by {{ o.overridden_by }}</span>{% endif %}</td></tr>{% else %}<tr><td data-label="Class">{{ c.name }} <span class="muted">({{ c.owner }})</span></td><td data-label="Option" class="muted">{{ 'boot fields only' if c.fields else 'no options' }}</td><td data-label="Value"></td><td data-label=""></td></tr>{% endfor %}{% endfor %}{% endcall %}{% endif %}
 </section>
 
-{% if can('dhcp:write') %}
 <section class="card"><h2>Change subnet</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets/{{ s.name | urlencode }}" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets/{{ s.name | urlencode }}" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}
 <label>Gateway (empty: none)<input name="gateway" value="{{ s.gateway or '' }}"></label>
 {{ onoff('dhcp', 'Served by DHCP', s.dhcp) }}
 <label>Relay (only when it lies outside the subnet)<input name="relay" value="{{ s.relay or '' }}"></label>
 <label>Notes<input name="notes" value="{{ s.notes or '' }}" maxlength="500"></label>
 <label>May overlap another network because… (empty: never)<input name="allow_overlap" value="{{ s.allow_overlap or '' }}" maxlength="200"></label>
-<div><button>Save subnet</button></div></form></section>
+<div><button>Save subnet</button></div></form>{% endcall %}</section>
 <section class="card"><h2>Add range</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/ranges" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/ranges" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
 <label>Kind<select name="kind"><option>static</option><option>dhcp</option><option>reserved</option><option>gateway</option></select></label>
 <label>First<input name="first" required></label>
 <label>Last<input name="last" required></label>
 <label>Notes<input name="notes" maxlength="500"></label>
-<div><button>Add range</button></div></form></section>
+<div><button>Add range</button></div></form>{% endcall %}</section>
 {% if s.ranges %}<section class="card"><h2>Remove a range</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/ranges/delete" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/ranges/delete" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
 <label class="wide">Range<select name="first" required>{% for r in s.ranges %}<option value="{{ r.first }}">{{ r.kind }} {{ r.first }} – {{ r.last }}</option>{% endfor %}</select></label>
-<div><button class="danger">Remove range</button></div></form></section>{% endif %}
+<div><button class="danger">Remove range</button></div></form>{% endcall %}</section>{% endif %}
 <section class="card"><h2>Record an address</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/addresses" class="grid">{{ csrf() }}{{ back(subnet=s.name) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
 <label>Address<input name="ip" required placeholder="{{ s.gateway or s.cidr }}"></label>
 <label>Kind<select name="kind"><option>static</option><option>reservation</option><option>infrastructure</option></select></label>
 <label>Name (one DNS label)<input name="name"></label>
@@ -153,13 +152,12 @@ for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in 
 <label>Owner<input name="owner" maxlength="200"></label>
 <label>Notes<input name="notes" maxlength="500"></label>
 {{ onoff('dns', 'In DNS', false) }}
-<div><button>Record address</button></div></form>
+<div><button>Record address</button></div></form>{% endcall %}
 <p class="muted">One claim per address; inside a DHCP range only a reservation.</p></section>
 <section class="card"><h2>Remove subnet {{ s.name }}</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets/{{ s.name | urlencode }}/delete" class="grid">{{ csrf() }}
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets/{{ s.name | urlencode }}/delete" class="grid">{{ csrf() }}
 <label class="check wide"><input type="checkbox" name="force" value="on"> with its recorded addresses</label>
-<div><button class="danger">Remove subnet</button></div></form></section>
-{% endif %}
+<div><button class="danger">Remove subnet</button></div></form>{% endcall %}</section>
 {% endif %}
 
 {% elif vlan %}
@@ -171,31 +169,29 @@ for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in 
 <td data-label="In use">{{ x.counts.used }} of {{ x.counts.size }}{% if x.counts.unrecorded %} · {{ x.counts.unrecorded }} unrecorded{% endif %}</td>
 <td data-label="DHCP">{{ p.status('ok', 'served') if x.dhcp else p.status('warn', 'not served') }}</td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("A record only: no subnet.") }}{% endif %}</section>
-{% if can('dhcp:write') %}
 <section class="card"><h2>Change {{ vlan.label }}</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans/{{ vlan.ref | urlencode }}" class="grid">{{ csrf() }}{{ back(vlan_id=vlan.ref) }}
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans/{{ vlan.ref | urlencode }}" class="grid">{{ csrf() }}{{ back(vlan_id=vlan.ref) }}
 <label>Name<input name="name" value="{{ vlan.name }}" required></label>
 <label>Purpose<input name="purpose" value="{{ vlan.purpose or '' }}" maxlength="200"></label>
 <label>Notes<input name="notes" value="{{ vlan.notes or '' }}" maxlength="500"></label>
 <label>Location (empty: this DC's own; its subnets move with it)<input name="to_location" value="{{ vlan.location or '' }}"></label>
-<div><button>Save VLAN</button></div></form></section>
+<div><button>Save VLAN</button></div></form>{% endcall %}</section>
 <section class="card"><h2>Add subnet</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets" class="grid">{{ csrf() }}{{ back(vlan_id=vlan.ref) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/subnets" class="grid">{{ csrf() }}{{ back(vlan_id=vlan.ref) }}<input type="hidden" name="vlan" value="{{ vlan.ref }}">
 <label>Network<input name="cidr" required placeholder="10.{{ n.block or 'n' }}.{{ vlan.id }}.0/24"></label>
 <label>Its name (empty: the VLAN's, or &lt;name&gt;-2)<input name="name"></label>
 <label>Gateway (empty: the first host)<input name="gateway"></label>
 {{ onoff('dhcp', 'Served by DHCP', true) }}
 <label>Suggested ranges in a /24<select name="split"><option value="on">add them</option><option value="off">none</option></select></label>
 <label>May overlap another network because…<input name="allow_overlap" maxlength="200"></label>
-<div><button>Add subnet</button></div></form></section>
+<div><button>Add subnet</button></div></form>{% endcall %}</section>
 <section class="card"><h2>Remove {{ vlan.label }}</h2>
-<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans/{{ vlan.ref | urlencode }}/delete" class="grid">{{ csrf() }}
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/plan/{{ n.site | urlencode }}/vlans/{{ vlan.ref | urlencode }}/delete" class="grid">{{ csrf() }}
 <label class="check wide"><input type="checkbox" name="force" value="on"> with its subnets' recorded addresses</label>
-<div><button class="danger">Remove VLAN</button></div></form></section>
-{% endif %}
+<div><button class="danger">Remove VLAN</button></div></form>{% endcall %}</section>
 
 {% else %}
-{% call p.actions() %}{% if can('dhcp:write') %}<a class="btn" href="{{ here('&view=new-vlan') }}">Add VLAN</a>{% endif %}<a class="btn" href="/networks/scan">Scan a subnet</a><a class="btn" href="/networks/options">DHCP options</a><a class="btn" href="/networks/export" download>Export (CSV)</a>{% endcall %}
+{% call p.actions() %}{{ p.btn(here('&view=new-vlan'), 'Add VLAN', 'dhcp:write') }}<a class="btn" href="/networks/scan">Scan a subnet</a><a class="btn" href="/networks/options">DHCP options</a><a class="btn" href="/networks/export" download>Export (CSV)</a>{% endcall %}
 <form method="get" action="/networks" class="grid">
 <label class="wide">Search {{ n.site }} (an address, a name or a MAC, or part of one)<input name="q" value="{{ q }}" placeholder="10.1.20.15, cam, aa:bb"></label>
 <div><button>Search</button></div></form>
@@ -208,7 +204,7 @@ for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in 
 <p>{% if n.sync.rendered %}The poll last rendered Kea at {{ n.sync.rendered }}.{% elif n.sync.polled %}The poll has run; Kea is as the last apply rendered it.{% else %}The poll has not run yet.{% endif %}
 {% if n.sync.dns_pending %}{{ p.status('warn', 'DNS waits for an apply or Sync now') }}{% else %}{{ p.status('ok', 'DNS in line with the plan') }}{% endif %}</p>
 <p class="muted">The poll brings Kea in line within 30 seconds of a change to this site's plan made elsewhere; Sync now does it at once, and publishes the plan's names in DNS. It is done at once, not held: only Kea restarts, BIND reloads its zones.</p>
-{% if can('dhcp:write') %}<form method="post" action="/networks/sync">{{ csrf() }}<button>Sync now</button></form>{% endif %}
+<form method="post" action="/networks/sync">{{ csrf() }}<button{{ lock('dhcp:write') }}>Sync now</button></form>
 </section>{% endif %}
 
 <section class="card"><h2>VLANs at {{ n.site }}{% if n.block %} <span class="muted">number {{ n.block }}</span>{% endif %}</h2>
@@ -216,7 +212,7 @@ for <strong>Apply</strong> in the top bar, which brings Kea and the firewall in 
 {% if n.vlans %}{% call p.list(["VLAN", "Name", "Subnets"]) %}{% for vlan in n.vlans %}<tr>
 <td data-label="VLAN"><a href="{{ here('&vlan=' ~ (vlan.ref | urlencode)) }}">{{ vlan.id }}</a>{% if vlan.location %} <span class="muted">at {{ vlan.location }}</span>{% endif %}</td><td data-label="Name">{{ vlan.name }}{% if vlan.purpose %} <span class="muted">{{ vlan.purpose }}</span>{% endif %}</td>
 <td data-label="Subnets">{% for x in vlan.subnets %}<div class="subnet"><a href="{{ here('&subnet=' ~ (x.name | urlencode)) }}">{{ x.cidr }}</a>{% if x.name != vlan.name %} ({{ x.name }}){% endif %} <span class="muted">{{ x.counts.used }}/{{ x.counts.size }} in use{% if x.counts.unrecorded %} · {{ x.counts.unrecorded }} unrecorded{% endif %}{% if not x.dhcp %} · DHCP off{% endif %}</span>{{ netbar(x, false) }}</div>{% else %}<span class="muted">a record only (no subnet)</span>{% endfor %}</td></tr>{% endfor %}{% endcall %}
-{% else %}{% call p.empty("No VLANs in " ~ n.site ~ "'s plan yet.") %}{% if can('dhcp:write') %}<a class="btn" href="{{ here('&view=new-vlan') }}">Add VLAN</a>{% endif %}{% endcall %}{% endif %}
+{% else %}{% call p.empty("No VLANs in " ~ n.site ~ "'s plan yet.") %}{{ p.btn(here('&view=new-vlan'), 'Add VLAN', 'dhcp:write') }}{% endcall %}{% endif %}
 </section>
 {% if n.networks %}<section class="card"><h2>The site's other networks</h2>
 {% call p.list(["Name", "Network", "Kind"]) %}{% for x in n.networks %}<tr><td data-label="Name">{{ x.name }}</td><td data-label="Network">{{ x.cidr }}</td><td data-label="Kind">{{ x.kind }}</td></tr>{% endfor %}{% endcall %}</section>{% endif %}

@@ -12,6 +12,20 @@
 <span class="status">{{ light(state, label) }} {{ label }}</span>
 {%- endmacro %}
 
+{#- A link drawn as a button (1.8.6.15): without the permission, greyed, with no address, naming the permission. -#}
+{% macro btn(href, label, perm, cls="") -%}
+{% if can(perm) %}<a class="btn{{ ' ' ~ cls if cls }}" href="{{ href }}">{{ label }}</a>
+{%- else %}<span class="btn disabled{{ ' ' ~ cls if cls }}" role="link" aria-disabled="true" title="Needs the {{ perm }} permission">{{ label }}</span>{% endif %}
+{%- endmacro %}
+
+{#- A form that changes something, in the call's body (1.8.6.15): without the permission it is shown inside a disabled
+    fieldset, every field and button greyed, with a sentence naming the permission (a tooltip is never seen on a
+    phone). -#}
+{% macro locked(perm) -%}
+{% if can(perm) %}{{ caller() }}
+{%- else %}<fieldset class="locked" disabled><p class="muted small">Needs the {{ perm }} permission.</p>{{ caller() }}</fieldset>{% endif %}
+{%- endmacro %}
+
 {#- The actions bar along the top of a list or detail page: buttons and links passed in the call's body. It is left
     out when the body is empty (a person without any of the permissions sees no bar). -#}
 {% macro actions() -%}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}
 {% macro device_select() %}{% if devices %}<label>For device (optional — links the certificate to it)<select name="device"><option value="">—</option>{% for d in devices %}<option{{ ' selected' if d.name == device }}>{{ d.name }}</option>{% endfor %}</select></label>{% endif %}{% endmacro %}
 {% block body %}
 {% set lights = {'valid': 'ok', 'expires soon': 'warn'} %}
@@ -26,12 +26,12 @@
 {% if review.problems %}
 <p class="flash bad">This request cannot be signed:</p><ul>{% for x in review.problems %}<li>{{ x }}</li>{% endfor %}</ul>
 {% else %}
-{% if can('pki:sign') %}<form method="post" action="/stepca/sign" class="grid">
+{% call p.locked('pki:sign') %}<form method="post" action="/stepca/sign" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="csr" value="{{ review.pem }}">
 {{ device_select() }}
 <label>Valid for (days)<input name="days" inputmode="numeric" value="{{ ca.default_days if ca and ca.default_days else 365 }}" required></label>
 <div><button>Sign certificate</button></div>
-</form>{% endif %}
+</form>{% endcall %}
 <p class="muted">Issued as a leaf certificate for server and client authentication, from the fabric intermediate CA. Done at once: the certificate is shown once.</p>
 {% endif %}
 <details><summary>Decoded request</summary><pre>{{ review.text }}</pre></details>
@@ -39,17 +39,17 @@
 {% endif %}
 <section class="card"><h2>Sign a certificate signing request</h2>
 <p class="muted">For devices that make their own key (switches, printers, appliances, Windows <code>certreq</code>, <code>openssl req</code>). The private key never leaves the device.</p>
-{% if can('pki:sign') %}<form method="post" action="/stepca/sign/review" enctype="multipart/form-data" class="stack">
+{% call p.locked('pki:sign') %}<form method="post" action="/stepca/sign/review" enctype="multipart/form-data" class="stack">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="device" value="{{ device }}">
 <label>Upload a CSR (.csr, .req, .pem or DER)<input type="file" name="csr_file" accept=".csr,.req,.pem,.der,.txt"></label>
 <label>…or paste it<textarea name="csr" rows="8" placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea></label>
 <div><button>Review</button></div>
-</form>{% else %}<p class="muted">Signing needs the permission pki:sign.</p>{% endif %}</section>
+</form>{% endcall %}</section>
 
 {% elif view == 'issue' %}
 <section class="card"><h2>New private key and certificate</h2>
 <p class="muted">For devices that cannot make a CSR. The key is generated here, shown once for download (PEM and a password-protected .p12) and not kept. Done at once.</p>
-{% if can('pki:issue') %}<form method="post" action="/stepca/issue" class="grid">
+{% call p.locked('pki:issue') %}<form method="post" action="/stepca/issue" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Name (CN)<input name="cn" required placeholder="printer.home.arpa" value="{{ (device ~ ('.' ~ ca.domain if ca and ca.domain else '')) if device else '' }}"></label>
 {{ device_select() }}
@@ -57,7 +57,7 @@
 <label>Key type<select name="key_type">{% for k in key_types %}<option{{ ' selected' if k == 'RSA-2048' }}>{{ k }}</option>{% endfor %}</select></label>
 <label>Valid for (days)<input name="days" inputmode="numeric" value="{{ ca.default_days if ca and ca.default_days else 365 }}" required></label>
 <div><button>Generate</button></div>
-</form>{% else %}<p class="muted">Generating a key needs the permission pki:issue.</p>{% endif %}
+</form>{% endcall %}
 <p class="muted">RSA-2048 is the most widely accepted by older devices; EC keys are smaller and faster where supported.</p></section>
 
 {% elif view == 'inspect' %}
@@ -88,14 +88,14 @@
 {% elif view == 'convert' %}
 <section class="card"><h2>Convert a certificate</h2>
 <p class="muted">Get a certificate as PEM (.crt), DER (.cer), full chain (.pem / .p7b) — and, with its private key, a password-protected .p12 for Windows, macOS and phones. The key is not kept. Done at once.</p>
-{% if can('pki:issue') %}<form method="post" action="/stepca/convert" enctype="multipart/form-data" class="stack">
+{% call p.locked('pki:issue') %}<form method="post" action="/stepca/convert" enctype="multipart/form-data" class="stack">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Certificate (upload)<input type="file" name="cert_file"></label>
 <label>…or paste<textarea name="cert" rows="6" placeholder="-----BEGIN CERTIFICATE-----"></textarea></label>
 <label>Private key for a .p12 (optional, unencrypted PEM; upload)<input type="file" name="key_file"></label>
 <label>…or paste<textarea name="key" rows="4" placeholder="-----BEGIN PRIVATE KEY-----" autocomplete="off"></textarea></label>
 <div><button>Convert</button></div>
-</form>{% else %}<p class="muted">Converting needs the permission pki:issue.</p>{% endif %}</section>
+</form>{% endcall %}</section>
 
 {% elif view == 'issued' %}
 {% set where = {'here': 'issued here', 'fabric': "fabric's own", 'acme': 'ACME', '8021x': '802.1X', 'stepca': 'Step-CA', 'file': 'file'} %}
@@ -112,18 +112,18 @@
 <td data-label="Names">{{ (c.sans or []) | join(', ') }}</td>
 <td data-label="From">{{ where.get(c.source, c.source) }}{% if c.source == 'fabric' %} <span class="muted">{{ (c.services or []) | join(', ') }}</span>{% elif c.how %} <span class="muted">{{ c.how }}</span>{% elif c.kind %} <span class="muted">{{ hows.get(c.kind, c.kind) }}</span>{% endif %}</td>
 <td data-label="Expires">{{ c.status }} <span class="muted">{{ c.not_after }}</span></td>
-<td>{% if can('pki:revoke') and c.revocable %}<a class="btn danger" href="/pki/issued/{{ c.serial | urlencode }}#revoke">Revoke</a>{% endif %}</td></tr>{% endfor %}{% endcall %}
-{% else %}{% call p.empty("No certificate here yet.") %}{% if can('pki:sign') %}<a class="btn" href="/pki?view=sign">Sign a CSR</a>{% endif %}{% if can('pki:issue') %}<a class="btn" href="/pki?view=issue">New key + certificate</a>{% endif %}{% endcall %}{% endif %}
+<td>{% if c.revocable %}{{ p.btn('/pki/issued/' ~ (c.serial | urlencode) ~ '#revoke', 'Revoke', 'pki:revoke', 'danger') }}{% endif %}</td></tr>{% endfor %}{% endcall %}
+{% else %}{% call p.empty("No certificate here yet.") %}{{ p.btn('/pki?view=sign', 'Sign a CSR', 'pki:sign') }}{{ p.btn('/pki?view=issue', 'New key + certificate', 'pki:issue') }}{% endcall %}{% endif %}
 <p class="muted small">Every certificate this CA signed that can still be revoked: issued here (by hand, client certificates, site CAs), fabric's own service certificates, LAN machines' over ACME, and 802.1X machines' (linked to a device). Select one for its page.</p>
 </section>
-{% if can('pki:revoke') %}<section class="card"><h2>Revoke a certificate not listed</h2>
-<form method="post" action="/stepca/revoke/review" enctype="multipart/form-data" class="stack">
+<section class="card"><h2>Revoke a certificate not listed</h2>
+{% call p.locked('pki:revoke') %}<form method="post" action="/stepca/revoke/review" enctype="multipart/form-data" class="stack">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <label>Serial<input name="serial" autocomplete="off" spellcheck="false" placeholder="hexadecimal, colons allowed"></label>
 <label>or the certificate (PEM, pasted)<textarea name="cert" rows="4" spellcheck="false"></textarea></label>
 <label>or its file<input type="file" name="cert_file" accept=".pem,.crt,.cer,.der"></label>
-<div><button>Find it</button></div></form>
-<p class="muted small">fabric checks that this install's CA signed it, then asks you to confirm. The CA's own certificates are not revoked here.</p></section>{% endif %}
+<div><button>Find it</button></div></form>{% endcall +%}
+<p class="muted small">fabric checks that this install's CA signed it, then asks you to confirm. The CA's own certificates are not revoked here.</p></section>
 
 {% elif view == 'cert' %}
 {% set c = cert %}
@@ -138,14 +138,14 @@
 {% if c.sha256 %}<dt>SHA-256</dt><dd><code class="fp">{{ c.sha256 }}</code></dd>{% endif %}
 {% if c.services %}<dt>Used by</dt><dd>{{ c.services | join(', ') }}</dd>{% endif %}
 {% if c.device %}<dt>Device</dt><dd>{% if can('devices:read') %}<a href="/8021x/devices/{{ c.device | urlencode }}">{{ c.device }}</a>{% else %}{{ c.device }}{% endif %}{% if c.device_roles %} <span class="muted">({{ c.device_roles | join(', ') }})</span>{% endif %}{% if c.how %} <span class="muted">{{ c.how }}</span>{% endif %}</dd>{% endif %}</dl></section>
-{% if can('pki:revoke') and c.revocable %}
+{% if c.revocable %}
 {% set confirm_as = c.cn or c.serial %}
-<section class="card" id="revoke"><h2>Revoke</h2><form method="post" action="/stepca/revoke" class="grid">
+<section class="card" id="revoke"><h2>Revoke</h2>{% call p.locked('pki:revoke') %}<form method="post" action="/stepca/revoke" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="target" value="{{ c.serial }}">
 {% if pem %}<input type="hidden" name="pem" value="{{ pem }}">{% endif %}
 <label>Reason<select name="reason">{% for r in reasons %}<option>{{ r }}</option>{% endfor %}</select></label>
 <label class="wide"><span>Type <code>{{ confirm_as }}</code> to confirm</span><input name="confirm" required autocomplete="off" spellcheck="false"></label>
-<div><button class="danger">Revoke certificate</button></div></form>
+<div><button class="danger">Revoke certificate</button></div></form>{% endcall +%}
 {% if c.source == 'fabric' %}<p class="flash warn">This is one of fabric's own certificates ({{ (c.services or []) | join(', ') }}). fabric first issues a new one and puts it in use, reloading or restarting the service as on renewal; only then is this one revoked. If a new one cannot be issued, nothing is revoked.</p>{% endif %}
 <p class="muted">Done at once: FreeRADIUS and the web console refuse it from then on, even while a device is still linked (the CRL on <code>info.&lt;domain&gt;/certs/crl/</code>). It cannot be undone.</p></section>
 {% endif %}
@@ -161,24 +161,20 @@
 <td data-label="Machine"><a href="/pki/acme/{{ m.key | urlencode }}"><strong>{{ m.fqdn }}</strong></a></td><td data-label="Key"><code>{{ m.key }}</code></td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("No machine enrolled for DNS-01.") }}{% endif %}
 </section>
-{% if can('tsig:manage') %}
-<section class="card"><h2>Enroll a machine for DNS-01</h2><form method="post" action="/stepca/acme/enroll" class="grid">
+<section class="card"><h2>Enroll a machine for DNS-01</h2>{% call p.locked('tsig:manage') %}<form method="post" action="/stepca/acme/enroll" class="grid">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}"><input type="hidden" name="domain" value="{{ acme.domain }}">
 <label>Machine name<input name="host" required pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" placeholder="nas"></label>
 <div><button>Enroll for DNS-01</button></div>
-</form>
+</form>{% endcall +%}
 <p class="muted small">Done at once, since it makes the machine's key: the key and <code>rfc2136.ini</code> are shown once, and BIND takes it at once. Copy them to the machine over a channel you trust.</p></section>
-{% endif %}
 
 {% elif view == 'machine' %}
 {% set m = machine %}
 <p><a href="/pki/acme">← ACME</a></p>
 {{ p.facts(m.fqdn, [("Key", m.key), ("May change", "its own _acme-challenge TXT record")]) }}
-{% if can('tsig:manage') %}
-<section class="card"><h2>Withdraw</h2><form method="post" action="/bind9/tsig/{{ m.key | urlencode }}/delete">
+<section class="card"><h2>Withdraw</h2>{% call p.locked('tsig:manage') %}<form method="post" action="/bind9/tsig/{{ m.key | urlencode }}/delete">
 <input type="hidden" name="csrf" value="{{ ctx.csrf }}">
 <p class="muted">Its key is removed; once DNS' Apply has run (DNS → Zones), BIND refuses its updates and it can no longer prove its name.</p>
-<button class="danger">Withdraw {{ m.name }}</button></form></section>
-{% endif %}
+<button class="danger">Withdraw {{ m.name }}</button></form>{% endcall %}</section>
 {% endif %}
 {% endblock %}

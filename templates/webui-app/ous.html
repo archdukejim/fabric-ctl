@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}{% block body %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}{% block body %}
 {% macro csrf() %}<input type="hidden" name="csrf" value="{{ ctx.csrf }}">{% endmacro %}
 {% if not path %}
 <h1>Directory · OUs</h1>
@@ -13,13 +13,14 @@
 {% else %}{{ p.empty("No OUs could be listed.") }}{% endif %}
 <p class="muted small">Folders by their path below the domain. fabric's own are fixed; the site's own go anywhere else: at the domain's root, under people, service-accounts, groups and machines, or under another of the site's own (never in fabric-hosts, devices, device-roles, networks, sudoers). OUs grant nothing: access is by groups and grants.</p>
 </section>
-{% if can('ous:admin') %}<section class="card"><h2>Create OU</h2>
-<form method="post" action="/directory/ous/_new" class="grid">
+<section class="card"><h2>Create OU</h2>
+{% call p.locked('ous:admin') %}<form method="post" action="/directory/ous/_new" class="grid">
 {{ csrf() }}
 <label>Under<select name="parent" required><option value="/">the domain's root</option>{% for f in parents %}<option>{{ f }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9 _.\-]{0,62}" autocomplete="off" placeholder="staff"></label>
 <div><button>Create OU</button></div></form>
-<p class="muted small">Waits for the OUs page's Apply. A name of fabric's own folders is refused.</p></section>{% endif %}
+{% endcall %}
+<p class="muted small">Waits for the OUs page's Apply. A name of fabric's own folders is refused.</p></section>
 {% endif %}
 
 {% else %}
@@ -37,17 +38,19 @@
 {% set below = rows | selectattr('parent', 'equalto', ou.path) | list %}
 {% if below %}<section class="card"><h2>OUs in it <span class="muted">{{ below | length }}</span></h2>
 <ul>{% for o in below %}<li><a href="/directory/ous?{{ {'ou': o.path} | urlencode }}">{{ o.leaf }}</a></li>{% endfor %}</ul></section>{% endif %}
-{% if ou.own and can('ous:admin') %}
+{% if ou.own %}
 <section class="card"><h2>Rename</h2>
-<form method="post" action="/directory/ous/_form/rename" class="grid">
+{% call p.locked('ous:admin') %}<form method="post" action="/directory/ous/_form/rename" class="grid">
 {{ csrf() }}<input type="hidden" name="ou" value="{{ ou.path }}">
 <label>New name<input name="name" required maxlength="63" pattern="[A-Za-z0-9][A-Za-z0-9 _.\-]{0,62}" value="{{ ou.leaf }}" autocomplete="off"></label>
 <div><button>Rename</button></div></form>
+{% endcall %}
 <p class="muted small">What it holds stays in it. Waits for the OUs page's Apply.</p></section>
 <section class="card"><h2>Delete {{ ou.leaf }}</h2>
-<form method="post" action="/directory/ous/_form/delete" class="grid">
+{% call p.locked('ous:admin') %}<form method="post" action="/directory/ous/_form/delete" class="grid">
 {{ csrf() }}<input type="hidden" name="ou" value="{{ ou.path }}">
 <div><button class="danger">Delete OU</button></div></form>
+{% endcall %}
 <p class="muted small">Refused while it holds anything, naming what. Waits for the OUs page's Apply.</p></section>
 {% elif not ou.own %}<p class="muted small">{{ "One of fabric's fixed folders" if ou.fabric else "Not one the site adds to" }}: not changed here.</p>{% endif %}
 {% endif %}

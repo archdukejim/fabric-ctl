@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% import "pattern.html" as p %}
+{% extends "base.html" %}{% import "pattern.html" as p with context %}
 {#- Networks · DHCP options (manual 1.10.4.40.1, 1.10.4.24): the domain's and a site's sets, each subnet's and
     reservation's options and netboot preset, a target's effective options. Every change waits for this page's Apply
     (1.10.4.40.2). No form in a table cell. -#}
@@ -29,31 +29,30 @@
 </section>{% endif %}
 {% if owner %}{% set kind, name = target.split(':', 1) %}
 <section class="card"><h2>Its own options</h2>{{ opts(owner.options, 'here') }}</section>
-{% if can('dhcp:write') %}
 <section class="card"><h2>Set an option on {{ target }}</h2>
-<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="set"><input type="hidden" name="where" value="{{ kind }}:{{ name }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="set"><input type="hidden" name="where" value="{{ kind }}:{{ name }}">
 <label>Option (standard name or code 1–254)<input name="option" required list="option-names" placeholder="boot-file-name"></label>
 <label>Value<input name="data" maxlength="1024" placeholder="ipxe.efi"></label>
 <label class="check"><input type="checkbox" name="always_send" value="on"> send even when the client does not ask</label>
-<div><button>Set option</button></div></form></section>
+<div><button>Set option</button></div></form>{% endcall %}</section>
 {% if owner.options %}<section class="card"><h2>Remove an option from {{ target }}</h2>
-<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="where" value="{{ kind }}:{{ name }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove"><input type="hidden" name="where" value="{{ kind }}:{{ name }}">
 <label class="wide">Option<select name="option" required>{% for o in owner.options %}<option value="{{ o.name if o.name is defined and o.name else o.code }}">{{ label(o) }} = {{ o.data }}</option>{% endfor %}</select></label>
-<div><button class="danger">Remove option</button></div></form></section>{% endif %}
+<div><button class="danger">Remove option</button></div></form>{% endcall %}</section>{% endif %}
 {% set nb = owner.netboot %}
 <section class="card"><h2>Network boot{% if nb %} {{ p.status('ok', 'on') }}{% endif %}</h2>
 {% if nb %}<p>Boot server <code>{{ nb.server }}</code>{% for k, l in [("bios", "PXE BIOS"), ("uefi", "PXE UEFI x64"), ("arm64", "PXE UEFI arm64"), ("ipxe", "iPXE script"), ("http", "HTTP boot")] if nb[k] %} · {{ l }} <code>{{ nb[k] }}</code>{% endfor %}</p>{% endif %}
-<form method="post" action="/networks/options/netboot" class="grid">{{ csrf() }}<input type="hidden" name="action" value="on"><input type="hidden" name="target" value="{{ name }}">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/netboot" class="grid">{{ csrf() }}<input type="hidden" name="action" value="on"><input type="hidden" name="target" value="{{ name }}">
 <label>Boot server (address, or a name in DNS)<input name="server" required value="{{ nb.server if nb else '' }}" placeholder="10.1.10.5"></label>
 <label>PXE BIOS file<input name="bios" maxlength="127" value="{{ nb.bios if nb and nb.bios else '' }}" placeholder="undionly.kpxe"></label>
 <label>PXE UEFI x64 file<input name="uefi" maxlength="127" value="{{ nb.uefi if nb and nb.uefi else '' }}" placeholder="ipxe.efi"></label>
 <label>PXE UEFI arm64 file<input name="arm64" maxlength="127" value="{{ nb.arm64 if nb and nb.arm64 else '' }}"></label>
 <label>iPXE script URL<input name="ipxe" maxlength="127" value="{{ nb.ipxe if nb and nb.ipxe else '' }}" placeholder="http://boot.lan/boot.ipxe"></label>
 <label>UEFI HTTP boot URL<input name="http" maxlength="127" value="{{ nb.http if nb and nb.http else '' }}"></label>
-<div><button>{{ 'Save preset' if nb else 'Switch network boot on' }}</button></div></form>
-{% if nb %}<form method="post" action="/networks/options/netboot" class="grid">{{ csrf() }}<input type="hidden" name="action" value="off"><input type="hidden" name="target" value="{{ name }}"><div><button class="danger">Switch network boot off</button></div></form>{% endif %}
+<div><button>{{ 'Save preset' if nb else 'Switch network boot on' }}</button></div></form>{% endcall %}
+{% if nb %}<form method="post" action="/networks/options/netboot" class="grid">{{ csrf() }}<input type="hidden" name="action" value="off"><input type="hidden" name="target" value="{{ name }}"><div><button class="danger"{{ lock('dhcp:write') }}>Switch network boot off</button></div></form>{% endif %}
 </section>
-{% endif %}{% endif %}
+{% endif %}
 
 {% else %}
 {% for scope, title, set in sets %}
@@ -78,48 +77,46 @@
 <td data-label="Reservations">{% for r in s.reservations %}<a href="{{ here('&target=address:' ~ (r.ip | urlencode)) }}">{{ r.ip }}</a>{% if r.name %} {{ r.name }}{% endif %}{% if r.options or r.netboot %} <span class="muted">({{ r.options | length }} option(s){{ ', netboot' if r.netboot }})</span>{% endif %}{{ ', ' if not loop.last }}{% else %}<span class="muted">none</span>{% endfor %}</td></tr>{% endfor %}{% endcall %}
 {% else %}{{ p.empty("No subnet in " ~ d.site ~ "'s plan yet: add one on Networks.") }}{% endif %}</section>
 
-{% if can('dhcp:write') %}
 {% set classes = [] %}{% for scope, title, set in own %}{% for c in set.client_classes or [] %}{% set _ = classes.append((scope, c.name, title)) %}{% endfor %}{% endfor %}
 <section class="card"><h2>Set an option</h2>
-<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="set">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="set">
 <label>In<select name="where">{% for scope, title, set in own %}<option value="{{ scope }}">{{ title }}</option>{% endfor %}{% for scope, name, title in classes %}<option value="class:{{ scope }}:{{ name }}">class {{ name }} ({{ title }})</option>{% endfor %}</select></label>
 <label>Option (standard name or code 1–254)<input name="option" required list="option-names" placeholder="ntp-servers"></label>
 <label>Value<input name="data" maxlength="1024"></label>
 <label class="check"><input type="checkbox" name="always_send" value="on"> send even when the client does not ask</label>
-<div><button>Set option</button></div></form>
+<div><button>Set option</button></div></form>{% endcall %}
 <p class="muted">A subnet's or a reservation's own options are set on its page: pick it above.</p></section>
 {% set removable = [] %}{% for scope, title, set in own %}{% for o in set.options or [] %}{% set _ = removable.append((scope, o, title)) %}{% endfor %}{% for c in set.client_classes or [] %}{% for o in c.options or [] %}{% set _ = removable.append(('class:' ~ scope ~ ':' ~ c.name, o, 'class ' ~ c.name)) %}{% endfor %}{% endfor %}{% endfor %}
 {% if removable %}<section class="card"><h2>Remove an option</h2>
-<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/options" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove">
 <label class="wide">Option<select name="picked" required>{% for where, o, title in removable %}<option value="{{ where }}|{{ o.name if o.name is defined and o.name else o.code }}">{{ label(o) }} = {{ o.data }} ({{ title }})</option>{% endfor %}</select></label>
-<div><button class="danger">Remove option</button></div></form></section>{% endif %}
+<div><button class="danger">Remove option</button></div></form>{% endcall %}</section>{% endif %}
 <section class="card"><h2>Add a client class</h2>
-<form method="post" action="/networks/options/classes" class="grid">{{ csrf() }}<input type="hidden" name="action" value="add">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/classes" class="grid">{{ csrf() }}<input type="hidden" name="action" value="add">
 <label>In<select name="scope">{% for scope, title, set in own %}<option value="{{ scope }}"{{ ' selected' if scope == 'site' }}>{{ title }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required placeholder="uefi-pxe"></label>
 <label class="wide">Test (Kea expression)<input name="test" required placeholder="option[93].hex == 0x0007"></label>
 <label>Next server (address, optional)<input name="next_server"></label>
 <label>Boot file (optional)<input name="boot_file"></label>
-<div><button>Add class</button></div></form></section>
+<div><button>Add class</button></div></form>{% endcall %}</section>
 {% if classes %}<section class="card"><h2>Remove a client class</h2>
-<form method="post" action="/networks/options/classes" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/classes" class="grid">{{ csrf() }}<input type="hidden" name="action" value="remove">
 <label class="wide">Class<select name="picked" required>{% for scope, name, title in classes %}<option value="{{ scope }}|{{ name }}">{{ name }} ({{ title }})</option>{% endfor %}</select></label>
-<div><button class="danger">Remove class</button></div></form></section>{% endif %}
+<div><button class="danger">Remove class</button></div></form>{% endcall %}</section>{% endif %}
 <section class="card"><h2>Define an option Kea has no name for</h2>
-<form method="post" action="/networks/options/option-defs" class="grid">{{ csrf() }}<input type="hidden" name="action" value="define">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/option-defs" class="grid">{{ csrf() }}<input type="hidden" name="action" value="define">
 <label>In<select name="scope">{% for scope, title, set in own %}<option value="{{ scope }}"{{ ' selected' if scope == 'site' }}>{{ title }}</option>{% endfor %}</select></label>
 <label>Name<input name="name" required placeholder="ztp-url"></label>
 <label>Code (1–254)<input name="code" required inputmode="numeric" placeholder="239"></label>
 <label>Type<select name="type">{% for t in ["string", "ipv4-address", "uint8", "uint16", "uint32", "boolean", "binary", "fqdn", "record"] %}<option>{{ t }}</option>{% endfor %}</select></label>
 <label class="check"><input type="checkbox" name="array" value="on"> an array</label>
 <label>Record types (for a record)<input name="record_types" placeholder="uint8, string"></label>
-<div><button>Define</button></div></form></section>
+<div><button>Define</button></div></form>{% endcall %}</section>
 {% set defs = [] %}{% for scope, title, set in own %}{% for o in set.option_defs or [] %}{% set _ = defs.append((scope, o.name, title)) %}{% endfor %}{% endfor %}
 {% if defs %}<section class="card"><h2>Remove a definition</h2>
-<form method="post" action="/networks/options/option-defs" class="grid">{{ csrf() }}<input type="hidden" name="action" value="undefine">
+{% call p.locked('dhcp:write') %}<form method="post" action="/networks/options/option-defs" class="grid">{{ csrf() }}<input type="hidden" name="action" value="undefine">
 <label class="wide">Definition<select name="picked" required>{% for scope, name, title in defs %}<option value="{{ scope }}|{{ name }}">{{ name }} ({{ title }})</option>{% endfor %}</select></label>
-<div><button class="danger">Remove definition</button></div></form></section>{% endif %}
-{% endif %}
+<div><button class="danger">Remove definition</button></div></form>{% endcall %}</section>{% endif %}
 {% endif %}
 <p class="muted">Every change here waits for <strong>Apply</strong> in the top bar, which brings this site's Kea and firewall in line once.</p>
 {% endblock %}
