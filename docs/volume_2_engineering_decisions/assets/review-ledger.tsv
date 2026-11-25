@@ -143,7 +143,7 @@ docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	3affd2890c9
 docs/volume_1_description_and_architecture/README.md	81c00c0829345d08ded2e5c4ebc97977e2aed8c0	2026-11-19	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	0cde4f00bca225222a1c6166b03f749796b365e8	2026-11-25	
+docs/volume_2_engineering_decisions/2.1.1-product.md	a348531e58e710a5f4ad055b628512b24244799d	2026-11-25	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	88fb812a2241df9161cc991f734b990a9d579daa	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	515f4b543f91a0cf387eba583d2b143ec8458d85	2026-11-08	
