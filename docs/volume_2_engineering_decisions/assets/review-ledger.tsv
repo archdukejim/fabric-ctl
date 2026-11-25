@@ -57,7 +57,7 @@ docs/volume_1_description_and_architecture/1.17.20-fabriclib-radius.md	6b4d2bfcc
 docs/volume_1_description_and_architecture/1.17.21-fabriclib-rbac.md	06f74c15c586706f54077fa0cf964bafad8180ab	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.22-fabriclib-secrets.md	dc5f299fbdaa57147f2a2d00770407c6b35e71cd	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.23-fabriclib-security.md	f0b93f4ea770fdb718e217f9128740bb5a3174f1	2026-11-19	
-docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	7b3c0897b13a65e65728df0557e661ff04938293	2026-11-24	
+docs/volume_1_description_and_architecture/1.17.24-fabriclib-setup.md	e7ce95ae70318b4bc2115bbdd1c3add4ceac1acc	2026-11-25	
 docs/volume_1_description_and_architecture/1.17.25-fabriclib-system.md	b975e7aaec9d1d11edaa9b448c75cfac40a7488b	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.26-fabriclib-undo.md	b8b3320d383bce35fdc5f0e76107e3f638130d52	2026-11-19	
 docs/volume_1_description_and_architecture/1.17.27-fabriclib-vault.md	f8b7a04f759d79ab3623953719d5031f82bc4c2a	2026-11-19	
@@ -1676,7 +1676,7 @@ src/fabriclib/setup/site/README.md	3bc1bfe460e16b4ec69d93ff5a72316f5edc8bce	2026
 src/fabriclib/setup/site/__init__.py	e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	2026-11-07	
 src/fabriclib/setup/site/ask_restore.py	8d1752672dd44e63d4b9fb0f95331b92bea6695a	2026-11-23	
 src/fabriclib/setup/site/ask_start.py	2921ca408d78e9393da3edd63084bd4c359e3f70	2026-11-23	
-src/fabriclib/setup/site/attach_server.py	5d3132d2e9bd36782eb0e392da5e3a6f6455f0ef	2026-11-08	
+src/fabriclib/setup/site/attach_server.py	802f96536652f21de0bd4415b127aadefe9fd20a	2026-11-25	
 src/fabriclib/setup/site/attach_site.py	219c2870ca9b5ccbbda8cff7d46eca0552cd1a52	2026-11-08	
 src/fabriclib/setup/site/certificate_fingerprint.py	5adef6e5eb00bf30386200568c5a31cd3e934033	2026-11-07	
 src/fabriclib/setup/site/check_console.py	f134c91210c16fe9413672dbb74f1f1bbdcd60ce	2026-11-07	
