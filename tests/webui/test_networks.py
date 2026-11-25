@@ -20,6 +20,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 UX_WEB = os.path.join(REPO, "src", "ux", "web")
 PORT = int(os.environ.get("WEBUI_DEV_PORT", "18865"))
 START_WAIT = 15
+sys.path.insert(0, os.path.join(REPO, "tests", "common"))
+from live_forms import greyed, live_forms  # noqa: E402
 FAILED = 0
 
 
@@ -398,9 +400,10 @@ with serve():
 
 with serve("fabric-auditor"):
     print("--- without dhcp:write (an auditor): the pages, no forms; changes refused")
-    page = get("/networks?subnet=iot") + get("/networks") + get("/networks/options?target=subnet:iot")
-    check("no form that changes anything is shown",
-          not re.search(r'action="/networks/(plan|sync|options/|scan/)', page), re.findall(r'action="[^"]+"', page))
+    pages = [get("/networks?subnet=iot"), get("/networks"), get("/networks/options?target=subnet:iot")]
+    sendable = [a for pg in pages for a in live_forms(pg) if re.match(r"/networks/(plan|sync|options/|scan/)", a)]
+    check("every form that changes anything greyed, none can be sent (dhcp:write, 1.8.6.15)",
+          not sendable and all(greyed(pg, "dhcp:write") for pg in pages), sendable)
     # covers: web:post.networks.sync -
     st, loc, page = post("/networks/sync", {})
     check("Sync now refused: the permission", "dhcp:write" in (flash(page) + page), flash(page))

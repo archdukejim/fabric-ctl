@@ -2638,7 +2638,7 @@ tests/webui/test_backups.py	5823deb4a28776ae17fc1f20a541bff878888bd6	2026-11-23
 tests/webui/test_container.py	1553493384e5c07ecd9ad00c82709000486fc4fa	2026-11-25	
 tests/webui/test_devserver.py	9e1d43fb8e64b1d04e19bb6656a224367de35242	2026-11-25	
 tests/webui/test_narrow.py	eb32693b6903f9bec298f8a34ebe2c54b6bcf771	2026-11-15	
-tests/webui/test_networks.py	b6899273f98b87bff09a40e597c5acfa7c510851	2026-11-15	
+tests/webui/test_networks.py	6d4d8dfa0d96d034227c8ac70de9ce9c0cc2f83a	2026-11-25	
 tests/zone_test.py	46cf001846dabdb150c1c5678c63136aa42c7c4e	2026-10-24	
 tests/zones/README.md	e5c1bdb75dc56c9fa3011aa81af29ad1975f5d78	2026-10-23	
 tests/zones/run.py	99438f3e3cc61c0103a70c68fa4455771d6ece5a	2026-11-14	
