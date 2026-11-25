@@ -98,9 +98,12 @@ for tpl in sorted(env.list_templates()):
         extra = dict(zone_name='test.lan.j-j.family', zone_records=v2['dns']['dynamic_zone_var'])
     if tpl.startswith('bind9/data/reverse'):
         extra = dict(reverse_zone_name='7.168.192.in-addr.arpa', ptr_records=rv['zones']['7.168.192.in-addr.arpa'])
-    if tpl.endswith('/split.rpz.j2'):     # a VLAN's own answers (2.1.4.16), as dns/split/split_answers gives them
-        extra = dict(split={'ref': '20', 'view': 'vlan-20', 'rpz': 'split-20.rpz', 'cidrs': ['192.168.20.0/24'],
-                            'names': ['nas.test.lan.j-j.family'], 'lines': ['nas.test.lan.j-j.family A 192.168.20.5']})
+    if tpl.endswith('/split.rpz.j2'):     # a network's own answers (2.1.4.18), as dns/split/split_answers gives them
+        extra = dict(split={'ref': '192.168.20.0/24', 'view': 'subnet-192-168-20-0-24',
+                            'rpz': 'split-192-168-20-0-24.rpz', 'cidrs': ['192.168.20.0/24'],
+                            'names': ['nas.test.lan.j-j.family'],
+                            'lines': ['nas.test.lan.j-j.family A 192.168.20.5',
+                                      '5.20.168.192.in-addr.arpa PTR nas.test.lan.j-j.family.']})
     if tpl.startswith('systemd/'):
         extra = dict(item={'service': 'samba', 'compose': 'samba', 'folder': 'samba', 'requires': []})
     if tpl.startswith('resolver/config/'):     # what dns_filter/deploy_resolver passes beside the vars

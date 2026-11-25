@@ -91,7 +91,7 @@ view "{{ g.name }}" {
 {% if split %}
     zone "{{ split }}" { type primary; file "/etc/bind/{{ split }}"; };
 {% endif %}
-    // first match wins: {% if split %}the VLAN's own answers, {% endif %}fabric's zones never filtered, the group's own allows and blocks, the owner's, safe search
+    // first match wins: {% if split %}the network's own answers, {% endif %}fabric's zones never filtered, the group's own allows and blocks, the owner's, safe search
     response-policy {
 {% if split %}
         zone "{{ split }}";
@@ -117,7 +117,7 @@ view "{{ name }}" {
 {% if split %}
     zone "{{ split }}" { type primary; file "/etc/bind/{{ split }}"; };
 {% endif %}
-    // first match wins: {% if split %}the VLAN's own answers, {% endif %}fabric's zones are never filtered, then the owner's rules, safe search
+    // first match wins: {% if split %}the network's own answers, {% endif %}fabric's zones are never filtered, then the owner's rules, safe search
     response-policy {
 {% if split %}
         zone "{{ split }}";
@@ -131,16 +131,19 @@ view "{{ name }}" {
 };
 {% endmacro %}
 {% for g in pairs | default([]) %}
-// client group {{ g.group }} inside {{ g.split }}'s VLAN (decision 2.1.4.16): the group's filtering, the VLAN's own answers
+// client group {{ g.group }} inside {{ g.split }}'s network (decision 2.1.4.18): the group's filtering, the network's own answers
 {{ group_view(g, g.split) }}
 {% endfor %}
 {% for g in groups %}
 // client group {{ g.name }} (manual 1.12.2.15, 1.12.3.6): fabric's zones, its own rules, the owner's, its safe search;
 // everything else to AdGuard Home as the group {{ g.name }}
-{{ group_view(g, none) }}
+{% if g.split %}// and "no such name" for the zones mapped to other networks (decision 2.1.4.18)
+{% endif %}
+{{ group_view(g, g.split | default(none)) }}
 {% endfor %}
-{% for x in vlans | default([]) %}
-// {{ x.name }}: its own answers for its names (decision 2.1.4.16, manual 1.4.1.11), everything else as everyone's
+{% for x in subnets | default([]) %}
+// {{ x.name }}: its own answers for its zones (decision 2.1.4.18, manual 1.4.1.13), everything else as everyone's
 {{ everyone_view(x.name, x.match, x.split) }}
 {% endfor %}
-{{ everyone_view("everyone", ["any"], none) }}
+{% if rest | default(none) %}// everyone else: "no such name" for the zones mapped to other networks (decision 2.1.4.18)
+{% endif %}{{ everyone_view("everyone", ["any"], (rest | default(none)).rpz if rest | default(none) else none) }}

@@ -1,5 +1,6 @@
 from agent.read_strings import read_strings
 from agent.read_text import read_text
+from agent.post_zone_splits import post_zone_splits
 from agent.read_tsig_edit import read_tsig_edit
 from agent.route_not_found import RouteNotFound
 from fabriclib.common.errors import ValidationError
@@ -32,12 +33,24 @@ def _published(actor):
     return {"published": True}
 
 
+def _split(data):
+    """Purpose: the tab a record change is for (decision 2.1.4.18): a split's index, or None for All networks.
+    Inputs:  data — the body (split: digits, or left out or "").
+    Returns: str of digits, or None (split_home checks it).
+    Fails:   never.
+    Feeds:   post_dns."""
+    value = data.get("split")
+    return None if value is None or str(value) == "" else str(value)
+
+
 def post_dns(route, actor, data):
-    """Purpose: DNS changes: POST /v1/zones/<key>/records[/delete|/update|/link] and
+    """Purpose: DNS changes: POST /v1/zones/<key>/records[/delete|/update|/link], a zone's networks and splits
+             (/v1/zones/<key>/networks|splits[/update|/delete]: post_zone_splits, 2.1.4.18) and
              /v1/tsig[/<name>/rotate|delete|update].
     Inputs:  route — segments after /v1/; actor — the verified user; data — the body: type, name, ip|target|… for a
              record (index for a delete; index, old_name and the new fields for an update; type, index, name,
-             link, link_label, link_port, link_path for a landing-page link); name, zone, scope, hosts, types,
+             link, link_label, link_port, link_path for a landing-page link; split, the tab's index, for a
+             record in a split, 2.1.4.18); name, zone, scope, hosts, types,
              secret, with_aliases for a TSIG key; add, drop, add_with_aliases, drop_with_aliases, scope,
              record_types for a key's Edit names (read_tsig_edit, 2.1.4.13).
     Returns: the new record; {"key", "secret", "ini", "published"[, "publish_error"]} for a new key (the secret shown
@@ -57,7 +70,9 @@ def post_dns(route, actor, data):
         rtype = data.get("type", "")
         if rtype not in RECORD_TYPES:
             raise ValidationError("unsupported record type")
-        return add_record(actor, route[1], rtype, data, source="web")
+        return add_record(actor, route[1], rtype, data, source="web", split=_split(data))
+    if len(route) >= 3 and route[0] == "zones" and route[2] in ("networks", "splits"):
+        return post_zone_splits(route, actor, data)
     if len(route) == 4 and route[0] == "zones" and route[2:] in (["records", "delete"], ["records", "link"],
                                                                         ["records", "update"]):
         try:
@@ -65,16 +80,18 @@ def post_dns(route, actor, data):
         except (TypeError, ValueError):
             raise ValidationError("invalid index")
         if route[3] == "update":                   # a record replaced in place (2.1.4.15)
-            fields = ("name", "value", "ip", "target", "text", "priority", "weight", "port", "vlan")
+            fields = ("name", "value", "ip", "target", "text", "priority", "weight", "port")
             return update_record(actor, route[1], str(data.get("type", "")), index, str(data.get("old_name", "")),
-                                 {k: str(data.get(k) or "") for k in fields}, source="web")
+                                 {k: str(data.get(k) or "") for k in fields}, source="web", split=_split(data))
+        if route[3] == "link" and _split(data) is not None:
+            raise ValidationError("the landing page links the All networks tab's records only")
         if route[3] == "link":
             return set_record_link(actor, route[1], str(data.get("type", "")), index, str(data.get("name", "")),
                                    {k: str(data.get(k) or "")
                                     for k in ("link", "link_label", "link_port", "link_path")},
                                    source="web")
         return remove_record(actor, route[1], str(data.get("type", "")), index, str(data.get("name", "")),
-                             source="web")
+                             source="web", split=_split(data))
     if route == ["tsig"]:
         key, secret, ini = create_zone_tsig_key(actor, read_text(data, "name"), read_text(data, "zone"),
                                                 read_text(data, "scope"), read_strings(data, "hosts"),

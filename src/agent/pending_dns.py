@@ -29,6 +29,19 @@ def _widens(key, rtype, body):
             if keys else "")
 
 
+def _split_name(key, split):
+    """Purpose: a split's tab as people read it (2.1.4.18): "the split for 10.1.20.0/24", from the settings.
+    Inputs:  key — the zone's key; split — the split's index (int or digits).
+    Returns: str; "split tab <n>" when the settings cannot say (unreadable, or no such split).
+    Fails:   never.
+    Feeds:   describe_dns."""
+    try:
+        nets = ((load_vars().get("dns") or {}).get(key) or {}).get("splits")[int(split)]["subnets"]
+        return f"the split for {', '.join(nets)}"
+    except (OSError, yaml.YAMLError, TypeError, ValueError, IndexError, KeyError, AttributeError):
+        return f"split tab {split}"
+
+
 def describe_dns(route, body):
     """Purpose: A DNS change in a sentence ("Add A record www to home.lan", "Remove TSIG key npm", "Change TSIG key
              npm: add web, remove nas").
@@ -54,16 +67,27 @@ def describe_dns(route, body):
     zone, rtype, name = _zone(route[1]), body.get("type", ""), body.get("name", "")
     if route[2:] == ["delete"]:
         return f"Remove zone {zone} with its records"
-    only = f" for VLAN {body['vlan']}" if body.get("vlan") else ""          # one VLAN's own answer (2.1.4.16)
+    if route[2:] == ["networks"]:                               # a zone's networks (2.1.4.18)
+        nets = str(body.get("networks") or "").replace(",", " ").split()
+        return f"Answer {zone} to " + ("every network" if nets == ["all"] else ", ".join(nets) or "no network")
+    if route[2:3] == ["splits"]:                                # a zone's split (2.1.4.18)
+        old, new = str(body.get("old") or ""), ", ".join(str(body.get("subnets") or "").replace(",", " ").split())
+        if route[3:] == ["delete"]:
+            return f"Remove the split for {old.replace(',', ', ')} from {zone}"
+        if route[3:] == ["update"]:
+            return f"Change the split for {old.replace(',', ', ')} in {zone} to {new}"
+        return f"Add a split for {new} to {zone}, a copy of its All networks records"
+    split = body.get("split")
+    only = f" in {_split_name(route[1], split)}" if split not in (None, "") else ""
     if route[2:] == ["records"]:
         return f"Add {rtype} record {name}{only} to {zone}" + _widens(route[1], rtype, body)
     if route[3:] == ["delete"]:
-        return f"Delete {rtype} record {name} from {zone}"
+        return f"Delete {rtype} record {name}{only} from {zone}"
     if route[3:] == ["update"]:                                 # a record replaced in place (2.1.4.15)
         old = body.get("old_name", "")
         value = body.get("value", "")
         return (f"Change {rtype} record {old} in {zone}" + (f" to {name}" if name and name != old else "")
-                + (f": {value}" if value else "") + (only or " for everyone") + _widens(route[1], rtype, body))
+                + (f": {value}" if value else "") + only + _widens(route[1], rtype, body))
     if body.get("link") == "on":
         return f"Link {name} from the landing page"
     return f"Stop linking {name} from the landing page"

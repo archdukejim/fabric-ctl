@@ -10,6 +10,7 @@ from fabriclib.dns.add_record import add_record
 from fabriclib.dns.constants import RECORD_TYPES
 from fabriclib.dns.format_value import format_value
 from fabriclib.dns.remove_record import remove_record
+from fabriclib.dns.split.zone_networks import ALL, zone_networks
 from fabriclib.dns.sync_status import sync_status
 from fabriclib.menu.apply_and_report import apply_and_report
 from fabriclib.menu.save_menu_change import menu_actor
@@ -42,6 +43,22 @@ def _prompt_record(rtype):
     return form
 
 
+def _networks_note(zone):
+    """Purpose: what the zone editor says of a zone answered by network (decision 2.1.4.18): the records shown are
+             the All networks tab's, and its networks and splits are set in the console (4.4.1.7, 4.4.1.8).
+    Inputs:  zone — the zone.
+    Returns: str, or "" for a zone that answers every network with no split.
+    Fails:   never.
+    Feeds:   edit_dns_zone."""
+    nets, splits = zone_networks(zone), len(zone.get("splits") or [])
+    if nets == ALL and not splits:
+        return ""
+    parts = ([f"answers {', '.join(nets)} only"] if nets != ALL else []) + \
+        ([f"has {splits} split{'s' if splits > 1 else ''}"] if splits else [])
+    return (f"This zone {' and '.join(parts)}: the records below are its All networks tab; its networks and splits "
+            f"are changed in the console (DNS → Zones).")
+
+
 def _apply():
     """Purpose: run an apply from inside the menu without leaving it when the apply fails.
     Inputs:  none.
@@ -55,8 +72,8 @@ def _apply():
 
 
 def edit_dns_zone(data, zone_key, domain):
-    """Purpose: menu for one DNS zone: its sync state and records; add or delete a record, apply live, or force-recreate
-             the zone.
+    """Purpose: menu for one DNS zone: its sync state and records (the All networks tab, 2.1.4.18: a zone answered by
+             network says so); add or delete a record, apply live, or force-recreate the zone.
     Inputs:  data — the vars working copy, refreshed from vars.yaml after each change (so a later save from the menu
              cannot overwrite it with a stale copy); zone_key — key under dns ("dynamic_zone_var" is the main domain);
              domain — the name shown for dynamic_zone_var. Prompts on stdin.
@@ -72,6 +89,9 @@ def edit_dns_zone(data, zone_key, domain):
         print(f"{BOLD}--- DNS Zone: {shown} ---{NC}\n")
         state, message = sync_status(shown)
         print(f"  {SYNC_COLOURS.get(state, NC)}{message}{NC}\n")
+        note = _networks_note(zone)
+        if note:
+            print(f"  {YELLOW}{note}{NC}\n")
         records, idx = {}, 1
         for rtype in RECORD_TYPES:
             for ridx, record in enumerate(zone.get(rtype) or []):

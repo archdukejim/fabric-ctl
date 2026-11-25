@@ -45,6 +45,7 @@ file	fabricctl-agent|src/agent/post_settings.py	26
 file	fabricctl-agent|src/agent/post_sizing.py	45	
 file	fabricctl-agent|src/agent/post_upload.py	59	
 file	fabricctl-agent|src/agent/post_vault.py	9	
+file	fabricctl-agent|src/agent/post_zone_splits.py	61	
 file	fabricctl-agent|src/agent/read_chunked.py	60	
 file	fabricctl-agent|src/agent/read_fields.py	10	
 file	fabricctl-agent|src/agent/read_strings.py	11	
@@ -587,10 +588,22 @@ file	fabriclib-dns|src/fabriclib/dns/set_acl_policy.py	25
 file	fabriclib-dns|src/fabriclib/dns/set_key_acls.py	26	
 file	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py	47	
 file	fabriclib-dns|src/fabriclib/dns/set_record_link.py	39	
-file	fabriclib-dns|src/fabriclib/dns/split/default_records.py	65	
-file	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py	66	
+file	fabriclib-dns|src/fabriclib/dns/split/add_split.py	73	
+file	fabriclib-dns|src/fabriclib/dns/split/default_records.py	65	0.10.0 / 2026-11-25
+file	fabriclib-dns|src/fabriclib/dns/split/norm_subnet.py	69	
+file	fabriclib-dns|src/fabriclib/dns/split/offered_subnets.py	70	
+file	fabriclib-dns|src/fabriclib/dns/split/own_in_split.py	74	
+file	fabriclib-dns|src/fabriclib/dns/split/reach.py	71	0.10.0 / 2026-11-25
+file	fabriclib-dns|src/fabriclib/dns/split/record_subnets.py	72	0.10.0 / 2026-11-25
+file	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py	66	0.10.0 / 2026-11-24
+file	fabriclib-dns|src/fabriclib/dns/split/remove_split.py	75	
+file	fabriclib-dns|src/fabriclib/dns/split/set_zone_networks.py	76	
 file	fabriclib-dns|src/fabriclib/dns/split/split_answers.py	67	
+file	fabriclib-dns|src/fabriclib/dns/split/split_checks.py	77	
+file	fabriclib-dns|src/fabriclib/dns/split/split_home.py	78	
 file	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py	68	
+file	fabriclib-dns|src/fabriclib/dns/split/update_split.py	79	
+file	fabriclib-dns|src/fabriclib/dns/split/zone_networks.py	80	
 file	fabriclib-dns|src/fabriclib/dns/sync_status.py	27	
 file	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py	61	
 file	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py	62	
@@ -1275,6 +1288,8 @@ file	fabriclib-setup|src/fabriclib/setup/stop_for_copy.py	155
 file	fabriclib-setup|src/fabriclib/setup/uninstall.py	35	
 file	fabriclib-setup|src/fabriclib/setup/upgrade_vars.py	36	
 file	fabriclib-setup|src/fabriclib/setup/verify_install.py	37	
+file	fabriclib-setup|src/fabriclib/setup/vlan_records_to_splits.py	165	
+file	fabriclib-setup|src/fabriclib/setup/vlan_records_to_subnets.py	164	0.10.0 / 2026-11-25
 file	fabriclib-setup|src/fabriclib/setup/wait_ready.py	81	
 file	fabriclib-sizing|src/fabriclib/sizing/advice.py	1	
 file	fabriclib-sizing|src/fabriclib/sizing/refresh_sizing.py	2	
@@ -1691,6 +1706,7 @@ function	fabricctl-agent|src/agent/kept_store.py|start_kept	2
 function	fabricctl-agent|src/agent/kept_store.py|started	1	
 function	fabricctl-agent|src/agent/landing_note.py|landing_note	1	
 function	fabricctl-agent|src/agent/one_thing.py|one_thing	1	
+function	fabricctl-agent|src/agent/pending_dns.py|_split_name	4	
 function	fabricctl-agent|src/agent/pending_dns.py|_widens	3	
 function	fabricctl-agent|src/agent/pending_dns.py|_zone	1	
 function	fabricctl-agent|src/agent/pending_dns.py|describe_dns	2	
@@ -1752,6 +1768,7 @@ function	fabricctl-agent|src/agent/post_dhcp.py|_where	2
 function	fabricctl-agent|src/agent/post_dhcp.py|post_dhcp	3	
 function	fabricctl-agent|src/agent/post_directory.py|post_directory	1	
 function	fabricctl-agent|src/agent/post_dns.py|_published	2	
+function	fabricctl-agent|src/agent/post_dns.py|_split	3	
 function	fabricctl-agent|src/agent/post_dns.py|post_dns	1	
 function	fabricctl-agent|src/agent/post_dns_filter.py|_on	2	0.9.5 / 2026-11-07
 function	fabricctl-agent|src/agent/post_dns_filter.py|post_dns_filter	1	
@@ -1792,6 +1809,8 @@ function	fabricctl-agent|src/agent/post_sizing.py|post_sizing	1
 function	fabricctl-agent|src/agent/post_upload.py|_sized	1	
 function	fabricctl-agent|src/agent/post_upload.py|post_upload	2	
 function	fabricctl-agent|src/agent/post_vault.py|post_vault	1	
+function	fabricctl-agent|src/agent/post_zone_splits.py|_index	1	
+function	fabricctl-agent|src/agent/post_zone_splits.py|post_zone_splits	2	
 function	fabricctl-agent|src/agent/read_chunked.py|read_chunked	1	
 function	fabricctl-agent|src/agent/read_fields.py|read_fields	1	
 function	fabricctl-agent|src/agent/read_strings.py|read_strings	1	
@@ -2766,13 +2785,37 @@ function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_rewrite	2
 function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|_soa_fields	1	
 function	fabriclib-dns|src/fabriclib/dns/set_negative_ttl.py|set_negative_ttl	4	
 function	fabriclib-dns|src/fabriclib/dns/set_record_link.py|set_record_link	1	
-function	fabriclib-dns|src/fabriclib/dns/split/default_records.py|default_records	1	
-function	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py|record_vlan	1	
+function	fabriclib-dns|src/fabriclib/dns/split/add_split.py|add_split	1	
+function	fabriclib-dns|src/fabriclib/dns/split/default_records.py|default_records	1	0.10.0 / 2026-11-25
+function	fabriclib-dns|src/fabriclib/dns/split/norm_subnet.py|norm_subnet	1	
+function	fabriclib-dns|src/fabriclib/dns/split/offered_subnets.py|offered_subnets	1	
+function	fabriclib-dns|src/fabriclib/dns/split/own_in_split.py|own_in_split	1	
+function	fabriclib-dns|src/fabriclib/dns/split/reach.py|reach	1	0.10.0 / 2026-11-25
+function	fabriclib-dns|src/fabriclib/dns/split/record_subnets.py|default_reach	1	0.10.0 / 2026-11-25
+function	fabriclib-dns|src/fabriclib/dns/split/record_subnets.py|record_subnets	2	0.10.0 / 2026-11-25
+function	fabriclib-dns|src/fabriclib/dns/split/record_vlan.py|record_vlan	1	0.10.0 / 2026-11-24
+function	fabriclib-dns|src/fabriclib/dns/split/remove_split.py|remove_split	1	
+function	fabriclib-dns|src/fabriclib/dns/split/set_zone_networks.py|_mappable	1	
+function	fabriclib-dns|src/fabriclib/dns/split/set_zone_networks.py|set_zone_networks	2	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_diff	5	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_entry	7	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_put	6	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_qualified	1	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_rdata	2	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_tab	4	
+function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|_zones	8	
 function	fabriclib-dns|src/fabriclib/dns/split/split_answers.py|split_answers	3	
-function	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py|split_names	1	
+function	fabriclib-dns|src/fabriclib/dns/split/split_checks.py|filter_on	1	
+function	fabriclib-dns|src/fabriclib/dns/split/split_checks.py|forward_only	3	
+function	fabriclib-dns|src/fabriclib/dns/split/split_checks.py|free_networks	5	
+function	fabriclib-dns|src/fabriclib/dns/split/split_checks.py|needs_filter	2	
+function	fabriclib-dns|src/fabriclib/dns/split/split_checks.py|pick_networks	4	
+function	fabriclib-dns|src/fabriclib/dns/split/split_home.py|split_home	1	
+function	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py|split_names	1	0.10.0 / 2026-11-25
 function	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py|split_needs_filter	2	
+function	fabriclib-dns|src/fabriclib/dns/split/split_needs_filter.py|split_zones	3	
+function	fabriclib-dns|src/fabriclib/dns/split/update_split.py|update_split	1	
+function	fabriclib-dns|src/fabriclib/dns/split/zone_networks.py|zone_networks	1	
 function	fabriclib-dns|src/fabriclib/dns/sync_status.py|sync_status	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_key_mode.py|tsig_key_mode	1	
 function	fabriclib-dns|src/fabriclib/dns/tsig_record_notice.py|tsig_record_notice	1	
@@ -2783,6 +2826,7 @@ function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_int	1
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|_link	4	0.7.0 / 2026-10-12
 function	fabriclib-dns|src/fabriclib/dns/validate_record.py|validate_record	3	
 function	fabriclib-dns|src/fabriclib/dns/zone_content_changed.py|zone_content_changed	1	
+function	fabriclib-dns|src/fabriclib/dns/zone_detail.py|_records	2	
 function	fabriclib-dns|src/fabriclib/dns/zone_detail.py|zone_detail	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_name.py|zone_name	1	
 function	fabriclib-dns|src/fabriclib/dns/zone_records_for.py|zone_records_for	1	
@@ -3270,6 +3314,7 @@ function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|_count	2
 function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|_remove	4	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns.py|edit_dns	1	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns_zone.py|_apply	2	
+function	fabriclib-menu|src/fabriclib/menu/edit_dns_zone.py|_networks_note	4	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns_zone.py|_prompt_record	1	
 function	fabriclib-menu|src/fabriclib/menu/edit_dns_zone.py|edit_dns_zone	3	
 function	fabriclib-menu|src/fabriclib/menu/edit_links.py|edit_links	2	
@@ -3965,6 +4010,9 @@ function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_ldap_bind	2	0.5.
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|_records	6	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|checks	3	
 function	fabriclib-setup|src/fabriclib/setup/verify_install.py|run	4	
+function	fabriclib-setup|src/fabriclib/setup/vlan_records_to_splits.py|_split	1	
+function	fabriclib-setup|src/fabriclib/setup/vlan_records_to_splits.py|vlan_records_to_splits	2	
+function	fabriclib-setup|src/fabriclib/setup/vlan_records_to_subnets.py|vlan_records_to_subnets	1	0.10.0 / 2026-11-25
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_code	1	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|_refusals	2	
 function	fabriclib-setup|src/fabriclib/setup/wait_ready.py|probes	3	
@@ -4288,7 +4336,8 @@ function	webui|src/webui/devpreview/dev_settings.py|dev_settings	1	0.8.0 / 2026-
 function	webui|src/webui/devpreview/dev_state.py|DevState.__init__	1	
 function	webui|src/webui/devpreview/dev_state.py|DevState._edit	10	
 function	webui|src/webui/devpreview/dev_state.py|DevState._ptr	5	
-function	webui|src/webui/devpreview/dev_state.py|DevState._vlans	11	
+function	webui|src/webui/devpreview/dev_state.py|DevState._subnets	12	
+function	webui|src/webui/devpreview/dev_state.py|DevState._vlans	11	0.10.0 / 2026-11-24
 function	webui|src/webui/devpreview/dev_state.py|DevState.log	9	
 function	webui|src/webui/devpreview/dev_state.py|DevState.overview	6	
 function	webui|src/webui/devpreview/dev_state.py|DevState.reverse	3	
@@ -4325,10 +4374,14 @@ function	webui|src/webui/devpreview/fake_directory.py|_people	2
 function	webui|src/webui/devpreview/fake_directory.py|_policy	5	
 function	webui|src/webui/devpreview/fake_directory.py|fake_directory	6	
 function	webui|src/webui/devpreview/fake_directory.py|kerberos_policy	8	
+function	webui|src/webui/devpreview/fake_dns.py|_free	7	
+function	webui|src/webui/devpreview/fake_dns.py|_networks	6	
 function	webui|src/webui/devpreview/fake_dns.py|_record	3	
-function	webui|src/webui/devpreview/fake_dns.py|_split	5	
+function	webui|src/webui/devpreview/fake_dns.py|_split	5	0.10.0 / 2026-11-25
+function	webui|src/webui/devpreview/fake_dns.py|_stale	8	
 function	webui|src/webui/devpreview/fake_dns.py|_tsig	1	
 function	webui|src/webui/devpreview/fake_dns.py|_value	2	
+function	webui|src/webui/devpreview/fake_dns.py|_zone_splits	9	
 function	webui|src/webui/devpreview/fake_dns.py|fake_dns	4	
 function	webui|src/webui/devpreview/fake_grants.py|_checked	3	
 function	webui|src/webui/devpreview/fake_grants.py|_grants	1	
@@ -4521,6 +4574,9 @@ function	webui|src/webui/routes/tree_page.py|tree_page	1
 function	webui|src/webui/routes/tsig_post.py|_edit	2	
 function	webui|src/webui/routes/tsig_post.py|tsig_post	1	
 function	webui|src/webui/routes/vault_post.py|vault_post	1	
+function	webui|src/webui/routes/zone_post.py|_subnets	2	0.10.0 / 2026-11-25
+function	webui|src/webui/routes/zone_post.py|_tab	4	
+function	webui|src/webui/routes/zone_post.py|_ticked	3	
 function	webui|src/webui/routes/zone_post.py|zone_post	1	
 function	webui|src/webui/routes/zones_post.py|zones_post	1	
 function	webui|src/webui/security/cert_subject_rfc2253.py|cert_subject_rfc2253	1	

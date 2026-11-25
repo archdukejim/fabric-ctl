@@ -1,5 +1,6 @@
-; VLAN {{ split.ref }}'s own answers (decision 2.1.4.16, manual 1.4.1.11): for each name here, that VLAN's clients get
-; these records (every type: a type not here answers no data); everyone else the zone's own. Rendered at every apply.
+; network {{ split.ref }}'s own answers (decision 2.1.4.18, manual 1.4.1.13): for each name here, that network's
+; clients get these records (every type: a type not here answers no data; "CNAME ." is "no such name"); everyone else
+; the zone's own. Rendered at every apply.
 $TTL 300
 @ SOA localhost. hostmaster.{{ split.rpz }}. 1 3600 600 86400 300
 @ NS localhost.

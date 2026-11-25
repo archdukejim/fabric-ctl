@@ -404,21 +404,101 @@ with serve():
     check("Edit without a record: refused at once, nothing held", "pick a record to change" in flash(page)
           and "change pending" not in page, flash(page))
     page = get("/dns/zones?zone=dynamic_zone_var")
-    check("the VLAN column (2.1.4.16): a record answers everyone, or one VLAN of the plan picked in the add row",
-          "<th>VLAN</th>" in page and 'form="rec-add" name="vlan"' in page and '<option value="20">VLAN 20</option>'
-          in page and "everyone" in page, page.split("<main", 1)[1][:2500])
-    st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "split", "value": "10.1.20.7",
-                                                              "vlan": "20"})
-    check("a record for VLAN 20: held, saying for whom", "Waiting for Apply: Add A record split for VLAN 20 to the "
-          "site's zone" in flash(page), flash(page))
+    check("split DNS by zone (2.1.4.18): the site's zone answers every network, never mapped; an All networks tab and "
+          "+ Split; no Subnets column", "every network</span>" in page and "split it instead" in page
+          and 'action="/bind9/zone/dynamic_zone_var/networks"' not in page and ">All networks <" in page
+          and "split=new" in page and "<th>Subnets</th>" not in page, page.split("<main", 1)[1][:2500])
+    page = get("/dns/zones?zone=iot.home.arpa")
+    check("another zone: its Networks row, every network ticked, a box per network offered",
+          'action="/bind9/zone/iot.home.arpa/networks"' in page and 'name="nw_all" value="all" checked' in page
+          and 'name="nw_3" value="10.1.20.0/24"> 10.1.20.0/24 (iot)' in page, page.split("<main", 1)[1][:2500])
+    # covers: web:post.bind9.zone.*.networks agent:post.zones.*.networks +
+    st, loc, page = post("/bind9/zone/iot.home.arpa/networks", {"nw_3": "10.1.20.0/24"})
+    check("a zone mapped to one network: held, saying so", "Waiting for Apply: Answer iot.home.arpa to 10.1.20.0/24"
+          in flash(page), flash(page))
     dns_apply()
-    row = [r for r in get("/dns/zones?zone=dynamic_zone_var").split("<tr") if ">split<" in r]
-    check("...applied: its row says VLAN 20", row and 'data-label="VLAN"><span class="pill">VLAN 20' in row[0], row)
-    post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "nosuch", "value": "10.1.99.7", "vlan": "99"})
+    page = get("/dns/zones?zone=iot.home.arpa")
+    check("...applied: only that network ticked", 'name="nw_3" value="10.1.20.0/24" checked' in page
+          and 'name="nw_all" value="all">' in page, page.split("<main", 1)[1][:2500])
+    # covers: web:post.bind9.zone.*.networks agent:post.zones.*.networks -
+    for form, why in (({}, "pick at least one network"),
+                      ({"nw_all": "all", "nw_1": "192.168.1.0/24"}, "pick it alone"),
+                      ({"nw_9": "10.9.9.0/24"}, "10.9.9.0/24 is neither the host")):
+        post("/bind9/zone/iot.home.arpa/networks", form)
+        page = dns_apply()
+        check(f"negative: a zone's networks refused at Apply ({why}), saying why, nothing changed",
+              (why in page or why.replace("'", "&#39;") in page)
+              and 'name="nw_3" value="10.1.20.0/24" checked' in get("/dns/zones?zone=iot.home.arpa"),
+              page.split("<main", 1)[1][:1500])
+        post("/changes/zones/discard", {})
+    post("/bind9/zone/dynamic_zone_var/networks", {"nw_3": "10.1.20.0/24"})
     page = dns_apply()
-    check("a record for a VLAN the plan has not: refused at Apply, saying why", "VLAN 99 is not in the site&#39;s plan"
-          in page or "VLAN 99 is not in the site's plan" in page, page.split("<main", 1)[1][:1500])
+    check("negative: the site's own domain mapped: refused at Apply, saying to split it", "never mapped" in page,
+          page.split("<main", 1)[1][:1500])
     post("/changes/zones/discard", {})
+    post("/bind9/zone/iot.home.arpa/networks", {"nw_all": "all"})
+    dns_apply()
+    page = get("/dns/zones?zone=dynamic_zone_var&split=new")
+    check("+ Split: a box per network offered, never every network", 'action="/bind9/zone/dynamic_zone_var/splits"'
+          in page and 'name="sp_3" value="10.1.20.0/24"' in page and 'name="sp_all"' not in page,
+          page.split("<main", 1)[1][:2500])
+    # covers: web:post.bind9.zone.*.splits agent:post.zones.*.splits +
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/splits", {"sp_3": "10.1.20.0/24"})
+    check("a split for 10.1.20.0/24: held, saying it copies All networks", "Waiting for Apply: Add a split for "
+          "10.1.20.0/24 to the site's zone, a copy of its All networks records" in flash(page), flash(page))
+    dns_apply()
+    page = get("/dns/zones?zone=dynamic_zone_var&split=0")
+    tab = page.split('<table class="records"', 1)[-1].split('</table>', 1)[0]
+    check("...applied: its tab, its networks, the All networks records less fabric's own", "10.1.20.0/24 <span"
+          in page and ">nas<" in tab and "provided by fabric" not in tab and 'name="split" value="0"' in page,
+          page.split("<main", 1)[1][:3000])
+    # covers: web:post.bind9.zone.*.splits agent:post.zones.*.splits -
+    for form, why in (({}, "pick at least one network"), ({"sp_3": "10.1.20.0/24"}, "already in another split")):
+        post("/bind9/zone/dynamic_zone_var/splits", form)
+        page = dns_apply()
+        check(f"negative: a split refused at Apply ({why}), saying why, nothing added", why in page
+              and "split=1" not in get("/dns/zones?zone=dynamic_zone_var"), page.split("<main", 1)[1][:1500])
+        post("/changes/zones/discard", {})
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/add", {"type": "A", "name": "cam", "value": "10.1.20.30",
+                                                              "split": "0"})
+    check("a record added in the split's tab: held, back on the tab", loc.endswith("&split=0")
+          and "Add A record cam" in flash(page), (loc, flash(page)))
+    dns_apply()
+    split_page, all_page = get("/dns/zones?zone=dynamic_zone_var&split=0"), get("/dns/zones?zone=dynamic_zone_var")
+    check("...applied: in the split's tab, its PTR this split's only, and not in All networks", ">cam<" in split_page
+          and "this split only" in split_page and ">cam<" not in all_page, split_page.split("<main", 1)[1][:2000])
+    post("/bind9/zone/dynamic_zone_var/add", {"type": "CNAME", "name": "ca", "value": "elsewhere", "split": "0"})
+    page = dns_apply()
+    check("negative: one of fabric's own names in a split: refused at Apply, saying it answers in every tab",
+          "answers in every tab" in page, page.split("<main", 1)[1][:1500])
+    post("/changes/zones/discard", {})
+    # covers: web:post.bind9.zone.*.splits.update agent:post.zones.*.splits.update +
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/splits/update", {"split": "0", "old": "10.1.20.0/24",
+                                                                        "sp_3": "10.1.20.0/24", "sp_4": "10.1.30.0/24"})
+    check("a split's networks changed: held, saying from and to", "Change the split for 10.1.20.0/24 in the site's "
+          "zone to 10.1.20.0/24, 10.1.30.0/24" in flash(page), flash(page))
+    dns_apply()
+    check("...applied: its tab names both", "10.1.20.0/24, 10.1.30.0/24 <span" in get("/dns/zones?zone="
+                                                                                       "dynamic_zone_var"))
+    # covers: web:post.bind9.zone.*.splits.update agent:post.zones.*.splits.update -
+    post("/bind9/zone/dynamic_zone_var/splits/update", {"split": "0", "old": "10.1.20.0/24", "sp_3": "10.1.20.0/24"})
+    page = dns_apply()
+    check("negative: a stale split (its networks changed since shown): refused at Apply", "the split changed since it "
+          "was shown" in page, page.split("<main", 1)[1][:1500])
+    post("/changes/zones/discard", {})
+    # covers: web:post.bind9.zone.*.splits.delete agent:post.zones.*.splits.delete -
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/splits/delete", {"split": "x"})
+    check("negative: Remove split without a split: refused at once, nothing held", "pick a split" in flash(page)
+          and "change pending" not in page, flash(page))
+    # covers: web:post.bind9.zone.*.splits.delete agent:post.zones.*.splits.delete +
+    st, loc, page = post("/bind9/zone/dynamic_zone_var/splits/delete", {"split": "0",
+                                                                        "old": "10.1.20.0/24,10.1.30.0/24"})
+    check("Remove split: held, naming its networks", "Remove the split for 10.1.20.0/24, 10.1.30.0/24 from the site's "
+          "zone" in flash(page), flash(page))
+    dns_apply()
+    page = get("/dns/zones?zone=dynamic_zone_var")
+    check("...applied: the tab is gone, cam with it", "split=0" not in page and ">cam<" not in page,
+          page.split("<main", 1)[1][:2000])
     st, loc, page = post("/bind9/zone/dynamic_zone_var/delete", {"type": "A", "index": n, "name": "preview2"})
     check("Delete: the row's bin, held", "Waiting for Apply: Delete A record preview2"
           in flash(page) and "192.168.1.98" in page, flash(page))

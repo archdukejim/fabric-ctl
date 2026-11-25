@@ -25,6 +25,7 @@ arbitrary commands.
 | `pending_networks.py` | The address manager's held changes (1.10.4.40.2): their page (Networks, DHCP options), sentence, thing and key, and the grant's networks right at their site |
 | `post_dns.py` | Zones (add, remove), their records, TSIG keys (a new key or secret given to BIND at once, 2.1.8.24) |
 | `post_dns_filter.py` | The DNS filter's lists, rules and upstreams called directly (saved and applied), the lists job, the query-log search |
+| `post_zone_splits.py` | A zone's networks and its splits (2.1.4.18): mapped to some networks, a split added, changed or removed |
 | `change_dns_filter.py` | One DNS filter settings change saved (or only checked), nothing applied: a direct call's, a held change's check and its run at Apply |
 | `apply_filter_now.py` | The DNS filter applied once (the resolver and AdGuard Home), and the lists job started for a list ticked with no copy |
 | `post_dhcp.py` | DHCP: reservations, subnets (name, VLAN, notes, pools), options, client classes, each applied at once |

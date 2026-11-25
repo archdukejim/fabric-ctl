@@ -41,19 +41,105 @@ def _value(body):
     return " ".join([nums[f] for f in need] + [value])
 
 
-def _split(state, zone, rec, body):
-    """Purpose: the VLAN a sample record answers alone (2.1.4.16), kept beside it, checked as the agent checks it.
-    Inputs:  state — DevState; zone — the sample zone; rec — the record's (type, name, value); body — vlan.
+def _networks(state, text, allow_all=True):
+    """Purpose: networks as ticked, checked as the agent checks them (dns/split/split_checks, 2.1.4.18).
+    Inputs:  state — DevState; text — "all" or CIDRs joined by commas; allow_all — False for a split.
+    Returns: "all" or the sorted CIDRs.
+    Fails:   ValidationError: none picked; every network beside a network (or at all, for a split); one not offered.
+    Feeds:   _zone_splits."""
+    known = [x["cidr"] for x in state._subnets()]
+    words = [w for w in str(text or "").replace(",", " ").split() if w]
+    if not words:
+        raise ValidationError("pick at least one network")
+    if "all" in words:
+        if not allow_all:
+            raise ValidationError("a split names networks, never every network: that is the All networks tab")
+        if len(words) > 1:
+            raise ValidationError("every network already holds the others: pick it alone")
+        return "all"
+    bad = [w for w in words if w not in known]
+    if bad:
+        raise ValidationError(f"{bad[0]} is neither the host's LAN nor a subnet of the site's plan")
+    return sorted(set(words))
+
+
+def _free(zone, nets, skip=None):
+    """Purpose: refuse a split network the zone does not answer, or one another split already holds (2.1.4.18).
+    Inputs:  zone — the sample zone; nets — the split's CIDRs; skip — the split being changed.
     Returns: None.
-    Fails:   ValidationError for a VLAN the sample plan has not.
-    Feeds:   _record."""
-    vlan = str(body.get("vlan") or "").strip()
-    if not vlan:
-        return
-    known = [x["ref"] for x in state._vlans()]
-    if vlan not in known:
-        raise ValidationError(f"VLAN {vlan} is not in the site's plan (it has {', '.join(known) or 'none yet'})")
-    zone.setdefault("split", {})["|".join(rec)] = vlan
+    Fails:   ValidationError naming the network.
+    Feeds:   _zone_splits."""
+    for cidr in nets:
+        if zone.get("networks") and cidr not in zone["networks"]:
+            raise ValidationError(f"{cidr} is not one of the zone's networks: add it to them first")
+        if any(i != skip and cidr in s["subnets"] for i, s in enumerate(zone.get("splits") or [])):
+            raise ValidationError(f"{cidr} is already in another split of this zone")
+
+
+def _stale(zone, body):
+    """Purpose: the split a change names, if it is still the one shown (its networks as shown in old).
+    Inputs:  zone — the sample zone; body — split (its index), old (its networks, comma-joined) when checked.
+    Returns: the split's index.
+    Fails:   ValidationError "the split changed since it was shown; reload and try again".
+    Feeds:   _zone_splits, _record."""
+    splits = zone.get("splits") or []
+    try:
+        i = int(body.get("split"))
+    except (TypeError, ValueError):
+        i = -1
+    if not 0 <= i < len(splits) or ("old" in body and ",".join(splits[i]["subnets"]) != str(body["old"])):
+        raise ValidationError("the split changed since it was shown; reload and try again")
+    return i
+
+
+def _zone_splits(state, key, op, body):
+    """Purpose: a sample zone's networks and splits (2.1.4.18), in memory, refused as the agent refuses.
+    Inputs:  state — DevState; key — the zone; op — "networks", "splits", "splits/update" or "splits/delete";
+             body — networks, or split, old and subnets.
+    Returns: the agent's answer.
+    Fails:   ValidationError with the agent's reason.
+    Feeds:   fake_dns."""
+    zone = state.data["zones"][key]
+    if op == "networks":
+        nets = _networks(state, body.get("networks"))
+        if nets != "all":
+            if key == "dynamic_zone_var":
+                raise ValidationError("the site's own domain is never mapped: it holds fabric's own names and DHCP's "
+                                      "zone, which every network needs; split it instead")
+            for s in zone.get("splits") or []:
+                for cidr in s["subnets"]:
+                    if cidr not in nets:
+                        raise ValidationError(f"{cidr} is in a split of this zone: remove it from the split first")
+        old = zone.get("networks") or "all"
+        if old == nets:
+            raise ValidationError("nothing to change: the zone already answers those networks")
+        if nets == "all":
+            zone.pop("networks", None)
+        else:
+            zone["networks"] = nets
+        state.log("DNS_NETWORKS", f"zone={key} (in memory)")
+        return {"old": old, "new": nets}
+    if op == "splits":
+        nets = _networks(state, body.get("subnets"), allow_all=False)
+        _free(zone, nets)
+        own = SAMPLE_FABRIC_NAMES if key == "dynamic_zone_var" else {}
+        zone.setdefault("splits", []).append({"subnets": nets, "records": [r for r in zone["records"]
+                                                                           if (r[0], r[1]) not in own]})
+        state.log("DNS_SPLIT_ADD", f"zone={key} (in memory)")
+        return {"index": len(zone["splits"]) - 1, "subnets": nets}
+    i = _stale(zone, body)
+    if op == "splits/update":
+        nets = _networks(state, body.get("subnets"), allow_all=False)
+        _free(zone, nets, skip=i)
+        old = zone["splits"][i]["subnets"]
+        if old == nets:
+            raise ValidationError("nothing to change: the split already holds those networks")
+        zone["splits"][i]["subnets"] = nets
+        state.log("DNS_SPLIT_UPDATE", f"zone={key} (in memory)")
+        return {"old": old, "new": nets}
+    gone = zone["splits"].pop(i)
+    state.log("DNS_SPLIT_DELETE", f"zone={key} (in memory)")
+    return gone
 
 
 def _record(state, key, op, body):
@@ -66,14 +152,20 @@ def _record(state, key, op, body):
     Fails:   ValidationError with the agent's reason.
     Feeds:   fake_dns."""
     zone = state.data["zones"][key]
-    records = zone["records"]
+    tab = body.get("split") not in (None, "")                   # a split's tab (2.1.4.18)
+    records = zone["splits"][_stale(zone, {"split": body.get("split")})]["records"] if tab else zone["records"]
     rtype, name = body.get("type", ""), str(body.get("name", "")).strip()
     shown = str(body.get("old_name", "")).strip() if op == "records/update" else name
+    if tab and op in ("records", "records/update") and key == "dynamic_zone_var" and any(
+            n == name for _, n in SAMPLE_FABRIC_NAMES):
+        raise ValidationError(f"{name} is provided by fabric and answers in every tab: it is never given a split's "
+                              f"own answer")
+    if tab and op == "records/link":
+        raise ValidationError("the landing page links the All networks tab's records only")
     if op == "records":
         if rtype not in RECORD_TYPES:
             raise ValidationError("pick a record type")
         rec = (rtype, name, _value(body))
-        _split(state, zone, rec, body)                  # checked before the record is kept
         records.append(rec)
         state.log("DNS_ADD", f"zone={key} {rtype} {name} (in memory)")
         return {"name": name}
@@ -83,22 +175,15 @@ def _record(state, key, op, body):
     if idx >= len(records) or records[idx][:2] != (rtype, shown):
         raise ValidationError("record changed since it was shown; reload and try again")
     if op in ("records/delete", "records/update"):
-        own = SAMPLE_FABRIC_NAMES.get((rtype, shown)) if key == "dynamic_zone_var" else None
+        own = SAMPLE_FABRIC_NAMES.get((rtype, shown)) if key == "dynamic_zone_var" and not tab else None
         if own:
             raise ValidationError(f"{'home.arpa' if shown == '@' else shown + '.home.arpa'} is provided by fabric "
                                   f"({own[0]}, from the setting {own[1]}): every apply adds it back, so it cannot be "
                                   + ("deleted here" if op == "records/delete" else "changed here"))
     if op == "records/update":
         new = (rtype, name, _value(body))
-        split = zone.setdefault("split", {})
-        old_vlan = split.get("|".join(records[idx]), "")
-        if new == records[idx] and str(body.get("vlan") or "") == old_vlan:
+        if new == records[idx]:
             raise ValidationError("nothing to change: the record is already so")
-        _split(state, zone, new, body)                  # checked before the record changes
-        if old_vlan and not str(body.get("vlan") or "").strip():
-            split.pop("|".join(records[idx]), None)
-        elif "|".join(records[idx]) != "|".join(new):
-            split.pop("|".join(records[idx]), None)
         records[idx] = new
         state.log("DNS_UPDATE", f"zone={key} {rtype} {shown} -> {name} {new[2]} (in memory)")
         return {"old": {"name": shown}, "new": {"name": name}}
@@ -154,6 +239,8 @@ def fake_dns(state, who, route, body):
             return {"name": gone["name"], "records": len(gone["records"])}
         if op in ("records", "records/delete", "records/update", "records/link"):
             return _record(state, key, op, body)
+        if op in ("networks", "splits", "splits/update", "splits/delete"):
+            return _zone_splits(state, key, op, body)
     if route == ["tsig"]:
         name = str(body.get("name", "")).strip() or "preview"
         acme = body.get("scope") == "acme"

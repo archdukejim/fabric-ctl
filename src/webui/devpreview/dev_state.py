@@ -59,30 +59,40 @@ class DevState:
         Returns: {"key", "name", "status": dev-preview note, "records": [{"type", "index", "name", "value", "fabric"
                  ({"service", "setting"} for SAMPLE_FABRIC_NAMES in the site's zone, else None), "link" (the landing
                  page's, from the zone's "links", or None)} plus "ptr"/"ptr_note" for A/AAAA when fabriclib is
-                 present]}; "index" is the position in the zone's list.
+                 present], "networks", "offered", "mappable", "splittable", "splits" ([{"index", "subnets", "records"}]:
+                 the zone's networks and split tabs, 2.1.4.18)}; "index" is the position in the tab's list.
         Fails:   KeyError for an unknown key (the caller checks first).
         Feeds:   fake_reads (GET /v1/zones/<key>); the index is what fake_dns's record delete expects.
         """
         z = self.data["zones"][key]
         own = SAMPLE_FABRIC_NAMES if key == "dynamic_zone_var" else {}
-        return {"key": key, "name": z["name"], "status": "dev preview — sample data, not served by BIND",
-                "vlans": self._vlans(),
-                "records": [dict({"type": t, "index": i, "name": n, "value": v, "edit": self._edit(t, v),
-                                  "vlan": (z.get("split") or {}).get(f"{t}|{n}|{v}", ""),
-                                  "fabric": dict(zip(("service", "setting"), own[(t, n)])) if (t, n) in own else None,
-                                  "link": (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v))
-                            for i, (t, n, v) in enumerate(z["records"])]}
 
-    def _vlans(self):
-        """Purpose: the sample site's VLANs, for the zone page's VLAN column (2.1.4.16).
+        def rows(records, split):
+            return [dict({"type": t, "index": i, "name": n, "value": v, "edit": self._edit(t, v),
+                          "fabric": None if split else
+                          (dict(zip(("service", "setting"), own[(t, n)])) if (t, n) in own else None),
+                          "link": None if split else (z.get("links") or {}).get(f"{t}|{n}")}, **self._ptr(t, v),
+                         **({"ptr_scope": "split"} if split and t in ("A", "AAAA") else {}))
+                    for i, (t, n, v) in enumerate(records)]
+        return {"key": key, "name": z["name"], "status": "dev preview — sample data, not served by BIND",
+                "networks": z.get("networks") or "all", "offered": self._subnets(),
+                "mappable": key != "dynamic_zone_var", "splittable": True, "records": rows(z["records"], False),
+                "splits": [{"index": i, "subnets": s["subnets"], "records": rows(s["records"], True)}
+                           for i, s in enumerate(z.get("splits") or [])]}
+
+    def _subnets(self):
+        """Purpose: the networks a sample zone may answer, for the zone page's Networks row and its splits
+                 (2.1.4.18): the sample host's LAN, then the sample plan's subnets.
         Inputs:  none (the sample plan of this site, as fake_ipam keeps it).
-        Returns: [{"ref", "label"}].
+        Returns: [{"cidr", "label"}], the host's LAN first.
         Fails:   never.
-        Feeds:   zone; fake_dns (a record's VLAN checked against them)."""
+        Feeds:   zone; fake_dns (a zone's networks and a split's checked against them)."""
         from webui.devpreview.sample_networks import SAMPLE_NETWORK_READ
         plan = (self.data.get("networks") or SAMPLE_NETWORK_READ)["plans"]["lan"]
-        return [{"ref": str(x["id"]), "label": f"VLAN {x['id']}"} for x in plan.get("vlans") or []
-                if not x.get("location")]
+        host = next((n["cidr"] for n in plan.get("networks") or [] if n.get("kind") == "lan"), "192.168.1.0/24")
+        return [{"cidr": host, "label": f"{host} (host's LAN)"}] + [
+            {"cidr": s["cidr"], "label": f"{s['cidr']} ({s['name']})"} for s in plan.get("subnets") or []
+            if s.get("cidr") != host]
 
     @staticmethod
     def _edit(rtype, value):

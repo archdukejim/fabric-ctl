@@ -1220,6 +1220,66 @@ agent_job() {    # wait for a job: its final JSON
         sleep 3
     done; echo "$J"
 }
+
+echo "--- split DNS by zone: a split and a mapped zone answered by both servers (1.4.1.13, decision 2.1.4.18)"
+# a LAN client is a sleeping container on the box's network, asked with the runner's own dig inside its network
+# namespace (the sandbox image has no dig); a client in no network with answers is fabric's own container network
+# (the resolver's accepted clients include it), asked from inside the DNS containers' namespaces
+LAN_CLIENT=fabric-sbx-lanclient
+docker rm -f "$LAN_CLIENT" >/dev/null 2>&1
+docker run -d --rm --name "$LAN_CLIENT" --network "$NET" --entrypoint sleep fabric/sandbox:local 1800 >/dev/null
+lan_dig() { nsenter -t "$(docker inspect -f '{{.State.Pid}}' "$LAN_CLIENT")" -n dig +short +time=3 +tries=2 "$@"; }
+ns_dig() {   # $1: the container whose network namespace asks; the rest: dig's arguments
+    local c="$1"; shift
+    in_box "nsenter -t \$(docker inspect -f '{{.State.Pid}}' $c) -n dig +short +time=3 +tries=2 $*"
+}
+check "the runner can ask as a LAN client (its dig, the client's network)" "command -v dig >/dev/null && lan_dig @$IP -p $BIND_PORT ns.lan.test | grep -qx $IP"
+RES_IP=$(in_box "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bind9-resolver")
+BIND_IP=$(in_box "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bind9")
+agent_json /v1/zones/dynamic_zone_var/records '{"actor": "sandbox", "type": "A", "name": "split-name", "value": "10.77.0.50"}' > "$OUT/split-add.json"
+agent_json /v1/zones/dynamic_zone_var/records '{"actor": "sandbox", "type": "A", "name": "split-all", "value": "10.77.0.51"}' >> "$OUT/split-add.json"
+# covers: agent:post.zones.*.splits +
+agent_json /v1/zones/dynamic_zone_var/splits '{"actor": "sandbox", "subnets": "10.77.0.0/24"}' > "$OUT/split-new.json"
+SPLIT0=$(in_box "python3 -c \"import yaml; s = yaml.safe_load(open('/opt/fabric/config/vars.yaml'))['dns']['dynamic_zone_var']['splits'][0]; print(','.join(s['subnets']), ' '.join(r['name'] for r in s.get('A', [])))\"")
+check "a split for the host's LAN: a copy of All networks, fabric's own names left out"     "grep -q '\"index\": 0' '$OUT/split-new.json' && echo ' $SPLIT0 ' | grep -q '^ 10.77.0.0/24 .* split-name '      && echo ' $SPLIT0 ' | grep -q ' split-all ' && ! echo ' $SPLIT0 ' | grep -q ' @ '"
+# covers: agent:post.zones.*.splits -
+agent_json /v1/zones/dynamic_zone_var/splits '{"actor": "sandbox", "subnets": "10.99.0.0/24"}' > "$OUT/split-bad.json"
+check "negative: a split for a network neither the host's LAN nor in the plan: refused, saying why, nothing added" \
+    "grep -q 'neither the host' '$OUT/split-bad.json' && ! in_box 'grep -q 10.99.0.0 /opt/fabric/config/vars.yaml'"
+IDX=$(in_box "python3 -c \"import yaml; z = yaml.safe_load(open('/opt/fabric/config/vars.yaml'))['dns']['dynamic_zone_var']; print([r['name'] for r in z['splits'][0]['A']].index('split-name'))\"")
+# covers: agent:post.zones.*.records.update +
+agent_json /v1/zones/dynamic_zone_var/records/update "{\"actor\": \"sandbox\", \"type\": \"A\", \"index\": $IDX, \"old_name\": \"split-name\", \"name\": \"split-name\", \"value\": \"10.77.0.60\", \"split\": 0}" > "$OUT/split-upd.json"
+check "the split's own answer for split-name: changed in its tab alone" \
+    "grep -q '10.77.0.60' '$OUT/split-upd.json' && in_box 'grep -A1 \"name: split-name\" /opt/fabric/config/vars.yaml' | grep -q 10.77.0.50"
+agent_json /v1/zones '{"actor": "sandbox", "name": "map.test"}' > "$OUT/map-zone.json"
+agent_json /v1/zones/map.test/records '{"actor": "sandbox", "type": "A", "name": "x", "value": "10.77.0.70"}' >> "$OUT/map-zone.json"
+# covers: agent:post.zones.*.networks +
+agent_json /v1/zones/map.test/networks '{"actor": "sandbox", "networks": "10.77.0.0/24"}' > "$OUT/map-nets.json"
+check "map.test mapped to the host's LAN" "grep -q '\"new\": \\[\"10.77.0.0/24\"\\]' '$OUT/map-nets.json'"
+# covers: agent:post.zones.*.networks -
+agent_json /v1/zones/dynamic_zone_var/networks '{"actor": "sandbox", "networks": "10.77.0.0/24"}' > "$OUT/map-own.json"
+check "negative: the site's own domain mapped: refused, saying to split it" "grep -q 'never mapped' '$OUT/map-own.json'"
+agent_json /v1/apply '{"actor": "sandbox"}' > "$OUT/split-apply.json"
+check "applied" "grep -q '\"ok\": true' '$OUT/split-apply.json'"
+check "a LAN client: the split's answer from the resolver and from BIND, and its PTR" \
+    "[ \"\$(lan_dig @$IP split-name.lan.test)\" = 10.77.0.60 ] && [ \"\$(lan_dig -p $BIND_PORT @$IP split-name.lan.test)\" = 10.77.0.60 ] \
+     && [ \"\$(lan_dig -x 10.77.0.60 @$IP)\" = split-name.lan.test. ]"
+check "...a name the split kept as it was, and the mapped zone" \
+    "[ \"\$(lan_dig @$IP split-all.lan.test)\" = 10.77.0.51 ] && [ \"\$(lan_dig @$IP x.map.test)\" = 10.77.0.70 ]"
+check "a client in no such network: the All networks answer from both servers" \
+    "[ \"\$(ns_dig bind9 @$RES_IP split-name.lan.test)\" = 10.77.0.50 ] && [ \"\$(ns_dig bind9-resolver @$BIND_IP split-name.lan.test)\" = 10.77.0.50 ]"
+check "negative: ...not the split's PTR (its name not given away elsewhere), nor the zone mapped to the LAN"     "[ -z \"\$(ns_dig bind9 @$RES_IP -x 10.77.0.60)\" ] && [ -z \"\$(ns_dig bind9 @$RES_IP x.map.test)\" ]"
+check "this host itself stays in BIND's default view (fabric's own lookups): the All networks answer there" \
+    "[ \"\$(in_box 'dig +short +time=3 -p $BIND_PORT @$IP split-name.lan.test')\" = 10.77.0.50 ] && in_box 'dig +short -p $BIND_PORT @$IP ns.lan.test' | grep -qx $IP"
+# covers: agent:post.zones.*.splits.delete +
+agent_json /v1/zones/dynamic_zone_var/splits/delete '{"actor": "sandbox", "split": 0, "old": "10.77.0.0/24"}' > "$OUT/split-del.json"
+agent_json /v1/zones/map.test/networks '{"actor": "sandbox", "networks": "all"}' >> "$OUT/split-del.json"
+agent_json /v1/apply '{"actor": "sandbox"}' > "$OUT/split-apply2.json"
+check "the split removed and the zone back to every network: the LAN client gets the All networks answer again" \
+    "grep -q '\"ok\": true' '$OUT/split-apply2.json' && [ \"\$(lan_dig @$IP split-name.lan.test)\" = 10.77.0.50 ] \
+     && [ \"\$(ns_dig bind9 @$RES_IP x.map.test)\" = 10.77.0.70 ]"
+docker rm -f "$LAN_CLIENT" >/dev/null 2>&1
+
 in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"; sleep 20      # the first read starts the checks
 in_box "$AGENT http://agent/v1/backup" > "$OUT/agent-backup.json"
 SITE=$(sed -n 's/.*"site": "\([^"]*\)".*/\1/p' "$OUT/agent-backup.json")

@@ -44,26 +44,32 @@ class AttachServer:
         os.chmod(self.path, 0o600)
         sock.listen(4)
         self.sock = sock
-        threading.Thread(target=self._accept, daemon=True).start()
+        self._thread = threading.Thread(target=self._accept, args=(sock,), daemon=True)
+        self._thread.start()
         return self
 
-    def _accept(self):
+    def _accept(self, sock):
         """Purpose: take terminals as they come; one whose peer is not root is closed unanswered.
-        Inputs:  none.
+        Inputs:  sock — the listening socket, held here so close() setting self.sock to None never races the loop.
         Returns: None, once the socket is closed.
         Fails:   never.
         Feeds:   open, as a thread."""
         while True:
             try:
-                conn, _ = self.sock.accept()
+                conn, _ = sock.accept()
             except OSError:
                 return
-            _pid, uid, _gid = struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED,
-                                                                   struct.calcsize("3i")))
+            try:
+                _pid, uid, _gid = struct.unpack("3i", conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED,
+                                                                       struct.calcsize("3i")))
+                if uid == 0:
+                    conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("ll", SEND_SECONDS, 0))
+            except OSError:                 # the terminal went before it was looked at
+                conn.close()
+                continue
             if uid != 0:
                 conn.close()
                 continue
-            conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("ll", SEND_SECONDS, 0))
             with self.lock:
                 if self._send(conn, self.greeting()):
                     self.viewers.append(conn)
@@ -98,8 +104,13 @@ class AttachServer:
         Feeds:   setup/site/guided_site."""
         if self.sock is None:
             return
-        self.sock.close()
-        self.sock = None
+        sock, self.sock = self.sock, None
+        try:
+            sock.shutdown(socket.SHUT_RDWR)   # wakes the accept loop, which a close alone may not
+        except OSError:
+            pass
+        sock.close()
+        self._thread.join(timeout=2)
         try:
             os.unlink(self.path)
         except OSError:

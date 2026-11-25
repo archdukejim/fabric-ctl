@@ -26,11 +26,11 @@ def _matches(groups):
 
 
 def _inside(match, cidrs):
-    """Purpose: a group's match-clients narrowed to a VLAN's subnets (2.1.4.16): its negations kept as they are, each
-             of its networks replaced by its overlap with the VLAN's (the smaller of the two, when one holds the
-             other; nothing, when they do not meet).
-    Inputs:  match — a group's match-clients (_matches); cidrs — the VLAN's subnets.
-    Returns: [address-match-list elements], or [] when the group has no client in the VLAN.
+    """Purpose: a group's match-clients narrowed to a subnet with answers of its own (2.1.4.17): its negations
+             kept as they are, each of its networks replaced by its overlap with the subnet's (the smaller of the
+             two, when one holds the other; nothing, when they do not meet).
+    Inputs:  match — a group's match-clients (_matches); cidrs — the subnet (a list of one).
+    Returns: [address-match-list elements], or [] when the group has no client in the subnet.
     Fails:   never.
     Feeds:   resolver_views."""
     out, any_inside = [], False
@@ -40,11 +40,11 @@ def _inside(match, cidrs):
             continue
         net = ipaddress.ip_network(elem, strict=False)
         for c in cidrs:
-            vlan = ipaddress.ip_network(c, strict=False)
-            if net.subnet_of(vlan):
+            sub = ipaddress.ip_network(c, strict=False)
+            if net.subnet_of(sub):
                 out.append(elem)
                 any_inside = True
-            elif vlan.subnet_of(net):
+            elif sub.subnet_of(net):
                 out.append(c)
                 any_inside = True
     return list(dict.fromkeys(out)) if any_inside else []
@@ -54,15 +54,16 @@ def resolver_views(v, plan=None):
     """Purpose: what the resolver's views hold (manual 1.12.3.6): each group's match-clients (the most specific
              address wins), its rules zone and its safe search, and everyone's safe search. The lists are AdGuard
              Home's (1.12.3.5): no view holds one.
-             A VLAN with answers of its own (2.1.4.16) gets a view of its own, and a view per group with clients in
-             it: those views come first (a group's clients in that VLAN), then the groups', then the VLANs', then
-             everyone's, so the most specific still wins.
+             A network with answers of its own (2.1.4.18, manual 1.4.1.13) gets a view of its own, and a view per
+             group with clients in it: those views come first (a group's clients in that network), then the
+             groups', then the networks', then everyone's, so the most specific still wins. While a zone is mapped,
+             the groups' views and everyone's hold the rest's RPZ ("no such name" for the mapped zones).
     Inputs:  v — checked vars (dns_filter_groups, dns_filter_safe_search, dns_filter_youtube, dns, domain); plan —
              the site's plan (default: the copy last read; split_answers).
-    Returns: {"safe_zone": everyone's safe-search zone or None, "groups": [{name, match, rules_zone, safe_zone}],
-             "splits": split_answers' VLANs, "pairs": [{the group's fields, "name": "<group>-<view>", "match" (the
-             group's clients in the VLAN), "split" (the VLAN's rpz)}], "vlans": [{"name" (its view), "match" (its
-             subnets), "split" (its rpz)}]}.
+    Returns: {"safe_zone": everyone's safe-search zone or None, "groups": [{name, match, rules_zone, safe_zone,
+             split (the rest's rpz, or None)}], "splits": split_answers' views, "rest": its rest (or None), "pairs":
+             [{the group's fields, "name": "<group>-<view>", "match" (the group's clients in the network), "split"
+             (the network's rpz)}], "subnets": [{"name" (its view), "match" ([the network]), "split" (its rpz)}]}.
     Fails:   never.
     Feeds:   dns_filter/deploy_resolver."""
     matches = _matches(v.get("dns_filter_groups") or [])
@@ -70,8 +71,11 @@ def resolver_views(v, plan=None):
                "safe_zone": SAFE_ZONES[g["youtube"]] if g["safe_search"] else None}
               for g in v.get("dns_filter_groups") or []]
     safe = SAFE_ZONES[v.get("dns_filter_youtube") or "strict"] if v.get("dns_filter_safe_search") else None
-    splits = split_answers(v, plan)
+    answers = split_answers(v, plan)
+    splits, rest = answers["views"], answers["rest"]
+    groups = [{**g, "split": rest["rpz"] if rest else None} for g in groups]
     pairs = [{**g, "name": f"{g['name']}-{s['view']}", "group": g["name"], "match": _inside(g["match"], s["cidrs"]),
               "split": s["rpz"]} for s in splits for g in groups]
-    return {"safe_zone": safe, "groups": groups, "splits": splits, "pairs": [p for p in pairs if p["match"]],
-            "vlans": [{"name": s["view"], "match": s["cidrs"], "split": s["rpz"]} for s in splits]}
+    return {"safe_zone": safe, "groups": groups, "splits": splits, "rest": rest,
+            "pairs": [p for p in pairs if p["match"]],
+            "subnets": [{"name": s["view"], "match": s["cidrs"], "split": s["rpz"]} for s in splits]}

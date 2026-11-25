@@ -118,6 +118,7 @@ tr.addrow:not(:has(option[value="SRV"]:checked)) .f-srv{display:none}
 table.records td.rowact{white-space:nowrap;text-align:right}table.records code{overflow-wrap:anywhere}
 table.records .inline{display:flex;flex-wrap:wrap;gap:6px}table.records .inline input{flex:1 1 10em;min-width:0}
 table.records .inline input.num{flex:0 0 5.5em}
+.networks,.splitbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px}.networks form.inline,.splitbar form.inline{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.checks{display:inline-flex;flex-wrap:wrap;gap:4px 12px}.checks label{display:flex;gap:6px;align-items:center;white-space:nowrap;font-size:.9em}.checks input{width:auto;flex:none}
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;margin-left:4px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);cursor:pointer;vertical-align:middle}
 .iconbtn:hover,.iconbtn:focus-visible{background:var(--surface-2)}
 .iconbtn.danger{color:var(--bad)}
