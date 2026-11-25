@@ -77,6 +77,7 @@ Nothing here yet — nothing to operate on its own: see [1.1](../volume_1_descri
 - [4.8.5 My account](4.8.5-my-account.md)
 - [4.8.6 Reaching a device's Cockpit through fabric](4.8.6-cockpit.md)
 - 4.8.9 Console read cache — nothing to operate until 0.9.3 builds it: see [1.8.9](../volume_1_description_and_architecture/1.8.9-console-read-cache.md)
+- 4.8.10 Proxied apps — nothing to operate until 0.10.3 builds it: see [1.8.10](../volume_1_description_and_architecture/1.8.10-proxied-apps.md)
 
 ## 4.9 Federation
 

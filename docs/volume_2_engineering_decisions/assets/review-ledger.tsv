@@ -124,6 +124,7 @@ docs/volume_1_description_and_architecture/1.6.8-rbac.md	b9045e7ff40cb17f0f45093
 docs/volume_1_description_and_architecture/1.6.9-directory.md	c558e9ca3311c24aa6b6f6165155254d11bf8639	2026-10-20	
 docs/volume_1_description_and_architecture/1.7.1-openbao.md	145e1b76f582c1a5bb889da30fff46da6d532fc1	2026-11-16	
 docs/volume_1_description_and_architecture/1.8.1-webui-architecture.md	3e965aa6440a866d5fb8ad6ce290e3c98ae98f8c	2026-10-23	
+docs/volume_1_description_and_architecture/1.8.10-proxied-apps.md	03c1da19231034400a280acdaed3bdd8b8b0b05b	2026-11-25	
 docs/volume_1_description_and_architecture/1.8.2-webui-security.md	2b43d412e2fb4ef47215c436a48bce8830d941fa	2026-11-14	
 docs/volume_1_description_and_architecture/1.8.3-single-pane.md	808634d3a80eb23100726babccde1c311b8af2c8	2026-10-17	
 docs/volume_1_description_and_architecture/1.8.4-webui.md	39217755a58747a679510a3109b1570af664d412	2026-10-23	
@@ -140,10 +141,10 @@ docs/volume_1_description_and_architecture/1.9.5-attachment.md	5fd20315b3ef7d37b
 docs/volume_1_description_and_architecture/1.9.6-changes.md	e9adfe7f7a69c183701fb59d163d7eef196c6e39	2026-10-24	
 docs/volume_1_description_and_architecture/1.9.7-milestones.md	e58afe5eb9d02da03a309c838c2b86be04419123	2026-10-12	
 docs/volume_1_description_and_architecture/1.9.8-federation-on-ad.md	3affd2890c9772cb1fac86f199e5e871787ff9f2	2026-11-04	
-docs/volume_1_description_and_architecture/README.md	81c00c0829345d08ded2e5c4ebc97977e2aed8c0	2026-11-19	
+docs/volume_1_description_and_architecture/README.md	2f2e4227ca582216427f00aea19bae09e3a4d402	2026-11-25	
 docs/volume_1_description_and_architecture/assets/README.md	86d7bcef82d7904af7662fdf5684924b409f9a9c	2026-10-23	
 docs/volume_1_description_and_architecture/assets/stig-checklist.tsv	cbad7e90c2ac64a84d6f8fd4f573fa54ab739022	2026-10-25	
-docs/volume_2_engineering_decisions/2.1.1-product.md	274e545aaceef8c66fae0dfdb10f404c7b419660	2026-11-25	
+docs/volume_2_engineering_decisions/2.1.1-product.md	b50073a768233e9365b2cc36b3cbad9c21b4a1f6	2026-11-25	
 docs/volume_2_engineering_decisions/2.1.10-dhcp.md	88fb812a2241df9161cc991f734b990a9d579daa	2026-11-15	
 docs/volume_2_engineering_decisions/2.1.11-radius.md	3f69f3e7715c3622616ad0533798e0d9214a85ae	2026-11-07	
 docs/volume_2_engineering_decisions/2.1.12-dns-filter.md	515f4b543f91a0cf387eba583d2b143ec8458d85	2026-11-08	
@@ -208,7 +209,7 @@ docs/volume_3_installation/3.5.1-pki-before-install.md	fe4159103da796d8616041f0d
 docs/volume_3_installation/3.5.2-subordinate-ca.md	d84ac7e3817c58047a6317cdbff214f52895ed6e	2026-10-11	
 docs/volume_3_installation/3.8.1-cockpit-proxy.md	47f288236b364c1488d3ba03669e3205395dbe02	2026-10-30	
 docs/volume_3_installation/3.9.1-joining.md	97a63db531d513a61ec9d1b542d2ab96d91b4653	2026-10-31	
-docs/volume_3_installation/README.md	f7659c7e8c6d8c605dfab909191b8bd7e67be343	2026-11-23	
+docs/volume_3_installation/README.md	14da9e40d88e9b03eb46d3d8fed4a6cfb1cfaf9d	2026-11-25	
 docs/volume_4_operations/4.10.1-dhcp.md	bd18863bc973f0ee549798a38a9367e86491b68e	2026-10-24	
 docs/volume_4_operations/4.10.2-address-manager.md	586ecd1b6eb33040bf841fbb74d1e7da5307f1d4	2026-11-14	
 docs/volume_4_operations/4.11.1-radius.md	e00bb81fee4e2542835a17c74d53eae4d5fa4562	2026-10-23	
@@ -250,7 +251,7 @@ docs/volume_4_operations/4.8.5-my-account.md	529555b06ddb1c979a7c0ee7386b26c1ea1
 docs/volume_4_operations/4.8.6-cockpit.md	9c5f6be7cc6469b8c07ff4432beda5778fc048bb	2026-10-30	
 docs/volume_4_operations/4.9.1-federation.md	1e5b8cf9461127e6ee19521cd08fda278dbd159d	2026-11-15	
 docs/volume_4_operations/4.9.2-address-plan.md	695bf8e260b9df9fd7d41a9e9d13019664765a25	2026-10-08	
-docs/volume_4_operations/README.md	2b0a88549045b834a2df728ea8d01e0e93226f34	2026-11-23	
+docs/volume_4_operations/README.md	60dd9db9a985acf22238462c931578ab5b5327e9	2026-11-25	
 examples/README.md	8350c988c36d9098f3a1ae7945d585541264ea22	2026-10-03	
 examples/vars.yaml	d75182702ec5ab64aa29362d8703ce3b22a03cce	2026-10-12	
 packaging/README.md	f76df13474fd5f9ac5f058f26ec7b5f525952cc2	2026-10-08	
